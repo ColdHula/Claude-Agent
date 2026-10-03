@@ -1,0 +1,16 @@
+{
+  "name": "kantor-pga",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tim agent Claude untuk PGA PGD: 1 Pemimpin + 8 spesialis, dengan visualisasi kantor bergaya The Sims.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "demo": "DEMO=1 node server.js",
+    "check": "node --check server.js && node --check src/agents.js && node --check src/orchestrator.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0"
+  }
+}

@@ -1,0 +1,1243 @@
+<title>Kantor PGA</title>
+<meta name="description" content="Kantor virtual tim agent Claude PGA PGD bergaya The Sims">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: bar atas ala HUD The Sims → panggung kantor isometrik (kiri) + panel Sim (kanan) → kotak tugas di bawah panggung.
+   Satu dunia visual (UI Sims: panel putih, biru Sims, plumbob hijau), sengaja satu tema. */
+:root {
+  --sky: #cfe9f7;          /* latar halaman */
+  --sky-deep: #9fd0ee;
+  --panel: #ffffff;
+  --panel-2: #eef6fc;
+  --ink: #17324d;          /* teks utama */
+  --ink-soft: #55708a;
+  --sims-blue: #1769c9;    /* aksen utama UI */
+  --sims-blue-2: #3b9be8;
+  --plumbob: #3fc948;      /* status baik */
+  --plumbob-dark: #1f8f2a;
+  --warn: #f2b81f;
+  --bad: #e2453c;
+  --think: #4aa3ff;
+  --line: #d4e4f1;
+  --font-display: "Fredoka", "Nunito", ui-rounded, system-ui, sans-serif;
+  --font-body: "Nunito", ui-rounded, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r-panel: 18px;
+  --shadow: 0 6px 18px rgba(23, 50, 77, .14), 0 1px 0 rgba(255,255,255,.8) inset;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: radial-gradient(1200px 600px at 30% -10%, #e9f6fd 0%, var(--sky) 45%, var(--sky-deep) 100%) fixed;
+  background-color: var(--sky);
+  color: var(--ink);
+  font: 15px/1.5 var(--font-body);
+  padding-inline: 16px;
+  padding-block: 12px 24px;
+}
+button, textarea, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--sims-blue-2); outline-offset: 2px; }
+
+.app { max-width: 1320px; margin: 0 auto; display: grid; gap: 14px; }
+
+/* ---------- HUD atas ---------- */
+.hud {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+  background: linear-gradient(180deg, #ffffff, #e8f3fc);
+  border: 2px solid #fff; border-radius: 999px; box-shadow: var(--shadow);
+  padding: 8px 10px 8px 14px;
+}
+.lot { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lot-gem { width: 22px; height: 34px; flex: none; }
+.lot h1 { font: 700 22px/1.1 var(--font-display); margin: 0; letter-spacing: .2px; }
+.lot small { display: block; color: var(--ink-soft); font-weight: 700; font-size: 12px; letter-spacing: .4px; text-transform: uppercase; }
+.hud-spacer { flex: 1; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--line); padding: 5px 12px;
+  font-weight: 800; font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.pill.mode-demo { background: #fff4d6; border-color: #f3dc94; color: #7a5600; }
+.pill.mode-live { background: #dff7e1; border-color: #a8e2ad; color: #1d6b25; }
+.simoleon { color: var(--plumbob-dark); font-family: var(--font-display); font-size: 15px; }
+.speed { display: inline-flex; background: var(--sims-blue); border-radius: 999px; padding: 3px; gap: 2px; }
+.speed button {
+  border: 0; background: transparent; color: #fff; width: 34px; height: 28px; border-radius: 999px;
+  font-weight: 800; font-size: 12px; letter-spacing: -2px;
+}
+.speed button[aria-pressed="true"] { background: #fff; color: var(--sims-blue); }
+
+/* ---------- Area utama ---------- */
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+@media (max-width: 960px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.stage-wrap {
+  position: relative; border-radius: 22px; overflow: hidden;
+  background: linear-gradient(180deg, #7cc4ea 0%, #b6e1f6 60%, #d7effa 100%);
+  border: 3px solid #fff; box-shadow: var(--shadow);
+}
+#office { display: block; width: 100%; height: auto; cursor: pointer; touch-action: manipulation; }
+.toasts { position: absolute; left: 12px; top: 12px; display: grid; gap: 8px; width: min(320px, calc(100% - 24px)); pointer-events: none; }
+.toast {
+  display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 10px; align-items: center;
+  background: rgba(255,255,255,.96); border-radius: 14px; padding: 8px 12px 8px 8px;
+  box-shadow: 0 6px 16px rgba(23,50,77,.22); border-left: 5px solid var(--sims-blue-2);
+  font-size: 13px; animation: toast-in .35s ease-out;
+}
+.toast b { font-family: var(--font-display); font-weight: 600; font-size: 14px; display: block; }
+.toast .av { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 17px; background: var(--panel-2); }
+.toast.good { border-left-color: var(--plumbob); }
+.toast.bad { border-left-color: var(--bad); }
+@keyframes toast-in { from { transform: translateX(-20px); opacity: 0; } }
+.stage-legend {
+  position: absolute; right: 12px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end;
+  font-size: 12px; font-weight: 800;
+}
+.stage-legend span { background: rgba(255,255,255,.88); border-radius: 999px; padding: 3px 9px 3px 6px; display: inline-flex; gap: 5px; align-items: center; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+/* ---------- Kotak tugas ---------- */
+.composer {
+  background: var(--panel); border-radius: var(--r-panel); box-shadow: var(--shadow); padding: 14px;
+  display: grid; gap: 10px; border: 2px solid #fff;
+}
+.composer-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.composer-head h2 { font: 600 18px/1.2 var(--font-display); margin: 0; }
+.composer-head p { margin: 0; color: var(--ink-soft); font-size: 13px; flex: 1 1 220px; }
+#task {
+  width: 100%; min-height: 84px; resize: vertical; border-radius: 14px; border: 2px solid var(--line);
+  background: var(--panel-2); padding: 10px 12px; line-height: 1.45;
+}
+#task:focus { border-color: var(--sims-blue-2); outline: none; background: #fff; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 4px 10px;
+  font-size: 12.5px; font-weight: 700; color: var(--sims-blue);
+}
+.chip:hover { background: var(--panel-2); }
+.composer-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn-sims {
+  border: 0; border-radius: 999px; padding: 10px 20px; font: 600 16px/1 var(--font-display);
+  color: #fff; background: linear-gradient(180deg, #4fb0ff, var(--sims-blue)); box-shadow: 0 3px 0 #0d4f9c, 0 6px 14px rgba(23,105,201,.3);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-sims:active { transform: translateY(2px); box-shadow: 0 1px 0 #0d4f9c; }
+.btn-sims:disabled { filter: grayscale(.6); opacity: .6; cursor: not-allowed; }
+.btn-ghost { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 13px; }
+.btn-ghost:hover { background: var(--panel-2); }
+.hint { font-size: 12.5px; color: var(--ink-soft); }
+
+/* ---------- Panel kanan ---------- */
+.side { display: grid; gap: 14px; min-width: 0; }
+.card { background: var(--panel); border-radius: var(--r-panel); box-shadow: var(--shadow); border: 2px solid #fff; padding: 14px; min-width: 0; }
+.card h3 { font: 600 16px/1.2 var(--font-display); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.card h3 .count { margin-left: auto; font: 800 12px var(--font-body); color: var(--ink-soft); }
+
+.team { display: grid; gap: 4px; }
+.member {
+  display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 10px; align-items: center;
+  border: 0; background: transparent; text-align: left; padding: 6px 8px; border-radius: 12px; width: 100%;
+}
+.member:hover { background: var(--panel-2); }
+.member[aria-current="true"] { background: #e2f0fd; box-shadow: inset 0 0 0 2px var(--sims-blue-2); }
+.member .face { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+.member .nm { font-weight: 800; font-size: 14px; line-height: 1.15; }
+.member .rl { font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 2px 8px; white-space: nowrap; display: inline-flex; gap: 4px; align-items: center; }
+.st-idle { background: #e5f7e6; color: #1d6b25; }
+.st-working { background: #fff3cf; color: #7a5600; }
+.st-thinking, .st-reviewing { background: #e0efff; color: #0f4f9a; }
+.st-done { background: #d9f6dc; color: #136b1f; }
+.st-error { background: #fde3e1; color: #9a1f17; }
+
+.detail-top { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 12px; align-items: center; margin-bottom: 10px; }
+#portrait { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(180deg, #e6f3fd, #c9e5f9); }
+.detail-top h4 { margin: 0; font: 600 20px/1.1 var(--font-display); }
+.detail-top p { margin: 2px 0 0; color: var(--ink-soft); font-size: 13px; }
+.needs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 8px 0 10px; }
+.need { font-size: 11.5px; font-weight: 800; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .5px; }
+.need .bar { height: 9px; border-radius: 999px; background: #e3edf5; overflow: hidden; margin-top: 3px; box-shadow: inset 0 1px 2px rgba(0,0,0,.12); }
+.need .fill { height: 100%; border-radius: inherit; transition: width .6s, background-color .6s; }
+.task-box { background: var(--panel-2); border-radius: 12px; padding: 10px 12px; font-size: 13px; }
+.task-box .lbl { font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--ink-soft); }
+.task-box p { margin: 2px 0 0; overflow-wrap: anywhere; }
+.task-box + .task-box { margin-top: 8px; }
+.preview { max-height: 120px; overflow: auto; white-space: pre-wrap; font-size: 12.5px; margin-top: 4px; overflow-wrap: anywhere; }
+.detail-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+.log { display: grid; gap: 6px; max-height: 260px; overflow: auto; padding-right: 2px; }
+.log-item { display: grid; grid-template-columns: 44px minmax(0,1fr); gap: 8px; font-size: 13px; }
+.log-item time { color: var(--ink-soft); font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; padding-top: 1px; }
+.log-item div { overflow-wrap: anywhere; }
+.log-empty { color: var(--ink-soft); font-size: 13px; }
+.history { display: grid; gap: 6px; }
+.history button { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 8px 10px; font-size: 13px; font-weight: 700; }
+.history button:hover { background: var(--panel-2); }
+.history small { display: block; color: var(--ink-soft); font-weight: 600; }
+
+/* ---------- Modal hasil ---------- */
+dialog#result {
+  border: 0; padding: 0; border-radius: 22px; width: min(860px, calc(100vw - 32px)); max-height: calc(100vh - 40px);
+  box-shadow: 0 20px 60px rgba(10,30,60,.4); background: var(--panel); color: var(--ink);
+}
+dialog#result::backdrop { background: rgba(14, 40, 70, .45); }
+.modal-head {
+  display: flex; align-items: center; gap: 10px; padding: 14px 18px; flex-wrap: wrap;
+  background: linear-gradient(180deg, #4fb0ff, var(--sims-blue)); color: #fff;
+}
+.modal-head h2 { margin: 0; font: 600 20px/1.2 var(--font-display); flex: 1 1 200px; }
+.modal-head .btn-ghost { background: rgba(255,255,255,.95); color: var(--sims-blue); border: 0; }
+.modal-body { padding: 18px 22px 24px; overflow: auto; max-height: calc(100vh - 120px); }
+.md { line-height: 1.6; max-width: 72ch; }
+.md h1 { font: 600 24px/1.25 var(--font-display); margin: 0 0 8px; text-wrap: balance; }
+.md h2 { font: 600 19px/1.3 var(--font-display); margin: 22px 0 6px; color: var(--sims-blue); text-wrap: balance; }
+.md h3 { font: 700 16px/1.3 var(--font-body); margin: 16px 0 4px; }
+.md p { margin: 6px 0; }
+.md ul, .md ol { margin: 6px 0; padding-left: 22px; }
+.md code { background: var(--panel-2); border-radius: 6px; padding: 1px 5px; font-size: .92em; }
+.md pre { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; overflow-x: auto; }
+.md pre code { background: none; padding: 0; }
+.md blockquote { margin: 8px 0; padding: 6px 12px; border-left: 4px solid var(--sims-blue-2); background: var(--panel-2); border-radius: 0 10px 10px 0; }
+.md hr { border: 0; border-top: 2px dashed var(--line); margin: 18px 0; }
+.md .tbl { overflow-x: auto; margin: 8px 0; }
+.md table { border-collapse: collapse; font-size: 13.5px; min-width: 100%; }
+.md th, .md td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+.md th { background: var(--panel-2); font-weight: 800; }
+.md a { color: var(--sims-blue); }
+.md .chk { display: inline-block; width: 16px; height: 16px; border-radius: 4px; margin-right: 6px; vertical-align: -3px; border: 2px solid var(--plumbob-dark); }
+.md .chk.on { background: var(--plumbob); }
+details.work { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; margin-top: 8px; }
+details.work summary { cursor: pointer; font-weight: 800; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+@media (max-width: 560px) {
+  .hud { border-radius: 22px; }
+  .lot h1 { font-size: 19px; }
+  .stage-legend { display: none; }
+}
+</style>
+
+<div class="app">
+  <header class="hud">
+    <div class="lot">
+      <svg class="lot-gem" viewBox="0 0 22 34" aria-hidden="true">
+        <defs><linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#8ef08f"/><stop offset=".5" stop-color="#3fc948"/><stop offset="1" stop-color="#1f8f2a"/></linearGradient></defs>
+        <path d="M11 0 L22 15 L11 34 L0 15 Z" fill="url(#g1)" stroke="#1a7a24" stroke-width="1.2"/>
+        <path d="M11 0 L11 34 M0 15 L22 15" stroke="rgba(255,255,255,.45)" stroke-width="1"/>
+      </svg>
+      <div><small>Lot · PT Perkasa Gemilang Distrindo</small><h1>Kantor PGA</h1></div>
+    </div>
+    <div class="hud-spacer"></div>
+    <span class="pill" id="modePill">Memeriksa…</span>
+    <span class="pill" title="Perkiraan biaya Claude API untuk tugas ini (USD)"><span class="simoleon">§</span><span id="cost">0,00</span></span>
+    <span class="pill" id="clock">--</span>
+    <div class="speed" role="group" aria-label="Kecepatan animasi">
+      <button data-speed="0" aria-pressed="false" title="Jeda">❚❚</button>
+      <button data-speed="1" aria-pressed="true" title="Normal">▶</button>
+      <button data-speed="2" aria-pressed="false" title="Cepat">▶▶</button>
+      <button data-speed="3" aria-pressed="false" title="Sangat cepat">▶▶▶</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div style="display:grid; gap:14px; min-width:0">
+      <div class="stage-wrap">
+        <canvas id="office" width="800" height="560" aria-label="Kantor PGA: Pemimpin Bima dan 8 agent di meja masing-masing"></canvas>
+        <div class="toasts" id="toasts" aria-live="polite"></div>
+        <div class="stage-legend" aria-hidden="true">
+          <span><i class="dot" style="background:var(--plumbob)"></i>Siap</span>
+          <span><i class="dot" style="background:var(--warn)"></i>Bekerja</span>
+          <span><i class="dot" style="background:var(--think)"></i>Berpikir / memeriksa</span>
+          <span><i class="dot" style="background:var(--bad)"></i>Masalah</span>
+        </div>
+      </div>
+
+      <form class="composer" id="composer">
+        <div class="composer-head">
+          <h2>Kirim tugas ke Bima (Pemimpin)</h2>
+          <p>Tulis tugas sekali saja. Bima membagi ke agent yang tepat, memeriksa hasilnya, lalu menyerahkan hasil akhir.</p>
+        </div>
+        <label class="sr" for="task">Tugas</label>
+        <textarea id="task" placeholder="Contoh: Buat BA kehilangan 2 karton produk di gudang cabang Bekasi, ditemukan saat stock opname 30 September 2026."></textarea>
+        <div class="chips" id="chips" aria-label="Contoh perintah uji"></div>
+        <div class="composer-actions">
+          <button class="btn-sims" id="send" type="submit">Kirim ke Pemimpin ➜</button>
+          <button class="btn-ghost" id="cancel" type="button" hidden>Batalkan</button>
+          <span class="hint" id="hint">Ctrl + Enter untuk kirim.</span>
+        </div>
+      </form>
+    </div>
+
+    <aside class="side">
+      <section class="card" aria-labelledby="teamTitle">
+        <h3 id="teamTitle">Tim <span class="count" id="teamCount"></span></h3>
+        <div class="team" id="team"></div>
+      </section>
+
+      <section class="card" aria-labelledby="detailName">
+        <div class="detail-top">
+          <canvas id="portrait" width="128" height="128" aria-hidden="true"></canvas>
+          <div><h4 id="detailName">—</h4><p id="detailRole"></p><p id="detailStatus"></p></div>
+        </div>
+        <div class="needs" id="needs"></div>
+        <div class="task-box"><div class="lbl">Tugas saat ini</div><p id="detailTask">Belum ada tugas.</p></div>
+        <div class="task-box"><div class="lbl">Hasil terakhir</div><div class="preview" id="detailOutput">—</div></div>
+        <div class="detail-actions"><button class="btn-ghost" id="openOutput" type="button" disabled>Buka hasil lengkap</button></div>
+      </section>
+
+      <section class="card" aria-labelledby="logTitle">
+        <h3 id="logTitle">Aktivitas kantor</h3>
+        <div class="log" id="log"><p class="log-empty">Belum ada aktivitas. Kirim tugas pertama Anda.</p></div>
+      </section>
+
+      <section class="card" aria-labelledby="histTitle">
+        <h3 id="histTitle">Hasil selesai <span class="count" id="histCount">0</span></h3>
+        <div class="history" id="history"><p class="log-empty">Hasil akhir dari Bima muncul di sini.</p></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<dialog id="result" aria-labelledby="resultTitle">
+  <div class="modal-head">
+    <h2 id="resultTitle">Hasil akhir</h2>
+    <button class="btn-ghost" id="copyResult" type="button">Salin</button>
+    <button class="btn-ghost" id="downloadResult" type="button">Unduh .md</button>
+    <button class="btn-ghost" id="closeResult" type="button">Tutup</button>
+  </div>
+  <div class="modal-body"><div class="md" id="resultBody"></div><div id="resultWork"></div></div>
+</dialog>
+
+<script>
+"use strict";
+/* =====================================================================
+   DATA TIM — sama dengan src/agents.js (ROSTER)
+   ===================================================================== */
+const LEADER = { id: "pemimpin", sim: "Bima", title: "Pemimpin", icon: "⭐",
+  look: { shirt: "#2c3e66", pants: "#1d2638", skin: "#c98f63", hair: "#2b1d14", hairStyle: "short", tie: "#d63b3b" } };
+const ROSTER = [
+  { id: "surat-ba", sim: "Sari", title: "Surat & BA", icon: "📄", web: false, look: { shirt: "#e86f9a", pants: "#3c4a6b", skin: "#e0aa80", hair: "#3a2416", hairStyle: "long" } },
+  { id: "kepatuhan-perizinan", sim: "Dimas", title: "Kepatuhan & Perizinan", icon: "⚖️", web: true, look: { shirt: "#5a7fd6", pants: "#2e3440", skin: "#b8794f", hair: "#1b1410", hairStyle: "short" } },
+  { id: "data-rekap", sim: "Rina", title: "Data & Rekap", icon: "📊", web: false, look: { shirt: "#2bb3a3", pants: "#40384f", skin: "#f0c09a", hair: "#6b3b1d", hairStyle: "bun" } },
+  { id: "sop-k3-vendor", sim: "Joko", title: "SOP, K3 & Vendor", icon: "🦺", web: false, look: { shirt: "#f28b2c", pants: "#3b4b33", skin: "#a96c45", hair: "#151010", hairStyle: "helmet" } },
+  { id: "email-kalender", sim: "Maya", title: "Email & Kalender", icon: "✉️", web: false, look: { shirt: "#9b6be0", pants: "#2f3a55", skin: "#e8b48e", hair: "#20140c", hairStyle: "hijab", hijab: "#d9a5c9" } },
+  { id: "chrome-portal", sim: "Andi", title: "Chrome & Portal", icon: "🌐", web: false, look: { shirt: "#3aa0d8", pants: "#28303c", skin: "#c88a5c", hair: "#2a1a10", hairStyle: "spiky" } },
+  { id: "cari-cuan", sim: "Budi", title: "Cari Cuan", icon: "💰", web: true, look: { shirt: "#4fbf5a", pants: "#5a4632", skin: "#b07a52", hair: "#111", hairStyle: "cap", cap: "#f2c12e" } },
+  { id: "riset", sim: "Laras", title: "Riset", icon: "🔎", web: true, look: { shirt: "#d9534f", pants: "#2c3446", skin: "#efc3a0", hair: "#4a2a18", hairStyle: "bob", glasses: true } },
+];
+const EXAMPLES = [
+  ["BA kehilangan Bekasi", "Buat BA kehilangan 2 karton produk di gudang cabang Bekasi, ditemukan saat stock opname 30 September 2026."],
+  ["Izin habis < Jan 2027", "Dari file rekap, izin cabang mana yang habis sebelum Januari 2027? Susun rencana perpanjangannya."],
+  ["Rekap keterlambatan", "Ini CSV fingerprint September. Buat rekap pelanggaran keterlambatan per departemen, pisahkan DKI dan Banten."],
+  ["SOP tumpahan MMEA", "Buat SOP penanganan tumpahan produk MMEA di gudang, termasuk tabel bahaya dan pengendaliannya."],
+  ["Triase inbox", "Cek inbox 2 hari terakhir, lalu buatkan draf balasan untuk yang SEGERA."],
+  ["Portal absensi", "Buka menu laporan absensi di portal, tampilkan data cabang Kalideres bulan September, jangan ubah apa pun."],
+  ["5 peluang cuan", "Dengan 8 jam/minggu dan modal Rp5 juta, beri 5 peluang dan pilih satu untuk diuji bulan ini."],
+  ["Riset Permenaker 11/2026", "Riset kewajiban perusahaan setelah Permenaker 11/2026 berlaku, dan apa yang harus disiapkan PGA sebelum pengawas datang."],
+];
+const SIMLISH = ["Sul sul!", "Dag dag!", "Vadish!", "Fredishay!", "Sh'boo!", "Nooboo!", "Litzergam!", "Woohoo!"];
+
+/* =====================================================================
+   PETA KANTOR (grid isometrik)
+   ===================================================================== */
+const COLS = 14, ROWS = 11, TW = 64, TH = 32, OX = ROWS * TW / 2 + 0, OY = 140;
+const W = 800, H = 560;
+const iso = (gx, gy) => ({ x: (gx - gy) * TW / 2 + OX, y: (gx + gy) * TH / 2 + OY });
+
+// Meja kerja: baris depan & belakang. Kursi (seat) di belakang meja agar wajah Sim terlihat.
+const DESK_SPOTS = [[2,5],[4,5],[6,5],[8,5],[2,8],[4,8],[6,8],[8,8]];
+const LEADER_DESK = { tiles: [[11,3],[12,3]], seat: [12,2] };
+const blocked = new Set();
+const key = (x, y) => x + "," + y;
+const objects = []; // furnitur yang di-sort berdasarkan kedalaman
+
+function addObj(o) { objects.push(o); (o.tiles || []).forEach(([x, y]) => blocked.add(key(x, y))); }
+
+DESK_SPOTS.forEach(([x, y], i) => addObj({ kind: "desk", tiles: [[x, y]], depth: x + y + 1, gx: x, gy: y, agent: i }));
+addObj({ kind: "bossdesk", tiles: LEADER_DESK.tiles, depth: 12 + 3 + 1, gx: 11, gy: 3 });
+addObj({ kind: "shelf", tiles: [[0, 2], [0, 3]], depth: 0 + 3 + 1, gx: 0, gy: 2 });
+addObj({ kind: "coffee", tiles: [[0, 8]], depth: 9, gx: 0, gy: 8 });
+addObj({ kind: "cooler", tiles: [[6, 0]], depth: 7, gx: 6, gy: 0 });
+addObj({ kind: "plant", tiles: [[13, 10]], depth: 24, gx: 13, gy: 10 });
+addObj({ kind: "plant", tiles: [[0, 10]], depth: 11, gx: 0, gy: 10 });
+addObj({ kind: "plant", tiles: [[9, 0]], depth: 10, gx: 9, gy: 0 });
+addObj({ kind: "sofa", tiles: [[13, 6], [13, 7], [13, 8]], depth: 13 + 8 + 1, gx: 13, gy: 6 });
+addObj({ kind: "table", tiles: [[11, 7]], depth: 19, gx: 11, gy: 7 });
+addObj({ kind: "printer", tiles: [[10, 10]], depth: 21, gx: 10, gy: 10 });
+
+const IDLE_SPOTS = [
+  { at: [1, 8], icon: "☕", label: "Ngopi dulu" },
+  { at: [6, 1], icon: "💧", label: "Minum air" },
+  { at: [1, 3], icon: "📚", label: "Baca arsip" },
+  { at: [12, 7], icon: "🛋️", label: "Rehat sebentar" },
+  { at: [10, 9], icon: "🖨️", label: "Ambil print" },
+  { at: [3, 1], icon: "🪟", label: "Lihat jendela" },
+  { at: [10, 7], icon: "💬", label: "Ngobrol" },
+];
+
+function bfs(from, to) {
+  const [sx, sy] = from, [tx, ty] = to;
+  if (sx === tx && sy === ty) return [];
+  const prev = new Map([[key(sx, sy), null]]);
+  const q = [[sx, sy]];
+  while (q.length) {
+    const [x, y] = q.shift();
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = x + dx, ny = y + dy, k = key(nx, ny);
+      if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS || prev.has(k)) continue;
+      if (blocked.has(k) && !(nx === tx && ny === ty)) continue;
+      prev.set(k, [x, y]);
+      if (nx === tx && ny === ty) {
+        const path = []; let cur = [nx, ny];
+        while (cur && !(cur[0] === sx && cur[1] === sy)) { path.unshift(cur); cur = prev.get(key(cur[0], cur[1])); }
+        return path;
+      }
+      q.push([nx, ny]);
+    }
+  }
+  return [];
+}
+
+/* =====================================================================
+   SIM
+   ===================================================================== */
+const STATUS_TEXT = { idle: "Siap", working: "Bekerja", thinking: "Berpikir", reviewing: "Memeriksa", done: "Selesai", error: "Ada masalah" };
+const STATUS_ICON = { idle: "●", working: "✎", thinking: "💭", reviewing: "🔎", done: "✓", error: "!" };
+
+class Sim {
+  constructor(def, seat, isLeader) {
+    Object.assign(this, def);
+    this.isLeader = !!isLeader;
+    this.seat = seat;
+    this.x = seat[0] + .5; this.y = seat[1] + .5;
+    this.path = []; this.actions = []; this.wait = 0;
+    this.status = "idle"; this.bubble = null; this.carrying = false; this.jump = 0;
+    this.facing = 1; this.walkPhase = Math.random() * 6;
+    this.needs = { energi: 70 + Math.random() * 25, fokus: 70 + Math.random() * 25, sosial: 50 + Math.random() * 40, senang: 60 + Math.random() * 30 };
+    this.idleTimer = 8 + Math.random() * 20;
+    this.task = null; this.output = null; this.chars = 0;
+  }
+  get tile() { return [Math.floor(this.x), Math.floor(this.y)]; }
+  get atSeat() { return !this.path.length && Math.floor(this.x) === this.seat[0] && Math.floor(this.y) === this.seat[1]; }
+  get seated() { return this.atSeat && this.jump <= 0 && !this.standing; }
+  say(icon, text, ms = 2600) { this.bubble = { icon, text: text || "", until: now + ms }; }
+  // Mengganti antrean aksi (dipakai saat ada tugas baru yang lebih penting dari jalan-jalan).
+  interrupt() { this.actions = []; this.wait = 0; this.standing = false; const t = this.tile; this.path = []; this.x = t[0] + .5; this.y = t[1] + .5; }
+  queue(...acts) { this.actions.push(...acts); }
+  update(dt) {
+    if (this.jump > 0) this.jump -= dt;
+    if (this.bubble && now > this.bubble.until) this.bubble = null;
+    // kebutuhan ala Sims
+    const n = this.needs, busy = this.status === "working" || this.status === "reviewing" || this.status === "thinking";
+    n.energi = clamp(n.energi - dt * (busy ? 0.9 : 0.12), 5, 100);
+    n.fokus = clamp(n.fokus + dt * (busy ? -0.6 : 0.4), 5, 100);
+    n.sosial = clamp(n.sosial - dt * 0.15, 5, 100);
+    n.senang = clamp(n.senang + dt * (this.status === "done" ? 0.8 : -0.05), 5, 100);
+
+    if (this.path.length) {
+      const [tx, ty] = this.path[0];
+      const gx = tx + .5, gy = ty + .5, dx = gx - this.x, dy = gy - this.y;
+      const d = Math.hypot(dx, dy), step = dt * 2.6;
+      if (dx - dy !== 0) this.facing = (dx - dy) > 0 ? 1 : -1;
+      this.walkPhase += dt * 12;
+      if (d <= step) { this.x = gx; this.y = gy; this.path.shift(); }
+      else { this.x += dx / d * step; this.y += dy / d * step; }
+      return;
+    }
+    if (this.wait > 0) { this.wait -= dt; return; }
+    const a = this.actions.shift();
+    if (!a) { this.idleBehaviour(dt); return; }
+    if (a.walk) { this.path = bfs(this.tile, a.walk); this.standing = true; if (a.walk[0] === this.seat[0] && a.walk[1] === this.seat[1]) this.standing = false; }
+    else if (a.wait) this.wait = a.wait;
+    else if (a.fn) a.fn(this);
+  }
+  idleBehaviour(dt) {
+    if (this.isLeader) return;
+    if (this.status !== "idle" && this.status !== "done") return;
+    if (!this.atSeat) { this.queue({ walk: this.seat }); return; }
+    this.idleTimer -= dt;
+    if (this.idleTimer > 0) return;
+    this.idleTimer = 18 + Math.random() * 26;
+    const spot = IDLE_SPOTS[Math.floor(Math.random() * IDLE_SPOTS.length)];
+    const target = freeNear(spot.at);
+    this.queue({ walk: target }, { fn: (s) => { s.say(spot.icon, spot.label, 3200); s.needs.energi = Math.min(100, s.needs.energi + 25); s.needs.sosial = Math.min(100, s.needs.sosial + 12); } },
+      { wait: 3.2 }, { walk: this.seat }, { fn: (s) => { if (s.status === "done") s.status = "idle"; } });
+  }
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function freeNear([x, y]) {
+  if (!blocked.has(key(x, y))) return [x, y];
+  for (const [dx, dy] of [[1,0],[0,1],[-1,0],[0,-1],[1,1],[-1,-1]]) {
+    const nx = x + dx, ny = y + dy;
+    if (nx >= 0 && ny >= 0 && nx < COLS && ny < ROWS && !blocked.has(key(nx, ny))) return [nx, ny];
+  }
+  return [x, y];
+}
+// Tile kosong di samping kursi seseorang (untuk menyerahkan berkas).
+function besideSeat(sim, preferFrom) {
+  const [x, y] = sim.seat;
+  const seats = new Set(sims.map((s) => key(s.seat[0], s.seat[1])));
+  const opts = [[x - 1, y], [x + 1, y], [x, y - 1]].filter(([a, b]) => a >= 0 && b >= 0 && a < COLS && b < ROWS && !blocked.has(key(a, b)) && !seats.has(key(a, b)));
+  if (!opts.length) return [x, y - 1];
+  const [fx, fy] = preferFrom;
+  opts.sort((p, q) => (Math.abs(p[0] - fx) + Math.abs(p[1] - fy)) - (Math.abs(q[0] - fx) + Math.abs(q[1] - fy)));
+  return opts[0];
+}
+
+const leader = new Sim(LEADER, LEADER_DESK.seat, true);
+const workers = ROSTER.map((r, i) => new Sim(r, [DESK_SPOTS[i][0], DESK_SPOTS[i][1] - 1]));
+const sims = [leader, ...workers];
+const byId = Object.fromEntries(sims.map((s) => [s.id, s]));
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+const canvas = document.getElementById("office");
+let ctx = canvas.getContext("2d");
+let dpr = 1;
+function resize() {
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+}
+resize();
+window.addEventListener("resize", resize);
+
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) + amt, g = ((n >> 8) & 255) + amt, b = (n & 255) + amt;
+  r = clamp(r, 0, 255); g = clamp(g, 0, 255); b = clamp(b, 0, 255);
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+function poly(pts, fill, stroke) {
+  ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+}
+const up = (p, h) => ({ x: p.x, y: p.y - h });
+// Kotak isometrik: (gx,gy) sudut, w×d tile, tinggi h, z dasar.
+function box(gx, gy, w, d, h, color, z = 0) {
+  const a = up(iso(gx, gy), z), b = up(iso(gx + w, gy), z), c = up(iso(gx + w, gy + d), z), e = up(iso(gx, gy + d), z);
+  poly([e, c, up(c, h), up(e, h)], shade(color, -28));          // sisi kiri-depan
+  poly([b, c, up(c, h), up(b, h)], shade(color, -50));          // sisi kanan-depan
+  poly([up(a, h), up(b, h), up(c, h), up(e, h)], color, shade(color, -60)); // atas
+}
+
+function drawRoom(t) {
+  // lantai
+  for (let x = 0; x < COLS; x++) for (let y = 0; y < ROWS; y++) {
+    const carpet = x >= 1 && x <= 9 && y >= 3 && y <= 9;
+    const rug = x >= 10 && x <= 13 && y >= 1 && y <= 4;
+    let c;
+    if (rug) c = (x + y) % 2 ? "#b8433f" : "#c44d48";
+    else if (carpet) c = (x + y) % 2 ? "#8fa9c4" : "#98b2cc";
+    else c = (x + y) % 2 ? "#d9a86a" : "#e2b377";
+    poly([iso(x, y), iso(x + 1, y), iso(x + 1, y + 1), iso(x, y + 1)], c, rug ? "#a63a36" : carpet ? "#86a0bb" : "#c8975c");
+  }
+  // tepi lantai (tebal)
+  poly([iso(0, ROWS), iso(COLS, ROWS), up(iso(COLS, ROWS), -10), up(iso(0, ROWS), -10)], "#a8743e");
+  poly([iso(COLS, 0), iso(COLS, ROWS), up(iso(COLS, ROWS), -10), up(iso(COLS, 0), -10)], "#8d5f30");
+
+  const WH = 118;
+  // dinding kiri (sepanjang gy) & kanan (sepanjang gx)
+  poly([iso(0, 0), iso(0, ROWS), up(iso(0, ROWS), WH), up(iso(0, 0), WH)], "#a9dcc8");
+  poly([iso(0, 0), iso(COLS, 0), up(iso(COLS, 0), WH), up(iso(0, 0), WH)], "#bfe7d6");
+  // garis wallpaper
+  ctx.save(); ctx.globalAlpha = .35;
+  for (let i = 0.5; i < COLS; i += 0.5) { const p = iso(i, 0); ctx.strokeStyle = "#9fd3bf"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(p.x, p.y - 22); ctx.lineTo(p.x, p.y - WH); ctx.stroke(); }
+  for (let i = 0.5; i < ROWS; i += 0.5) { const p = iso(0, i); ctx.strokeStyle = "#8fc9b4"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(p.x, p.y - 22); ctx.lineTo(p.x, p.y - WH); ctx.stroke(); }
+  ctx.restore();
+  // lis bawah (wainscot)
+  poly([iso(0, 0), iso(COLS, 0), up(iso(COLS, 0), 22), up(iso(0, 0), 22)], "#f4f7f2");
+  poly([iso(0, 0), iso(0, ROWS), up(iso(0, ROWS), 22), up(iso(0, 0), 22)], "#e5ebe4");
+  // tepi atas dinding
+  poly([up(iso(0, 0), WH), up(iso(COLS, 0), WH), up(iso(COLS, 0), WH + 8), up(iso(0, 0), WH + 8)], "#fdfdfb");
+  poly([up(iso(0, 0), WH), up(iso(0, ROWS), WH), up(iso(0, ROWS), WH + 8), up(iso(0, 0), WH + 8)], "#eef2ee");
+
+  // jendela dinding kanan
+  for (const [a, b] of [[1.5, 4], [6.6, 8.6]]) wallWindowR(a, b, 40, 100, t);
+  // jendela dinding kiri
+  wallWindowL(5.6, 7.4, 40, 100, t);
+  // papan tulis dekat pemimpin
+  const wb = [up(iso(10, 0), 40), up(iso(12.8, 0), 40), up(iso(12.8, 0), 98), up(iso(10, 0), 98)];
+  poly(wb, "#ffffff", "#9aa7b3");
+  ctx.save(); ctx.strokeStyle = "#3b7dd8"; ctx.lineWidth = 2; ctx.beginPath();
+  const w0 = up(iso(10.4, 0), 84); ctx.moveTo(w0.x, w0.y); const w1 = up(iso(11.6, 0), 84); ctx.lineTo(w1.x, w1.y); ctx.stroke();
+  ctx.strokeStyle = "#e2453c"; ctx.beginPath(); const w2 = up(iso(10.4, 0), 70); ctx.moveTo(w2.x, w2.y); const w3 = up(iso(12.2, 0), 70); ctx.lineTo(w3.x, w3.y); ctx.stroke();
+  ctx.strokeStyle = "#3fc948"; ctx.beginPath(); const w4 = up(iso(10.4, 0), 56); ctx.moveTo(w4.x, w4.y); const w5 = up(iso(11.2, 0), 56); ctx.lineTo(w5.x, w5.y); ctx.stroke();
+  ctx.restore();
+  // papan nama di dinding kiri
+  const s0 = up(iso(0, 1.4), 92), s1 = up(iso(0, 4.6), 92), s2 = up(iso(0, 4.6), 64), s3 = up(iso(0, 1.4), 64);
+  poly([s0, s1, s2, s3], "#1769c9", "#0d4f9c");
+  ctx.save();
+  const mid = up(iso(0, 3), 78);
+  ctx.translate(mid.x, mid.y); ctx.transform(1, -0.5, 0, 1, 0, 0);
+  ctx.fillStyle = "#fff"; ctx.font = "600 15px Fredoka, Nunito, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("PGA · PGD", 0, 0);
+  ctx.restore();
+  // jam dinding
+  const cp = up(iso(5.2, 0), 80);
+  ctx.save(); ctx.translate(cp.x, cp.y); ctx.transform(1, 0.5, 0, 1, 0, 0);
+  ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = "#1769c9"; ctx.stroke();
+  const d = new Date(), hA = ((d.getHours() % 12) + d.getMinutes() / 60) / 12 * Math.PI * 2, mA = d.getMinutes() / 60 * Math.PI * 2;
+  ctx.strokeStyle = "#17324d"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(hA) * 7, -Math.cos(hA) * 7); ctx.stroke();
+  ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(mA) * 10, -Math.cos(mA) * 10); ctx.stroke();
+  ctx.restore();
+}
+function wallWindowR(a, b, h0, h1, t) {
+  const pts = [up(iso(a, 0), h0), up(iso(b, 0), h0), up(iso(b, 0), h1), up(iso(a, 0), h1)];
+  poly(pts, "#ffffff");
+  const inset = [up(iso(a + .12, 0), h0 + 5), up(iso(b - .12, 0), h0 + 5), up(iso(b - .12, 0), h1 - 5), up(iso(a + .12, 0), h1 - 5)];
+  const g = ctx.createLinearGradient(0, inset[2].y, 0, inset[0].y); g.addColorStop(0, "#6ec3f2"); g.addColorStop(1, "#cdeefd");
+  poly(inset, g);
+  // awan bergerak
+  ctx.save(); poly(inset); ctx.clip();
+  const cx = inset[0].x + ((t * 6) % (inset[1].x - inset[0].x + 60)) - 30, cy = inset[0].y - 34 + (cx - inset[0].x) * -0.5;
+  ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.beginPath(); ctx.ellipse(cx, cy, 16, 6, -0.46, 0, Math.PI * 2); ctx.ellipse(cx + 10, cy - 7, 10, 6, -0.46, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  const m1 = up(iso((a + b) / 2, 0), h0 + 5), m2 = up(iso((a + b) / 2, 0), h1 - 5);
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(m1.x, m1.y); ctx.lineTo(m2.x, m2.y); ctx.stroke();
+}
+function wallWindowL(a, b, h0, h1) {
+  const pts = [up(iso(0, a), h0), up(iso(0, b), h0), up(iso(0, b), h1), up(iso(0, a), h1)];
+  poly(pts, "#f3f6f8");
+  const inset = [up(iso(0, a + .12), h0 + 5), up(iso(0, b - .12), h0 + 5), up(iso(0, b - .12), h1 - 5), up(iso(0, a + .12), h1 - 5)];
+  const g = ctx.createLinearGradient(0, inset[2].y, 0, inset[0].y); g.addColorStop(0, "#5fb5e6"); g.addColorStop(1, "#bfe6fa");
+  poly(inset, g);
+  const m1 = up(iso(0, (a + b) / 2), h0 + 5), m2 = up(iso(0, (a + b) / 2), h1 - 5);
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(m1.x, m1.y); ctx.lineTo(m2.x, m2.y); ctx.stroke();
+}
+
+function drawObject(o, t) {
+  const { gx, gy } = o;
+  switch (o.kind) {
+    case "desk": {
+      const w = workers[o.agent];
+      box(gx + .06, gy + .1, .88, .8, 20, "#f1f3f6");
+      // laci
+      const f1 = iso(gx + .2, gy + .9), f2 = iso(gx + .5, gy + .9);
+      ctx.fillStyle = "#c9d2dc"; ctx.fillRect(Math.min(f1.x, f2.x), f1.y - 15, Math.abs(f2.x - f1.x), 3);
+      // monitor (bagian belakang menghadap kamera)
+      box(gx + .22, gy + .16, .56, .12, 15, "#2d3a4a", 20);
+      if (w.status === "working") {
+        const m = up(iso(gx + .5, gy + .2), 36);
+        ctx.save(); ctx.globalAlpha = .45 + .25 * Math.sin(t * 8); ctx.fillStyle = "#7fe0ff";
+        ctx.beginPath(); ctx.ellipse(m.x, m.y - 2, 22, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      }
+      // cangkir & kertas
+      box(gx + .7, gy + .55, .12, .12, 7, "#ffffff", 20);
+      box(gx + .18, gy + .5, .26, .2, 2, w.output ? "#fffbe6" : "#ffffff", 20);
+      // ikon peran di sisi depan meja
+      const lab = iso(gx + .45, gy + .95);
+      ctx.font = "13px system-ui, 'Apple Color Emoji', 'Segoe UI Emoji'"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(w.icon, lab.x - 2, lab.y - 9);
+      break;
+    }
+    case "bossdesk": {
+      box(gx + .05, gy + .1, 1.9, .85, 22, "#8a5a36");
+      box(gx + .8, gy + .15, .7, .12, 16, "#2d3a4a", 22);
+      box(gx + .25, gy + .45, .3, .25, 3, "#ffffff", 22);
+      box(gx + 1.55, gy + .5, .14, .14, 8, "#ffffff", 22);
+      // papan nama
+      box(gx + .25, gy + .75, .45, .08, 6, "#d8b24a", 22);
+      if (leader.status === "reviewing" || leader.status === "thinking") {
+        const m = up(iso(gx + 1.15, gy + .2), 40);
+        ctx.save(); ctx.globalAlpha = .4 + .2 * Math.sin(t * 6); ctx.fillStyle = "#9fd2ff";
+        ctx.beginPath(); ctx.ellipse(m.x, m.y, 24, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      }
+      break;
+    }
+    case "shelf":
+      box(gx + .05, gy, .45, 2, 78, "#9b6b42");
+      for (let i = 0; i < 3; i++) {
+        const z = 14 + i * 22;
+        for (let j = 0; j < 6; j++) box(gx + .45, gy + .15 + j * .3, .05, .22, 14, ["#e2453c", "#1769c9", "#f2b81f", "#3fc948", "#9b6be0", "#ffffff"][(i + j) % 6], z);
+      }
+      break;
+    case "coffee":
+      box(gx + .05, gy + .05, .9, .9, 32, "#dfe6ee");
+      box(gx + .25, gy + .2, .45, .45, 22, "#3b3f46", 32);
+      box(gx + .55, gy + .65, .15, .15, 6, "#ffffff", 32);
+      if (Math.sin(t * 1.3) > 0) { const p = up(iso(gx + .62, gy + .72), 46); ctx.save(); ctx.globalAlpha = .5; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(p.x, p.y - (t * 10 % 10), 3, 0, 7); ctx.fill(); ctx.restore(); }
+      break;
+    case "cooler":
+      box(gx + .25, gy + .25, .5, .5, 34, "#eef2f6");
+      { const p = up(iso(gx + .5, gy + .5), 48); ctx.fillStyle = "rgba(110,190,240,.85)"; ctx.beginPath(); ctx.ellipse(p.x, p.y, 10, 14, 0, 0, Math.PI * 2); ctx.fill(); }
+      break;
+    case "plant": {
+      box(gx + .3, gy + .3, .4, .4, 16, "#c96f3b");
+      const p = up(iso(gx + .5, gy + .5), 28), sway = Math.sin(t * 1.5 + gx) * 1.5;
+      ctx.fillStyle = "#2e9e45"; ctx.beginPath(); ctx.arc(p.x + sway, p.y - 8, 13, 0, 7); ctx.fill();
+      ctx.fillStyle = "#3fc95a"; ctx.beginPath(); ctx.arc(p.x - 6 + sway, p.y - 14, 8, 0, 7); ctx.arc(p.x + 7 + sway, p.y - 4, 8, 0, 7); ctx.fill();
+      break;
+    }
+    case "sofa":
+      box(gx + .15, gy + .05, .8, 2.9, 14, "#3b9be8");
+      box(gx + .65, gy + .05, .3, 2.9, 30, "#2c84cf");
+      box(gx + .15, gy + .05, .8, .25, 24, "#2c84cf");
+      box(gx + .15, gy + 2.7, .8, .25, 24, "#2c84cf");
+      break;
+    case "table":
+      box(gx + .2, gy + .2, .6, .6, 16, "#f6d27a");
+      box(gx + .35, gy + .35, .15, .15, 6, "#ffffff", 16);
+      break;
+    case "printer":
+      box(gx + .1, gy + .15, .8, .7, 22, "#cfd6de");
+      box(gx + .2, gy + .25, .6, .4, 6, "#7d8794", 22);
+      break;
+  }
+}
+
+const PLUMBOB = { idle: ["#8ef08f", "#3fc948", "#1f8f2a"], done: ["#8ef08f", "#3fc948", "#1f8f2a"], working: ["#ffe58a", "#f2b81f", "#b88400"], thinking: ["#b8dcff", "#4aa3ff", "#1b6fc9"], reviewing: ["#b8dcff", "#4aa3ff", "#1b6fc9"], error: ["#ff9a93", "#e2453c", "#a3211a"] };
+
+function drawPlumbob(x, y, t, status, scale = 1) {
+  const [l, m, d] = PLUMBOB[status] || PLUMBOB.idle;
+  const spin = Math.cos(t * 1.6), w = Math.max(.18, Math.abs(spin)) * 7 * scale, hTop = 9 * scale, hBot = 11 * scale;
+  const yy = y + Math.sin(t * 2.2) * 2;
+  ctx.save();
+  ctx.shadowColor = m; ctx.shadowBlur = 10;
+  const g = ctx.createLinearGradient(x - w, 0, x + w, 0);
+  g.addColorStop(0, spin > 0 ? l : d); g.addColorStop(.5, m); g.addColorStop(1, spin > 0 ? d : l);
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.moveTo(x, yy - hTop); ctx.lineTo(x + w, yy); ctx.lineTo(x, yy + hBot); ctx.lineTo(x - w, yy); ctx.closePath(); ctx.fill();
+  ctx.shadowBlur = 0; ctx.strokeStyle = d; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.beginPath(); ctx.moveTo(x - w, yy); ctx.lineTo(x + w, yy); ctx.stroke();
+  ctx.restore();
+}
+
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+
+// Menggambar satu Sim. (x,y) = titik kaki di layar. Dipakai juga untuk potret panel.
+function paintSim(s, x, y, t, opts = {}) {
+  const L = s.look, walking = opts.walking, seated = opts.seated, typing = opts.typing;
+  const bob = walking ? Math.abs(Math.sin(s.walkPhase)) * 2 : 0;
+  const jump = opts.jump ? Math.abs(Math.sin(t * 9)) * 9 : 0;
+  const by = y - bob - jump + (seated ? 3 : 0);
+  if (!opts.noShadow) { ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(x, y, 11, 5, 0, 0, Math.PI * 2); ctx.fill(); }
+  if (opts.selected) { ctx.strokeStyle = "#3fc948"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(x, y, 15, 7, 0, 0, Math.PI * 2); ctx.stroke(); }
+  // kaki
+  const sw = walking ? Math.sin(s.walkPhase) * 3 : 0;
+  ctx.fillStyle = L.pants;
+  roundRect(x - 7 + sw * .4, by - 15, 6, 15 - Math.max(0, sw), 2); ctx.fill();
+  roundRect(x + 1 - sw * .4, by - 15, 6, 15 - Math.max(0, -sw), 2); ctx.fill();
+  ctx.fillStyle = "#2b2b33";
+  roundRect(x - 8 + sw * .4, by - 3 - Math.max(0, sw), 7, 3, 1.5); ctx.fill();
+  roundRect(x + 1 - sw * .4, by - 3 - Math.max(0, -sw), 7, 3, 1.5); ctx.fill();
+  // badan
+  ctx.fillStyle = L.shirt; roundRect(x - 9, by - 32, 18, 19, 6); ctx.fill();
+  if (s.isLeader) {
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.moveTo(x - 4, by - 32); ctx.lineTo(x + 4, by - 32); ctx.lineTo(x, by - 24); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = L.tie; ctx.beginPath(); ctx.moveTo(x - 1.6, by - 29); ctx.lineTo(x + 1.6, by - 29); ctx.lineTo(x + 2, by - 19); ctx.lineTo(x, by - 17); ctx.lineTo(x - 2, by - 19); ctx.closePath(); ctx.fill();
+  }
+  if (L.hairStyle === "helmet") { ctx.fillStyle = "#e6f14a"; ctx.fillRect(x - 9, by - 24, 18, 3); }
+  // lengan
+  ctx.fillStyle = shade(L.shirt, -20);
+  if (typing) {
+    const k = Math.sin(t * 22) * 1.5;
+    roundRect(x - 11, by - 29, 5, 9, 2.5); ctx.fill(); roundRect(x + 6, by - 29, 5, 9, 2.5); ctx.fill();
+    ctx.fillStyle = L.skin; ctx.beginPath(); ctx.arc(x - 6, by - 19 + k, 2.6, 0, 7); ctx.arc(x + 6, by - 19 - k, 2.6, 0, 7); ctx.fill();
+  } else {
+    const a = walking ? Math.sin(s.walkPhase) * 2 : 0;
+    roundRect(x - 12, by - 30 + a, 5, 14, 2.5); ctx.fill(); roundRect(x + 7, by - 30 - a, 5, 14, 2.5); ctx.fill();
+    ctx.fillStyle = L.skin; ctx.beginPath(); ctx.arc(x - 9.5, by - 15 + a, 2.6, 0, 7); ctx.arc(x + 9.5, by - 15 - a, 2.6, 0, 7); ctx.fill();
+  }
+  if (opts.carrying) { ctx.fillStyle = "#fff"; ctx.strokeStyle = "#9aa7b3"; ctx.lineWidth = 1; ctx.save(); ctx.translate(x + 11, by - 20); ctx.rotate(-.2); ctx.fillRect(-5, -7, 10, 13); ctx.strokeRect(-5, -7, 10, 13); ctx.fillStyle = "#9aa7b3"; ctx.fillRect(-3, -4, 6, 1); ctx.fillRect(-3, -1, 6, 1); ctx.fillRect(-3, 2, 4, 1); ctx.restore(); }
+  // kepala
+  const hx = x, hy = by - 41;
+  if (L.hairStyle === "long") { ctx.fillStyle = L.hair; roundRect(hx - 10, hy - 6, 20, 22, 8); ctx.fill(); }
+  if (L.hairStyle === "hijab") { ctx.fillStyle = L.hijab; ctx.beginPath(); ctx.arc(hx, hy, 11.5, 0, 7); ctx.fill(); roundRect(hx - 11, hy, 22, 14, 7); ctx.fill(); }
+  ctx.fillStyle = L.skin; ctx.beginPath(); ctx.arc(hx, hy, 9, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = L.hair;
+  switch (L.hairStyle) {
+    case "short": ctx.beginPath(); ctx.arc(hx, hy - 1, 9.4, Math.PI * 1.05, Math.PI * 1.95); ctx.fill(); ctx.fillRect(hx - 9, hy - 4, 3, 4); break;
+    case "long": ctx.beginPath(); ctx.arc(hx, hy - 1, 9.6, Math.PI, Math.PI * 2); ctx.fill(); break;
+    case "bun": ctx.beginPath(); ctx.arc(hx, hy - 1, 9.4, Math.PI, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(hx, hy - 11, 4.5, 0, 7); ctx.fill(); break;
+    case "spiky": ctx.beginPath(); for (let i = 0; i < 5; i++) { const a = Math.PI + i * Math.PI / 4; ctx.moveTo(hx + Math.cos(a) * 6, hy - 2 + Math.sin(a) * 6); ctx.lineTo(hx + Math.cos(a) * 12, hy - 2 + Math.sin(a) * 12); ctx.lineTo(hx + Math.cos(a + .4) * 6, hy - 2 + Math.sin(a + .4) * 6); } ctx.fill(); ctx.beginPath(); ctx.arc(hx, hy - 1, 9, Math.PI, Math.PI * 2); ctx.fill(); break;
+    case "bob": ctx.beginPath(); ctx.arc(hx, hy - 1, 10, Math.PI * .95, Math.PI * 2.05); ctx.fill(); ctx.fillRect(hx - 10, hy - 2, 4, 9); ctx.fillRect(hx + 6, hy - 2, 4, 9); break;
+    case "helmet": ctx.fillStyle = "#f2c12e"; ctx.beginPath(); ctx.arc(hx, hy - 2, 10, Math.PI, Math.PI * 2); ctx.fill(); ctx.fillRect(hx - 12, hy - 3, 24, 3); break;
+    case "cap": ctx.fillStyle = L.cap; ctx.beginPath(); ctx.arc(hx, hy - 2, 9.5, Math.PI, Math.PI * 2); ctx.fill(); ctx.fillRect(hx + (s.facing > 0 ? 0 : -14), hy - 4, 14, 3); break;
+    case "hijab": break;
+  }
+  if (L.hairStyle === "hijab") { ctx.fillStyle = L.hijab; ctx.beginPath(); ctx.arc(hx, hy - 1, 10.5, Math.PI * 1.02, Math.PI * 1.98); ctx.fill(); }
+  // wajah
+  const f = (s.facing || 1) * 2;
+  const blink = (Math.sin(t * 1.3 + s.x * 3) > .985);
+  ctx.fillStyle = "#1b1b22";
+  if (blink) { ctx.fillRect(hx - 4 + f, hy, 3, 1); ctx.fillRect(hx + 2 + f, hy, 3, 1); }
+  else { ctx.beginPath(); ctx.arc(hx - 3 + f, hy, 1.4, 0, 7); ctx.arc(hx + 3 + f, hy, 1.4, 0, 7); ctx.fill(); }
+  if (L.glasses) { ctx.strokeStyle = "#222"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(hx - 3 + f, hy, 2.8, 0, 7); ctx.moveTo(hx + 5.8 + f, hy); ctx.arc(hx + 3 + f, hy, 2.8, 0, 7); ctx.stroke(); }
+  ctx.strokeStyle = "#7a3b2a"; ctx.lineWidth = 1.2; ctx.beginPath();
+  if (opts.sad) ctx.arc(hx + f * .5, hy + 6, 2.4, Math.PI * 1.15, Math.PI * 1.85);
+  else ctx.arc(hx + f * .5, hy + 3, 2.6, Math.PI * .15, Math.PI * .85);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255,120,120,.28)"; ctx.beginPath(); ctx.arc(hx - 5.5 + f, hy + 3, 1.8, 0, 7); ctx.arc(hx + 5.5 + f, hy + 3, 1.8, 0, 7); ctx.fill();
+  return { headY: hy };
+}
+
+function drawBubble(x, y, b, t) {
+  const text = b.text.length > 26 ? b.text.slice(0, 25) + "…" : b.text;
+  ctx.font = "700 11.5px Nunito, system-ui, sans-serif";
+  const tw = text ? ctx.measureText(text).width + 8 : 0;
+  const w = 30 + tw, h = 28, bx = x - w / 2, byy = y - h - 14 + Math.sin(t * 3) * 1.2;
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.18)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+  ctx.fillStyle = "#fff"; roundRect(bx, byy, w, h, 14); ctx.fill();
+  ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.beginPath(); ctx.arc(x - 3, byy + h + 5, 4, 0, 7); ctx.arc(x - 7, byy + h + 12, 2.5, 0, 7); ctx.fill();
+  ctx.font = "16px system-ui, 'Apple Color Emoji', 'Segoe UI Emoji'"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#17324d"; ctx.fillText(b.icon, bx + 7, byy + h / 2 + 1);
+  if (text) { ctx.font = "700 11.5px Nunito, system-ui, sans-serif"; ctx.fillText(text, bx + 28, byy + h / 2 + 1); }
+  ctx.restore();
+}
+
+let hoverSim = null, selected = leader;
+function drawSims(t, list) {
+  for (const s of list) {
+    const p = iso(s.x, s.y);
+    const walking = s.path.length > 0, seated = s.seated, typing = seated && s.status === "working";
+    const { headY } = paintSim(s, p.x, p.y, t, { walking, seated, typing, carrying: s.carrying, jump: s.jump > 0, selected: s === selected, sad: s.status === "error" });
+    s._screen = { x: p.x, y: p.y, top: headY - 30 };
+    drawPlumbob(p.x, headY - 22, t + s.x, s.status, s.isLeader ? 1.25 : 1);
+  }
+}
+function drawOverlays(t) {
+  for (const s of sims) {
+    const sc = s._screen; if (!sc) continue;
+    if (s.bubble) drawBubble(sc.x, sc.top, s.bubble, t);
+    if (s === hoverSim || s === selected) {
+      ctx.font = "800 11px Nunito, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      const label = s.sim + " · " + s.title, w = ctx.measureText(label).width + 14;
+      ctx.fillStyle = "rgba(23,105,201,.92)"; roundRect(sc.x - w / 2, sc.y + 8, w, 17, 8.5); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.fillText(label, sc.x, sc.y + 16.5);
+    }
+    if (s.status === "working" && s.chars > 0 && s.seated) {
+      // indikator ketikan
+      const dots = 1 + Math.floor(t * 3) % 3;
+      ctx.fillStyle = "rgba(255,255,255,.9)"; roundRect(sc.x + 12, sc.top + 4, 24, 12, 6); ctx.fill();
+      ctx.fillStyle = "#b88400"; for (let i = 0; i < dots; i++) { ctx.beginPath(); ctx.arc(sc.x + 18 + i * 6, sc.top + 10, 1.8, 0, 7); ctx.fill(); }
+    }
+  }
+}
+
+function render(t) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  drawRoom(t);
+  // urutkan furnitur + sim berdasarkan kedalaman isometrik
+  const items = objects.map((o) => ({ d: o.depth, o })).concat(sims.map((s) => ({ d: s.x + s.y - .01, s })));
+  items.sort((a, b) => a.d - b.d);
+  for (const it of items) { if (it.o) drawObject(it.o, t); else drawSims(t, [it.s]); }
+  drawOverlays(t);
+}
+
+/* =====================================================================
+   LOOP
+   ===================================================================== */
+let now = performance.now(), last = now, speed = 1, simClock = 0;
+function frame(ts) {
+  const real = Math.min(.1, (ts - last) / 1000); last = ts;
+  const dt = real * speed;
+  now += dt * 1000; simClock += dt;
+  for (const s of sims) s.update(dt);
+  demo.tick(simClock);
+  render(now / 1000);
+  if (Math.floor(ts / 400) !== Math.floor((ts - real * 1000) / 400)) refreshPanel();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+document.querySelectorAll(".speed button").forEach((b) => b.addEventListener("click", () => {
+  speed = Number(b.dataset.speed);
+  document.querySelectorAll(".speed button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+}));
+if (matchMedia("(prefers-reduced-motion: reduce)").matches) { /* tetap jalan, tapi pelan */ speed = 1; }
+
+function canvasPoint(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+}
+function simAt(p) {
+  let best = null, bd = 1e9;
+  for (const s of sims) {
+    const sc = s._screen; if (!sc) continue;
+    if (p.x > sc.x - 14 && p.x < sc.x + 14 && p.y > sc.top && p.y < sc.y + 4) {
+      const d = Math.abs(p.y - (sc.y - 25)); if (d < bd) { bd = d; best = s; }
+    }
+  }
+  return best;
+}
+canvas.addEventListener("mousemove", (e) => { hoverSim = simAt(canvasPoint(e)); });
+canvas.addEventListener("mouseleave", () => { hoverSim = null; });
+canvas.addEventListener("click", (e) => { const s = simAt(canvasPoint(e)); if (s) select(s); });
+
+/* =====================================================================
+   PANEL
+   ===================================================================== */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function buildTeam() {
+  $("team").innerHTML = sims.map((s) => `
+    <button class="member" type="button" data-id="${s.id}">
+      <span class="face" style="background:${s.look.shirt}">${s.icon}</span>
+      <span style="min-width:0"><span class="nm">${esc(s.sim)}</span><span class="rl" style="display:block">${esc(s.title)}</span></span>
+      <span class="status" data-st="${s.id}"></span>
+    </button>`).join("");
+  $("team").querySelectorAll(".member").forEach((b) => b.addEventListener("click", () => select(byId[b.dataset.id])));
+  $("teamCount").textContent = `1 pemimpin · ${workers.length} agent`;
+}
+function select(s) { selected = s; refreshPanel(true); }
+
+const NEED_LABEL = { energi: "Energi", fokus: "Fokus", sosial: "Sosial", senang: "Semangat" };
+function needColor(v) { return v > 60 ? "#3fc948" : v > 30 ? "#f2b81f" : "#e2453c"; }
+function refreshPanel(full) {
+  for (const s of sims) {
+    const el = document.querySelector(`[data-st="${s.id}"]`);
+    if (el) { el.className = "status st-" + s.status; el.textContent = STATUS_ICON[s.status] + " " + STATUS_TEXT[s.status]; }
+  }
+  document.querySelectorAll(".member").forEach((b) => b.setAttribute("aria-current", String(b.dataset.id === selected.id)));
+  const s = selected;
+  $("detailName").textContent = s.sim;
+  $("detailRole").textContent = s.isLeader ? "Pemimpin · delegasi & cek akhir" : s.title + (s.web ? " · bisa cari di web" : "");
+  $("detailStatus").innerHTML = `<span class="status st-${s.status}">${STATUS_ICON[s.status]} ${STATUS_TEXT[s.status]}</span>`;
+  $("needs").innerHTML = Object.entries(s.needs).map(([k, v]) => `<div class="need">${NEED_LABEL[k]}<div class="bar"><div class="fill" style="width:${v.toFixed(0)}%;background:${needColor(v)}"></div></div></div>`).join("");
+  $("detailTask").textContent = s.task ? s.task : (s.isLeader ? (activeTask ? activeTask : "Menunggu tugas dari Rahula.") : "Belum ada tugas.");
+  const out = s.isLeader ? (lastFinal && lastFinal.output) : s.output;
+  $("detailOutput").textContent = out ? out.slice(0, 900) : (s.status === "working" ? `Sedang menulis… ${s.chars.toLocaleString("id-ID")} karakter` : "—");
+  $("openOutput").disabled = !out;
+  drawPortrait(s);
+}
+const pctx = $("portrait").getContext("2d");
+function drawPortrait(s) {
+  ctxSwap(pctx, () => {
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 128, 128);
+    ctx.setTransform(2.4, 0, 0, 2.4, 0, 0);
+    paintSim(s, 26.5, 66, now / 1000, { noShadow: true });
+  });
+}
+// paintSim menggambar ke `ctx`; tukar sementara untuk kanvas potret.
+function ctxSwap(c, fn) { const keep = ctx; ctx = c; try { fn(); } finally { ctx = keep; } }
+$("openOutput").addEventListener("click", () => {
+  const s = selected;
+  if (s.isLeader && lastFinal) openResult(lastFinal);
+  else if (s.output) openResult({ title: `${s.sim} — ${s.title}`, output: s.output, workLog: [] , task: s.task });
+});
+
+function log(html) {
+  const box = $("log");
+  if (box.querySelector(".log-empty")) box.innerHTML = "";
+  const d = new Date();
+  const item = document.createElement("div");
+  item.className = "log-item";
+  item.innerHTML = `<time>${String(d.getHours()).padStart(2, "0")}.${String(d.getMinutes()).padStart(2, "0")}</time><div>${html}</div>`;
+  box.prepend(item);
+  while (box.children.length > 80) box.lastChild.remove();
+}
+function toast(sim, title, text, kind = "") {
+  const el = document.createElement("div");
+  el.className = "toast " + kind;
+  el.innerHTML = `<span class="av" style="background:${sim.look.shirt}22">${sim.icon}</span><div><b>${esc(title)}</b>${esc(text)}</div>`;
+  $("toasts").prepend(el);
+  while ($("toasts").children.length > 3) $("toasts").lastChild.remove();
+  setTimeout(() => el.remove(), 5200);
+}
+
+/* =====================================================================
+   KOREOGRAFI — menerjemahkan event kerja menjadi animasi
+   ===================================================================== */
+let activeTask = null, lastFinal = null, cost = 0;
+const history = [];
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+
+function setCost(usd) { cost = usd; $("cost").textContent = usd.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 }); }
+
+function handle(ev) {
+  switch (ev.type) {
+    case "task": {
+      activeTask = ev.text; setCost(0);
+      for (const w of workers) { w.task = null; w.output = null; w.chars = 0; if (w.status !== "idle") w.status = "idle"; }
+      leader.interrupt(); leader.queue({ walk: leader.seat });
+      leader.status = "thinking"; leader.say("📥", "Tugas baru!", 3000);
+      toast(leader, "Tugas diterima", "Bima sedang membaca tugas Anda.");
+      log(`📥 <b>Tugas baru</b>: ${esc(ev.text.slice(0, 160))}`);
+      setRunning(true);
+      break;
+    }
+    case "leader_status": if (ev.status === "thinking") { leader.status = "thinking"; leader.say("💭", ev.text || "Hmm…"); } break;
+    case "leader_thinking": leader.status = "thinking"; leader.say("💭", firstWords(ev.text, 4), 3000); log(`💭 <b>Bima berpikir</b>: ${esc(ev.text.slice(0, 220))}`); break;
+    case "leader_say": log(`⭐ <b>Bima</b>: ${esc(ev.text.slice(0, 300))}`); break;
+    case "delegate": {
+      const w = byId[ev.agent]; if (!w) break;
+      w.task = ev.summary + (ev.instruksi ? "\n\n" + ev.instruksi : "");
+      w.chars = 0;
+      w.interrupt(); w.queue({ walk: w.seat }, { fn: (s) => { s.status = "working"; s.needs.fokus = Math.min(100, s.needs.fokus + 10); } });
+      w.status = "working";
+      const spot = besideSeat(w, leader.seat);
+      leader.queue(
+        { fn: (s) => { s.carrying = true; s.status = "thinking"; } },
+        { walk: spot },
+        { fn: (s) => { s.carrying = false; s.say("📋", ev.revision ? "Tolong revisi ya" : pick(["Ini tugasmu!", "Sul sul!", "Tolong ya!"]), 2400); w.say(w.icon, ev.revision ? "Siap, revisi!" : pick(["Siap, Bos!", "Vadish!", "Oke!"]), 2400); s.needs.sosial = Math.min(100, s.needs.sosial + 10); } },
+        { wait: 1.2 },
+        { walk: leader.seat },
+      );
+      toast(w, `${w.sim} dapat tugas`, ev.summary, "");
+      log(`📋 <b>Bima → ${w.sim}</b>${ev.revision ? " (revisi)" : ""}: ${esc(ev.summary)}`);
+      break;
+    }
+    case "worker_progress": { const w = byId[ev.agent]; if (w) { w.chars = ev.chars; if (Math.random() < .12) w.say(w.icon, pick(["Mengetik…", "Hampir…", "Merapikan…", "Cek ulang…"]), 1800); } break; }
+    case "worker_search": { const w = byId[ev.agent]; if (w) { w.say("🔍", ev.query || "Mencari…", 2800); log(`🔍 <b>${w.sim}</b> mencari: ${esc(ev.query || "")}`); } break; }
+    case "worker_thinking": { const w = byId[ev.agent]; if (w) w.say("💭", firstWords(ev.text, 4), 2200); break; }
+    case "worker_done": {
+      const w = byId[ev.agent]; if (!w) break;
+      w.output = ev.output; w.status = ev.ok ? "done" : "error";
+      const spot = besideSeat(leader, w.seat);
+      w.queue(
+        { fn: (s) => { s.carrying = ev.ok; s.say(ev.ok ? "✅" : "❗", ev.ok ? "Selesai!" : "Ada kendala", 2000); } },
+        { wait: .8 },
+        { walk: spot },
+        { fn: (s) => { s.carrying = false; s.say("📄", pick(SIMLISH), 2200); leader.say("👀", "Terima kasih, " + s.sim, 2200); s.needs.sosial = Math.min(100, s.needs.sosial + 15); s.needs.senang = Math.min(100, s.needs.senang + 15); } },
+        { wait: 1.4 },
+        { walk: w.seat },
+      );
+      toast(w, ev.ok ? `${w.sim} selesai` : `${w.sim} terkendala`, ev.ok ? "Hasil diserahkan ke Bima untuk diperiksa." : ev.output.slice(0, 90), ev.ok ? "good" : "bad");
+      log(`${ev.ok ? "✅" : "❗"} <b>${w.sim}</b> ${ev.ok ? "menyerahkan hasil" : "gagal"} (${(ev.output || "").length.toLocaleString("id-ID")} karakter)`);
+      break;
+    }
+    case "review": leader.status = "reviewing"; leader.say("🔎", "Memeriksa hasil…", 4000); log(`🔎 <b>Bima</b> memeriksa ${ev.count} hasil kerja.`); break;
+    case "cost": setCost(ev.usd); break;
+    case "final": {
+      leader.status = "done"; leader.say("🎉", "Selesai! Sul sul!", 4000);
+      for (const s of sims) { s.jump = 2.2; if (s.status === "done") s.needs.senang = Math.min(100, s.needs.senang + 20); }
+      setTimeout(() => { leader.status = "idle"; }, 6000);
+      if (typeof ev.usd === "number") setCost(ev.usd);
+      const title = (ev.output.match(/^#\s+(.+)$/m) || [, "Hasil akhir"])[1];
+      lastFinal = { title, output: ev.output, workLog: ev.workLog || [], task: activeTask, file: ev.file, usd: cost, at: new Date() };
+      history.unshift(lastFinal); renderHistory();
+      toast(leader, "Hasil akhir siap", title, "good");
+      log(`🎉 <b>Hasil akhir siap</b>: ${esc(title)}${ev.file ? ` · tersimpan di <code>hasil/${esc(ev.file)}</code>` : ""}`);
+      setRunning(false); activeTask = null;
+      setTimeout(() => openResult(lastFinal), 1600);
+      break;
+    }
+    case "error": {
+      leader.status = "error"; leader.say("❗", "Ada masalah", 5000);
+      toast(leader, "Tugas terhenti", ev.message, "bad");
+      log(`❗ <b>Masalah</b>: ${esc(ev.message)}`);
+      setRunning(false); activeTask = null;
+      setTimeout(() => { if (leader.status === "error") leader.status = "idle"; }, 8000);
+      break;
+    }
+  }
+  refreshPanel();
+}
+const firstWords = (s, n) => (s || "").replace(/[#*_`>]/g, "").trim().split(/\s+/).slice(0, n).join(" ");
+
+function renderHistory() {
+  $("histCount").textContent = history.length;
+  $("history").innerHTML = history.map((h, i) => `<button type="button" data-i="${i}">${esc(h.title)}<small>${h.at.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} · ${h.workLog.length} agent terlibat</small></button>`).join("") || '<p class="log-empty">Hasil akhir dari Bima muncul di sini.</p>';
+  $("history").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => openResult(history[Number(b.dataset.i)])));
+}
+
+/* =====================================================================
+   MARKDOWN (sederhana, aman)
+   ===================================================================== */
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>")
+    .replace(/(^|[\s(])_([^_\s][^_]*)_(?=[\s.,;:)]|$)/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|\s)(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+}
+function md(src) {
+  const lines = String(src).replace(/\r/g, "").split("\n");
+  let out = "", i = 0;
+  while (i < lines.length) {
+    const l = lines[i];
+    if (/^```/.test(l)) { const buf = []; i++; while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]); i++; out += `<pre><code>${esc(buf.join("\n"))}</code></pre>`; continue; }
+    const h = l.match(/^(#{1,4})\s+(.*)$/); if (h) { const n = Math.min(3, h[1].length); out += `<h${n}>${inline(h[2])}</h${n}>`; i++; continue; }
+    if (/^\s*(-{3,}|\*{3,})\s*$/.test(l)) { out += "<hr>"; i++; continue; }
+    if (/^\s*\|/.test(l) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
+      const row = (r) => r.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+      const head = row(l); i += 2; const body = [];
+      while (i < lines.length && /^\s*\|/.test(lines[i])) body.push(row(lines[i++]));
+      out += `<div class="tbl"><table><thead><tr>${head.map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+      continue;
+    }
+    if (/^\s*>/.test(l)) { const buf = []; while (i < lines.length && /^\s*>/.test(lines[i])) buf.push(lines[i++].replace(/^\s*>\s?/, "")); out += `<blockquote>${md(buf.join("\n"))}</blockquote>`; continue; }
+    if (/^\s*([-*+]|\d+[.)])\s+/.test(l)) {
+      const ordered = /^\s*\d/.test(l); const items = [];
+      while (i < lines.length && /^\s*([-*+]|\d+[.)])\s+/.test(lines[i])) {
+        let t = lines[i++].replace(/^\s*([-*+]|\d+[.)])\s+/, "");
+        while (i < lines.length && /^\s{2,}\S/.test(lines[i]) && !/^\s*([-*+]|\d+[.)])\s+/.test(lines[i])) t += " " + lines[i++].trim();
+        const c = t.match(/^\[([ xX])\]\s*(.*)$/);
+        items.push(c ? `<span class="chk${c[1] !== " " ? " on" : ""}"></span>${inline(c[2])}` : inline(t));
+      }
+      out += `<${ordered ? "ol" : "ul"}>${items.map((x) => `<li>${x}</li>`).join("")}</${ordered ? "ol" : "ul"}>`;
+      continue;
+    }
+    if (!l.trim()) { i++; continue; }
+    const buf = [];
+    while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|```|\s*>|\s*\||\s*([-*+]|\d+[.)])\s+)/.test(lines[i])) buf.push(lines[i++]);
+    if (!buf.length) buf.push(lines[i++]);
+    out += `<p>${buf.map(inline).join("<br>")}</p>`;
+  }
+  return out;
+}
+
+let openDoc = null;
+function docText(r) {
+  const work = (r.workLog || []).map((w) => `### ${w.sim} — ${w.title}\n\n${w.output}`).join("\n\n---\n\n");
+  return `${r.task ? `> Tugas: ${r.task}\n\n` : ""}${r.output}${work ? `\n\n---\n\n## Lampiran: hasil kerja tiap agent\n\n${work}` : ""}\n`;
+}
+function openResult(r) {
+  openDoc = r;
+  $("resultTitle").textContent = r.title || "Hasil akhir";
+  $("resultBody").innerHTML = md(r.output);
+  $("resultWork").innerHTML = (r.workLog || []).length
+    ? `<hr style="border:0;border-top:2px dashed var(--line);margin:20px 0"><h3 style="font:600 16px var(--font-display);margin:0 0 6px">Hasil kerja tiap agent (sebelum digabung)</h3>` +
+      r.workLog.map((w) => `<details class="work"><summary>${esc(w.sim)} — ${esc(w.title)}</summary><div class="md">${md(w.output)}</div></details>`).join("")
+    : "";
+  const dlg = $("result");
+  if (!dlg.open) { try { dlg.showModal(); } catch { dlg.setAttribute("open", ""); } }
+}
+$("closeResult").addEventListener("click", () => $("result").close());
+$("copyResult").addEventListener("click", async () => {
+  if (!openDoc) return;
+  try { await navigator.clipboard.writeText(docText(openDoc)); $("copyResult").textContent = "Tersalin ✓"; }
+  catch { const r = document.createRange(); r.selectNodeContents($("resultBody")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); $("copyResult").textContent = "Teks dipilih, tekan Ctrl+C"; }
+  setTimeout(() => ($("copyResult").textContent = "Salin"), 2200);
+});
+$("downloadResult").addEventListener("click", () => {
+  if (!openDoc) return;
+  if (openDoc.file && mode === "live") { location.href = "/hasil/" + encodeURIComponent(openDoc.file); return; }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([docText(openDoc)], { type: "text/markdown" }));
+  a.download = (openDoc.title || "hasil").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") + ".md";
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+
+/* =====================================================================
+   MODE DEMO — simulasi tanpa API key (event sama persis dengan server)
+   ===================================================================== */
+const DEMO_RULES = [
+  ["surat-ba", /\b(ba|berita acara|surat|memo|sk|klarifikasi|peringatan|kehilangan)\b/i],
+  ["kepatuhan-perizinan", /izin|perizinan|mmea|skmb|regulasi|kasus|hukum|kepatuhan|permen/i],
+  ["data-rekap", /rekap|csv|excel|absensi|kpi|fingerprint|data\b/i],
+  ["sop-k3-vendor", /\bsop\b|k3|vendor|evas|bahaya|tumpahan/i],
+  ["email-kalender", /email|inbox|kalender|agenda|balas/i],
+  ["chrome-portal", /portal|chrome|browser|\boss\b|sipp/i],
+  ["cari-cuan", /cuan|penghasilan|sampingan|mining|trading|modal|peluang/i],
+  ["riset", /riset|research|pasar|bandingkan|cari tahu|kewajiban/i],
+];
+const DEMO_OUT = {
+  "surat-ba": "## Draf Berita Acara\n\n**BERITA ACARA KEHILANGAN BARANG**\nNomor: [ISI: nomor surat]\n\nPada hari Rabu, 30 September 2026, pukul [ISI: jam] WIB, bertempat di gudang cabang [ISI: cabang], telah dilakukan stock opname…\n\n| Dibuat oleh | Diketahui oleh | Disetujui oleh |\n|---|---|---|\n| Rahula Fajar (PGA) | Delfri / Ryan (AOS), Sofian (RBM) | Benedictus R. Galla (IRGA Sect. Head) |\n\n**Catatan Risiko**\n- Hindari menyebut nama terduga sebelum investigasi selesai.\n\n_(Contoh mode demo: isi asli ditulis oleh Claude saat mode live.)_",
+  "kepatuhan-perizinan": "**Kesimpulan:** [contoh demo] 3 izin perlu diperpanjang sebelum Januari 2027.\n\n| Cabang | Isu | Dasar hukum | Risiko | Tindakan | PIC | Tenggat |\n|---|---|---|---|---|---|---|\n| [ISI] | SKMB habis | [ISI: regulasi] | Tinggi | Ajukan perpanjangan | [ISI] | [ISI] |\n\n_(Contoh mode demo.)_",
+  "data-rekap": "**Ringkasan data:** [contoh demo] 0 baris — belum ada file CSV yang dilampirkan.\n\nRencana rekap: sheet per departemen, area DKI/Banten, sheet CEK_MANUAL dan CATATAN.\n\n**Pertanyaan untuk Rahula**\n- Mohon lampirkan CSV fingerprint September.\n\n_(Contoh mode demo.)_",
+  "sop-k3-vendor": "## SOP (contoh demo)\n1. **Tujuan** …\n2. **Ruang Lingkup** …\n3. **Prosedur**: Amankan area, pakai APD, serap tumpahan, catat di form.\n\n| Bahaya | Risiko | Pengendalian |\n|---|---|---|\n| Lantai licin | Terpeleset | Rambu + absorben |\n\n_(Contoh mode demo.)_",
+  "email-kalender": "Saya tidak terhubung ke inbox. Tempel isi email ke tugas, lalu saya kelompokkan: SEGERA / TINDAK LANJUT / INFO / ABAIKAN.\n\n_(Contoh mode demo.)_",
+  "chrome-portal": "**Rencana langkah (Rahula yang menjalankan):**\n1. Login portal (oleh Rahula).\n2. Menu Laporan → Absensi.\n3. Pilih cabang Kalideres, periode September.\n4. BERHENTI sebelum klik apa pun yang mengubah data.\n\n_(Contoh mode demo.)_",
+  "cari-cuan": "| Peluang | Modal | Jam/minggu | Pesimis | Realistis | Optimis |\n|---|---|---|---|---|---|\n| Template absensi UMKM | Rp500 rb | 4 | Rp0 | Rp1,5 jt | Rp4 jt |\n\nRekomendasi uji 30 hari: template absensi. Tidak ada yang pasti untung.\n\n_(Contoh mode demo.)_",
+  "riset": "**Jawaban inti (contoh demo):** sumber primer perlu diverifikasi di JDIH/peraturan.go.id.\n\n**Yang masih belum pasti:** isi pasal per pasal.\n\n**Sumber:** [contoh] https://peraturan.go.id\n\n_(Contoh mode demo.)_",
+};
+const demo = {
+  queue: [], running: false,
+  start(text) {
+    const picked = DEMO_RULES.filter(([, re]) => re.test(text)).map(([id]) => id).slice(0, 3);
+    if (!picked.length) picked.push("riset", "surat-ba");
+    let t = simClock;
+    const at = (dt, ev) => { t += dt; this.queue.push({ at: t, ev }); };
+    this.queue = []; this.running = true;
+    at(0, { type: "task", text });
+    at(1.6, { type: "leader_thinking", text: `Tugas ini paling cocok untuk ${picked.map((id) => byId[id].sim).join(" dan ")}. Saya bagi dan periksa hasilnya.` });
+    at(1.4, { type: "leader_say", text: `Saya delegasikan ke ${picked.map((id) => byId[id].sim).join(", ")} secara paralel.` });
+    const base = t;
+    const done = [];
+    picked.forEach((id, i) => {
+      const w = byId[id];
+      this.queue.push({ at: base + i * .3, ev: { type: "delegate", callId: "d" + i, agent: id, summary: w.title + ": " + text.slice(0, 40) + (text.length > 40 ? "…" : ""), instruksi: "(mode demo) " + text } });
+      const dur = 9 + Math.random() * 7;
+      for (let k = 1; k < dur / 1.2; k++) this.queue.push({ at: base + 2.5 + k * 1.2, ev: { type: "worker_progress", callId: "d" + i, agent: id, chars: Math.round(k * 160 + Math.random() * 80) } });
+      if (w.web) this.queue.push({ at: base + 4 + i, ev: { type: "worker_search", callId: "d" + i, agent: id, query: text.split(/\s+/).slice(0, 4).join(" ") } });
+      const end = base + 2.5 + dur;
+      done.push(end);
+      this.queue.push({ at: end, ev: { type: "worker_done", callId: "d" + i, agent: id, ok: true, output: DEMO_OUT[id] } });
+    });
+    const allDone = Math.max(...done) + 5;
+    this.queue.push({ at: allDone, ev: { type: "review", count: picked.length } });
+    const workLog = picked.map((id) => ({ agent: id, sim: byId[id].sim, title: byId[id].title, instruksi: text, output: DEMO_OUT[id] }));
+    const final = `# Hasil (contoh mode demo)\n**Ringkasan:** Ini simulasi. Di mode live, Bima menggabungkan hasil ${picked.map((id) => byId[id].sim).join(", ")} menjadi dokumen siap pakai untuk tugas: _${text.slice(0, 140)}_\n\n## Hasil\n${workLog.map((w) => `### Dari ${w.sim} (${w.title})\n${w.output}`).join("\n\n")}\n\n## Hasil Pemeriksaan Pemimpin\n- [x] Tugas terjawab oleh agent yang tepat\n- [x] Data yang belum pasti ditandai [ISI: …]\n- [ ] Fakta & angka asli (perlu mode live)\n\n## Perlu Dilengkapi / Diputuskan Rahula\n- Isi ANTHROPIC_API_KEY di file .env lalu jalankan \`npm start\` untuk hasil asli.\n\n## Kontribusi Tim\n${workLog.map((w) => `- ${w.sim} — ${w.title}`).join("\n")}`;
+    this.queue.push({ at: allDone + 4, ev: { type: "final", output: final, workLog, usd: 0 } });
+    this.queue.sort((a, b) => a.at - b.at);
+  },
+  tick(clock) {
+    while (this.queue.length && this.queue[0].at <= clock) handle(this.queue.shift().ev);
+    if (this.running && !this.queue.length) this.running = false;
+  },
+  cancel() { this.queue = []; this.running = false; handle({ type: "error", message: "Tugas dibatalkan." }); },
+};
+
+/* =====================================================================
+   KONEKSI KE SERVER (mode live)
+   ===================================================================== */
+let mode = "demo", source = null, jobId = null;
+async function detectMode() {
+  try {
+    const ctl = new AbortController(); setTimeout(() => ctl.abort(), 2500);
+    const r = await fetch("/api/status", { signal: ctl.signal });
+    if (!r.ok) throw 0;
+    const st = await r.json();
+    mode = st.mode === "live" ? "live" : "demo";
+    if (mode === "live" && st.running) attach(st.running);
+  } catch { mode = "demo"; }
+  const pill = $("modePill");
+  pill.className = "pill " + (mode === "live" ? "mode-live" : "mode-demo");
+  pill.textContent = mode === "live" ? "● Mode live" : "● Mode demo";
+  pill.title = mode === "live" ? "Tim memakai Claude API sungguhan." : "Simulasi animasi. Jalankan server dengan ANTHROPIC_API_KEY untuk hasil asli.";
+}
+function attach(id) {
+  jobId = id;
+  source?.close();
+  source = new EventSource(`/api/tasks/${id}/events`);
+  source.onmessage = (m) => { const ev = JSON.parse(m.data); handle(ev); if (ev.type === "final" || ev.type === "error") { source.close(); source = null; } };
+  source.onerror = () => { if (source && source.readyState === EventSource.CLOSED) { source = null; } };
+}
+function setRunning(on) {
+  $("send").disabled = on; $("cancel").hidden = !on;
+  $("hint").textContent = on ? "Tim sedang bekerja. Klik Sim untuk melihat progresnya." : "Ctrl + Enter untuk kirim.";
+}
+async function send() {
+  const text = $("task").value.trim();
+  if (!text) { $("task").focus(); $("hint").textContent = "Tulis tugasnya dulu."; return; }
+  if (mode === "live") {
+    $("send").disabled = true;
+    try {
+      const r = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error || "Gagal mengirim tugas.");
+      attach(body.id);
+      $("task").value = "";
+    } catch (e) { $("send").disabled = false; toast(leader, "Tugas belum terkirim", e.message, "bad"); }
+  } else { demo.start(text); $("task").value = ""; }
+}
+$("composer").addEventListener("submit", (e) => { e.preventDefault(); send(); });
+$("task").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } });
+$("cancel").addEventListener("click", async () => {
+  if (mode === "live" && jobId) { try { await fetch(`/api/tasks/${jobId}/cancel`, { method: "POST" }); } catch {} }
+  else demo.cancel();
+});
+$("chips").innerHTML = EXAMPLES.map(([label], i) => `<button class="chip" type="button" data-i="${i}">${esc(label)}</button>`).join("");
+$("chips").querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => { $("task").value = EXAMPLES[Number(b.dataset.i)][1]; $("task").focus(); }));
+
+function tickClock() {
+  const d = new Date();
+  $("clock").textContent = d.toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "short" }) + " · " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+}
+tickClock(); setInterval(tickClock, 15000);
+buildTeam(); refreshPanel(true); detectMode();
+setTimeout(() => leader.say("👋", "Sul sul, Rahula!", 4000), 600);
+</script>
