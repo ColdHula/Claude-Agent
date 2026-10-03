@@ -4,13 +4,26 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic();
-const MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
 const LEADER_EFFORT = process.env.LEADER_EFFORT || "high";
 const WORKER_EFFORT = process.env.WORKER_EFFORT || "medium";
 const MAX_LEADER_TURNS = 16;
 const MAX_WORKER_PAUSES = 6;
-// Perkiraan biaya (USD per 1 juta token) untuk Claude Opus 5.5.
-const PRICE = { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 };
+
+// Model yang boleh dipakai + harga (USD per 1 juta token) untuk perkiraan biaya.
+export const MODELS = {
+  "claude-opus-5-5": { label: "Opus 5.5", price: { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 } },
+  "claude-sonnet-5-5": { label: "Sonnet 5.5", price: { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 } },
+};
+// Pilihan di layar: model untuk Pemimpin dan untuk agent.
+export const PRESETS = {
+  opus: { label: "Opus (paling teliti)", leader: "claude-opus-5-5", worker: "claude-opus-5-5" },
+  campuran: { label: "Campuran: Pemimpin Opus, agent Sonnet", leader: "claude-opus-5-5", worker: "claude-sonnet-5-5" },
+  sonnet: { label: "Sonnet (lebih cepat & hemat)", leader: "claude-sonnet-5-5", worker: "claude-sonnet-5-5" },
+};
+export function defaultModels() {
+  const base = process.env.CLAUDE_MODEL || "claude-opus-5-5";
+  return { leader: process.env.LEADER_MODEL || base, worker: process.env.WORKER_MODEL || base };
+}
 
 // Lampiran untuk setiap agent saat bekerja di bawah Pemimpin.
 const WORKER_APPENDIX = `
@@ -18,13 +31,14 @@ const WORKER_APPENDIX = `
 MODE TIM
 Anda menerima tugas dari Pemimpin tim, bukan langsung dari Rahula, dan tidak bisa bertanya balik. Bila data kurang, jangan berhenti: kerjakan sejauh mungkin dengan asumsi wajar yang ditandai [ASUMSI] atau [ISI: ...], lalu tulis daftar "Pertanyaan untuk Rahula" di akhir. Serahkan hasil kerja final lengkap (bukan rencana).`;
 
-function costOf(usage) {
+function costOf(usage, model) {
   if (!usage) return 0;
+  const price = (MODELS[model] ?? MODELS["claude-opus-5-5"]).price;
   return (
-    ((usage.input_tokens ?? 0) * PRICE.input +
-      (usage.output_tokens ?? 0) * PRICE.output +
-      (usage.cache_creation_input_tokens ?? 0) * PRICE.cacheWrite +
-      (usage.cache_read_input_tokens ?? 0) * PRICE.cacheRead) /
+    ((usage.input_tokens ?? 0) * price.input +
+      (usage.output_tokens ?? 0) * price.output +
+      (usage.cache_creation_input_tokens ?? 0) * price.cacheWrite +
+      (usage.cache_read_input_tokens ?? 0) * price.cacheRead) /
     1e6
   );
 }
@@ -38,10 +52,10 @@ function textOf(message) {
 }
 
 // Satu permintaan streaming. Mengembalikan pesan final.
-async function streamOnce({ system, messages, tools, effort, onText, onBlock, signal }) {
+async function streamOnce({ model, system, messages, tools, effort, onText, onBlock, signal }) {
   const stream = client.beta.messages.stream(
     {
-      model: MODEL,
+      model,
       max_tokens: 64000,
       system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
       messages,
@@ -90,7 +104,7 @@ function validateDelegation(input, agents) {
 }
 
 async function runWorker(agent, instruksi, ctx) {
-  const { emit, callId, signal } = ctx;
+  const { emit, callId, signal, model } = ctx;
   const tools = agent.web ? [{ type: "web_search_20260209", name: "web_search", max_uses: 6 }] : [];
   const messages = [{ role: "user", content: instruksi }];
   let chars = 0;
@@ -100,6 +114,7 @@ async function runWorker(agent, instruksi, ctx) {
 
   for (let i = 0; i <= MAX_WORKER_PAUSES; i++) {
     message = await streamOnce({
+      model,
       system: agent.system + WORKER_APPENDIX,
       messages,
       tools,
@@ -121,7 +136,7 @@ async function runWorker(agent, instruksi, ctx) {
         }
       },
     });
-    cost += costOf(message.usage);
+    cost += costOf(message.usage, model);
     if (message.stop_reason !== "pause_turn") break;
     messages.push({ role: "assistant", content: message.content });
   }
@@ -138,10 +153,10 @@ async function runWorker(agent, instruksi, ctx) {
  * Menjalankan satu tugas dari Rahula sampai selesai.
  * @param {string} task
  * @param {(event: object) => void} emit
- * @param {{agents: any[], leader: any, signal?: AbortSignal}} team
+ * @param {{agents: any[], leader: any, signal?: AbortSignal, models?: {leader: string, worker: string}}} team
  * @returns {Promise<{final: string, workLog: any[], cost: number}>}
  */
-export async function runTask(task, emit, { agents, leader, signal }) {
+export async function runTask(task, emit, { agents, leader, signal, models = defaultModels() }) {
   const byId = Object.fromEntries(agents.map((a) => [a.id, a]));
   const tools = [makeDelegateTool(agents)];
   const messages = [{ role: "user", content: task }];
@@ -161,6 +176,7 @@ export async function runTask(task, emit, { agents, leader, signal }) {
     let message;
     try {
       message = await streamOnce({
+        model: models.leader,
         system: leader.system,
         messages,
         tools,
@@ -179,7 +195,7 @@ export async function runTask(task, emit, { agents, leader, signal }) {
       emit({ type: "leader_status", status: "thinking", text: "Mengulang instruksi delegasi…" });
       continue;
     }
-    addCost(costOf(message.usage));
+    addCost(costOf(message.usage, models.leader));
 
     if (message.stop_reason === "refusal") {
       throw new Error("Pemimpin menolak tugas ini (refusal), termasuk di model cadangan.");
@@ -221,7 +237,7 @@ export async function runTask(task, emit, { agents, leader, signal }) {
           revision: isRevision,
         });
         try {
-          const r = await runWorker(agent, tu.input.instruksi, { emit, callId, signal });
+          const r = await runWorker(agent, tu.input.instruksi, { emit, callId, signal, model: models.worker });
           addCost(r.cost);
           workLog.push({ agent: agent.id, sim: agent.sim, title: agent.title, instruksi: tu.input.instruksi, output: r.output });
           emit({ type: "worker_done", callId, agent: agent.id, ok: r.ok, output: r.output });

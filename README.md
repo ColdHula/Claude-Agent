@@ -19,32 +19,50 @@ Anda cukup **mengirim satu tugas ke Bima**. Bima memilih agent yang tepat, mende
 | 💰 Budi | Cari Cuan | Peluang sampingan dengan skenario untung-rugi | ✅ |
 | 🔎 Laras | Riset | Riset bersumber primer | ✅ |
 
-## Menjalankan
+## Menjalankan (mode live)
 
-Butuh Node.js 22 atau lebih baru.
+1. **Pasang Node.js 22+** dari https://nodejs.org (pilih versi LTS).
+2. **Buat API key** di https://console.anthropic.com → *API Keys* → *Create Key*. Isi saldo di *Billing*,
+   karena API ditagih terpisah dari langganan Claude.ai (Pro/Max).
+3. **Unduh repo ini** (git clone, atau *Code → Download ZIP* di GitHub), lalu di folder repo:
 
 ```bash
 npm install
-cp .env.example .env      # lalu isi ANTHROPIC_API_KEY
+cp .env.example .env      # Windows: copy .env.example .env
+# buka .env, isi ANTHROPIC_API_KEY=sk-ant-...
 npm start                 # buka http://127.0.0.1:3000
 ```
 
-Tanpa API key, aplikasi berjalan dalam **mode demo**: animasi dan alur kerjanya sama, tetapi hasilnya contoh.
+Bila berhasil, terminal menampilkan `✅ Mode LIVE` dan pil di kanan atas layar berubah hijau **● Mode live**.
+Tanpa API key, aplikasi berjalan dalam **mode demo**: animasi dan alurnya sama, tetapi hasilnya contoh.
 `public/index.html` juga bisa dibuka langsung tanpa server (otomatis masuk mode demo).
 
 Setiap hasil akhir disimpan ke `hasil/<tanggal>_<tugas>.md`, termasuk lampiran hasil kerja tiap agent.
 
-### Pengaturan (`.env`)
+### Memilih model (Opus atau Sonnet)
+
+Di bawah kotak tugas ada pilihan **Model tim** (diingat browser):
+
+| Pilihan | Pemimpin | 8 agent | Cocok untuk |
+|---|---|---|---|
+| Opus | Opus 5.5 | Opus 5.5 | Dokumen hukum/sanksi, kepatuhan, analisis penting |
+| Campuran | Opus 5.5 | Sonnet 5.5 | Seimbang: pemeriksaan akhir teliti, pengerjaan lebih hemat |
+| Sonnet | Sonnet 5.5 | Sonnet 5.5 | Tugas rutin, draf cepat, biaya paling rendah |
+| Bawaan (.env) | `LEADER_MODEL` | `WORKER_MODEL` | Mengikuti `.env` (default: Opus untuk semua) |
+
+Harga per 1 juta token: Opus 5.5 $4 masuk / $20 keluar, Sonnet 5.5 $2 / $10.
+Biaya tiap tugas tampil di pil **§** pada bar atas (perkiraan, USD).
+
+### Pengaturan lain (`.env`)
 
 | Variabel | Default | Arti |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — | Kunci API dari console.anthropic.com |
-| `CLAUDE_MODEL` | `claude-opus-5-5` | Model untuk Pemimpin dan agent |
+| `CLAUDE_MODEL` | `claude-opus-5-5` | Model bawaan untuk semua (`claude-opus-5-5` / `claude-sonnet-5-5`) |
+| `LEADER_MODEL` / `WORKER_MODEL` | ikut `CLAUDE_MODEL` | Model bawaan khusus Pemimpin / agent |
 | `LEADER_EFFORT` | `high` | Kedalaman berpikir Pemimpin (`low`–`max`) |
 | `WORKER_EFFORT` | `medium` | Kedalaman berpikir agent |
 | `PORT` / `HOST` | `3000` / `127.0.0.1` | Alamat server |
-
-Biaya API per tugas ditampilkan di pil **§** pada bar atas (perkiraan, USD).
 
 ## Cara kerjanya
 

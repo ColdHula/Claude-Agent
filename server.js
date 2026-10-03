@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadAgents } from "./src/agents.js";
-import { runTask } from "./src/orchestrator.js";
+import { runTask, MODELS, PRESETS, defaultModels } from "./src/orchestrator.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -49,7 +49,14 @@ async function saveResult(task, result) {
   return file;
 }
 
-function startJob(task) {
+// Pilihan preset dari layar; bila kosong pakai pengaturan .env.
+function resolveModels(preset) {
+  const m = PRESETS[preset] ? { leader: PRESETS[preset].leader, worker: PRESETS[preset].worker } : defaultModels();
+  for (const id of [m.leader, m.worker]) if (!MODELS[id]) throw new Error(`Model tidak dikenal: ${id}. Pilih salah satu: ${Object.keys(MODELS).join(", ")}.`);
+  return m;
+}
+
+function startJob(task, models) {
   const id = Date.now().toString(36);
   const job = { events: [], listeners: new Set(), done: false, controller: new AbortController() };
   jobs.set(id, job);
@@ -59,8 +66,8 @@ function startJob(task) {
     job.events.push(e);
     for (const res of job.listeners) res.write(`data: ${JSON.stringify(e)}\n\n`);
   };
-  emit({ type: "task", id, text: task });
-  runTask(task, emit, { ...team, signal: job.controller.signal })
+  emit({ type: "task", id, text: task, models: { leader: MODELS[models.leader].label, worker: MODELS[models.worker].label } });
+  runTask(task, emit, { ...team, models, signal: job.controller.signal })
     .then(async (result) => {
       const file = await saveResult(task, result).catch(() => null);
       emit({ type: "final", output: result.final, file, workLog: result.workLog, usd: Number(result.cost.toFixed(4)) });
@@ -81,7 +88,8 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/status") {
       return json(res, 200, {
         mode: LIVE ? "live" : "demo",
-        model: process.env.CLAUDE_MODEL || "claude-opus-5-5",
+        defaultModels: defaultModels(),
+        presets: Object.fromEntries(Object.entries(PRESETS).map(([k, v]) => [k, v.label])),
         running,
         leader: { id: team.leader.id, sim: team.leader.sim, title: team.leader.title },
         agents: team.agents.map(({ id, sim, title, icon, web, description }) => ({ id, sim, title, icon, web, description })),
@@ -90,9 +98,11 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/tasks" && req.method === "POST") {
       if (!LIVE) return json(res, 400, { error: "Server dalam mode demo (belum ada ANTHROPIC_API_KEY)." });
       if (running) return json(res, 409, { error: "Tim masih mengerjakan tugas lain.", id: running });
-      const { text } = await readBody(req);
+      const { text, preset } = await readBody(req);
       if (typeof text !== "string" || !text.trim()) return json(res, 400, { error: "Tugas kosong." });
-      return json(res, 200, { id: startJob(text.trim()) });
+      let models;
+      try { models = resolveModels(preset); } catch (err) { return json(res, 400, { error: err.message }); }
+      return json(res, 200, { id: startJob(text.trim(), models) });
     }
     const evMatch = url.pathname.match(/^\/api\/tasks\/([a-z0-9]+)\/(events|cancel)$/);
     if (evMatch) {
@@ -139,5 +149,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`\n  🏢 Kantor PGA buka di http://${HOST}:${PORT}`);
   console.log(LIVE ? "  ✅ Mode LIVE — tim memakai Claude API." : "  🎭 Mode DEMO — isi ANTHROPIC_API_KEY di .env untuk mode live.");
+  const dm = defaultModels();
+  if (LIVE) console.log(`  🧠 Model bawaan: Pemimpin ${dm.leader}, agent ${dm.worker} (bisa diganti di layar)`);
   console.log(`  👥 ${team.leader.sim} (Pemimpin) + ${team.agents.map((a) => a.sim).join(", ")}\n`);
 });

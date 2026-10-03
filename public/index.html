@@ -130,6 +130,8 @@ button { cursor: pointer; }
 .btn-ghost { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 13px; }
 .btn-ghost:hover { background: var(--panel-2); }
 .hint { font-size: 12.5px; color: var(--ink-soft); }
+.model-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: var(--ink-soft); }
+#preset { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 12px; font-weight: 700; font-size: 13px; color: var(--ink); max-width: 100%; }
 
 /* ---------- Panel kanan ---------- */
 .side { display: grid; gap: 14px; min-width: 0; }
@@ -267,6 +269,14 @@ details.work summary { cursor: pointer; font-weight: 800; }
         <div class="composer-actions">
           <button class="btn-sims" id="send" type="submit">Kirim ke Pemimpin ➜</button>
           <button class="btn-ghost" id="cancel" type="button" hidden>Batalkan</button>
+          <label class="model-pick" for="preset">Model tim
+            <select id="preset">
+              <option value="">Bawaan (.env)</option>
+              <option value="opus">Opus (paling teliti)</option>
+              <option value="campuran">Campuran: Pemimpin Opus, agent Sonnet</option>
+              <option value="sonnet">Sonnet (lebih cepat &amp; hemat)</option>
+            </select>
+          </label>
           <span class="hint" id="hint">Ctrl + Enter untuk kirim.</span>
         </div>
       </form>
@@ -962,7 +972,7 @@ function handle(ev) {
       leader.interrupt(); leader.queue({ walk: leader.seat });
       leader.status = "thinking"; leader.say("📥", "Tugas baru!", 3000);
       toast(leader, "Tugas diterima", "Bima sedang membaca tugas Anda.");
-      log(`📥 <b>Tugas baru</b>: ${esc(ev.text.slice(0, 160))}`);
+      log(`📥 <b>Tugas baru</b>: ${esc(ev.text.slice(0, 160))}${ev.models ? ` <br><small>Model: Pemimpin ${esc(ev.models.leader)} · agent ${esc(ev.models.worker)}</small>` : ""}`);
       setRunning(true);
       break;
     }
@@ -1152,7 +1162,8 @@ const demo = {
     let t = simClock;
     const at = (dt, ev) => { t += dt; this.queue.push({ at: t, ev }); };
     this.queue = []; this.running = true;
-    at(0, { type: "task", text });
+    const P = { "": ["Opus 5.5", "Opus 5.5"], opus: ["Opus 5.5", "Opus 5.5"], campuran: ["Opus 5.5", "Sonnet 5.5"], sonnet: ["Sonnet 5.5", "Sonnet 5.5"] }[$("preset").value] || ["Opus 5.5", "Opus 5.5"];
+    at(0, { type: "task", text, models: { leader: P[0], worker: P[1] } });
     at(1.6, { type: "leader_thinking", text: `Tugas ini paling cocok untuk ${picked.map((id) => byId[id].sim).join(" dan ")}. Saya bagi dan periksa hasilnya.` });
     at(1.4, { type: "leader_say", text: `Saya delegasikan ke ${picked.map((id) => byId[id].sim).join(", ")} secara paralel.` });
     const base = t;
@@ -1192,6 +1203,11 @@ async function detectMode() {
     if (!r.ok) throw 0;
     const st = await r.json();
     mode = st.mode === "live" ? "live" : "demo";
+    if (st.defaultModels) {
+      const short = (id) => id.replace(/^claude-/, "").replace(/-(\d+)-(\d+)$/, " $1.$2").replace(/^./, (c) => c.toUpperCase());
+      $("preset").options[0].textContent = st.defaultModels.leader === st.defaultModels.worker
+        ? `Bawaan: ${short(st.defaultModels.leader)}` : `Bawaan: Pemimpin ${short(st.defaultModels.leader)}, agent ${short(st.defaultModels.worker)}`;
+    }
     if (mode === "live" && st.running) attach(st.running);
   } catch { mode = "demo"; $("downloadResult").hidden = true; /* tanpa server (mis. pratinjau statis) unduhan tidak tersedia */ }
   const pill = $("modePill");
@@ -1216,7 +1232,7 @@ async function send() {
   if (mode === "live") {
     $("send").disabled = true;
     try {
-      const r = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+      const r = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, preset: $("preset").value || undefined }) });
       const body = await r.json();
       if (!r.ok) throw new Error(body.error || "Gagal mengirim tugas.");
       attach(body.id);
@@ -1230,6 +1246,8 @@ $("cancel").addEventListener("click", async () => {
   if (mode === "live" && jobId) { try { await fetch(`/api/tasks/${jobId}/cancel`, { method: "POST" }); } catch {} }
   else demo.cancel();
 });
+try { const saved = localStorage.getItem("kantor-pga-preset"); if (saved !== null) $("preset").value = saved; } catch {}
+$("preset").addEventListener("change", () => { try { localStorage.setItem("kantor-pga-preset", $("preset").value); } catch {} });
 $("chips").innerHTML = EXAMPLES.map(([label], i) => `<button class="chip" type="button" data-i="${i}">${esc(label)}</button>`).join("");
 $("chips").querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => { $("task").value = EXAMPLES[Number(b.dataset.i)][1]; $("task").focus(); }));
 
