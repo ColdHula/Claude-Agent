@@ -1193,7 +1193,7 @@ async function detectMode() {
     const st = await r.json();
     mode = st.mode === "live" ? "live" : "demo";
     if (mode === "live" && st.running) attach(st.running);
-  } catch { mode = "demo"; }
+  } catch { mode = "demo"; $("downloadResult").hidden = true; /* tanpa server (mis. pratinjau statis) unduhan tidak tersedia */ }
   const pill = $("modePill");
   pill.className = "pill " + (mode === "live" ? "mode-live" : "mode-demo");
   pill.textContent = mode === "live" ? "● Mode live" : "● Mode demo";
