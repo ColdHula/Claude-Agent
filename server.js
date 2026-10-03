@@ -6,13 +6,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadAgents } from "./src/agents.js";
 import { runTask, MODELS, PRESETS, defaultModels } from "./src/orchestrator.js";
+import { runTaskSdk } from "./src/orchestrator-sdk.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "127.0.0.1";
-const LIVE =
-  !process.env.DEMO &&
-  Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || process.env.LIVE);
+// Mesin kerja: "langganan" (bawaan) memakai login akun Claude lewat Agent SDK, sehingga
+// biayanya diambil dari kredit Agent SDK bulanan langganan. "api" memakai ANTHROPIC_API_KEY
+// berbayar dan hanya dipakai bila ENGINE=api ditulis di .env.
+const ENGINE = process.env.ENGINE === "api" ? "api" : "langganan";
+const LIVE = !process.env.DEMO && (ENGINE === "langganan" || Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN));
+const run = ENGINE === "api" ? runTask : runTaskSdk;
 
 const team = await loadAgents();
 const jobs = new Map(); // id -> { events, listeners, done, controller }
@@ -67,7 +71,7 @@ function startJob(task, models) {
     for (const res of job.listeners) res.write(`data: ${JSON.stringify(e)}\n\n`);
   };
   emit({ type: "task", id, text: task, models: { leader: MODELS[models.leader].label, worker: MODELS[models.worker].label } });
-  runTask(task, emit, { ...team, models, signal: job.controller.signal })
+  run(task, emit, { ...team, models, signal: job.controller.signal })
     .then(async (result) => {
       const file = await saveResult(task, result).catch(() => null);
       emit({ type: "final", output: result.final, file, workLog: result.workLog, usd: Number(result.cost.toFixed(4)) });
@@ -88,6 +92,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/status") {
       return json(res, 200, {
         mode: LIVE ? "live" : "demo",
+        engine: ENGINE,
         defaultModels: defaultModels(),
         presets: Object.fromEntries(Object.entries(PRESETS).map(([k, v]) => [k, v.label])),
         running,
@@ -96,7 +101,7 @@ const server = http.createServer(async (req, res) => {
       });
     }
     if (url.pathname === "/api/tasks" && req.method === "POST") {
-      if (!LIVE) return json(res, 400, { error: "Server dalam mode demo (belum ada ANTHROPIC_API_KEY)." });
+      if (!LIVE) return json(res, 400, { error: "Server dalam mode demo (DEMO=1, atau ENGINE=api tanpa ANTHROPIC_API_KEY)." });
       if (running) return json(res, 409, { error: "Tim masih mengerjakan tugas lain.", id: running });
       const { text, preset } = await readBody(req);
       if (typeof text !== "string" || !text.trim()) return json(res, 400, { error: "Tugas kosong." });
@@ -148,7 +153,9 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`\n  🏢 Kantor PGA buka di http://${HOST}:${PORT}`);
-  console.log(LIVE ? "  ✅ Mode LIVE — tim memakai Claude API." : "  🎭 Mode DEMO — isi ANTHROPIC_API_KEY di .env untuk mode live.");
+  if (!LIVE) console.log("  🎭 Mode DEMO — animasi saja, tanpa memanggil Claude.");
+  else if (ENGINE === "langganan") console.log("  ✅ Mode LIVE (langganan) — memakai login akun Claude + kredit Agent SDK bulanan. Tanpa API key.");
+  else console.log("  ✅ Mode LIVE (API) — memakai ANTHROPIC_API_KEY berbayar.");
   const dm = defaultModels();
   if (LIVE) console.log(`  🧠 Model bawaan: Pemimpin ${dm.leader}, agent ${dm.worker} (bisa diganti di layar)`);
   console.log(`  👥 ${team.leader.sim} (Pemimpin) + ${team.agents.map((a) => a.sim).join(", ")}\n`);

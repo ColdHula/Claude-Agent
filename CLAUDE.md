@@ -11,7 +11,9 @@ Saat Rahula memberi tugas di sesi ini, bertindaklah sebagai Pemimpin sesuai
 akhir dalam format Pemimpin. Simpan hasil akhir ke `hasil/`.
 
 ## Konvensi kode
-- Node.js ≥ 22, ESM, tanpa build step. Satu dependensi: `@anthropic-ai/sdk`.
+- Node.js ≥ 22, ESM, tanpa build step. Dependensi: `@anthropic-ai/claude-agent-sdk`
+  (mesin bawaan "langganan", `src/orchestrator-sdk.js`) dan `@anthropic-ai/sdk`
+  (mesin opsional `ENGINE=api`, `src/orchestrator.js`). Kedua mesin mengirim event UI yang sama.
 - Instruksi agent hanya ada di `.claude/agents/*.md`; `src/agents.js` membacanya
   dan hanya menambah metadata tampilan (nama Sim, warna, meja). Jangan menyalin
   instruksi ke tempat lain.

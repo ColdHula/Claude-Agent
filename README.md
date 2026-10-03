@@ -19,56 +19,71 @@ Anda cukup **mengirim satu tugas ke Bima**. Bima memilih agent yang tepat, mende
 | 💰 Budi | Cari Cuan | Peluang sampingan dengan skenario untung-rugi | ✅ |
 | 🔎 Laras | Riset | Riset bersumber primer | ✅ |
 
-## Menjalankan (mode live)
+## Menjalankan dengan langganan Claude (tanpa biaya tambahan)
 
-1. **Pasang Node.js 22+** dari https://nodejs.org (pilih versi LTS).
-2. **Buat API key** di https://console.anthropic.com → *API Keys* → *Create Key*. Isi saldo di *Billing*,
-   karena API ditagih terpisah dari langganan Claude.ai (Pro/Max).
-3. **Unduh repo ini** (git clone, atau *Code → Download ZIP* di GitHub), lalu di folder repo:
+Aplikasi ini memakai **login akun Claude Anda** lewat Claude Agent SDK. Pemakaiannya diambil dari
+**kredit Agent SDK bulanan** yang sudah termasuk dalam langganan (Pro $20, Max 5x $100, Max 20x $200 per bulan),
+bukan dari API key berbayar, dan tidak memotong limit chat Anda.
+
+**Sekali saja:**
+
+1. Pasang **Node.js 22+** dari https://nodejs.org (versi LTS).
+2. **Klaim kredit Agent SDK** di akun Claude Anda (lihat
+   [panduan resmi](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan)).
+3. **Jangan aktifkan "usage credits"** (kredit tambahan berbayar) di pengaturan akun. Dengan begitu,
+   bila kredit bulanan habis, tugas berhenti sampai kredit terisi ulang dan tidak ada tagihan.
+4. Unduh repo ini, lalu di foldernya:
 
 ```bash
 npm install
-cp .env.example .env      # Windows: copy .env.example .env
-# buka .env, isi ANTHROPIC_API_KEY=sk-ant-...
-npm start                 # buka http://127.0.0.1:3000
+npm run login          # membuka Claude Code: ketik /login, masuk dengan akun Claude Pro/Max, lalu /exit
 ```
 
-Bila berhasil, terminal menampilkan `✅ Mode LIVE` dan pil di kanan atas layar berubah hijau **● Mode live**.
-Tanpa API key, aplikasi berjalan dalam **mode demo**: animasi dan alurnya sama, tetapi hasilnya contoh.
-`public/index.html` juga bisa dibuka langsung tanpa server (otomatis masuk mode demo).
+**Setiap kali dipakai:**
 
-Setiap hasil akhir disimpan ke `hasil/<tanggal>_<tugas>.md`, termasuk lampiran hasil kerja tiap agent.
+```bash
+npm start              # buka http://127.0.0.1:3000
+```
+
+Bila berhasil, terminal menampilkan `✅ Mode LIVE (langganan)` dan pil kanan atas menjadi **● Langganan**.
+Pil **§** menunjukkan perkiraan kredit yang terpakai untuk tugas itu. Ada rem pengaman per tugas
+(`MAX_TASK_USD`, bawaan $3) agar satu tugas tidak menghabiskan kredit bulanan.
+
+Tanpa login, jalankan `npm run demo` untuk melihat animasinya saja. `public/index.html` juga bisa dibuka
+langsung tanpa server (mode demo).
+
+Setiap hasil akhir disimpan ke `hasil/<tanggal>_<tugas>.md` di laptop Anda (folder ini tidak ikut ke Git).
 
 ### Memilih model (Opus atau Sonnet)
 
 Di bawah kotak tugas ada pilihan **Model tim** (diingat browser):
 
-| Pilihan | Pemimpin | 8 agent | Cocok untuk |
+| Pilihan | Pemimpin | 8 agent | Pemakaian kredit |
 |---|---|---|---|
-| Opus | Opus 5.5 | Opus 5.5 | Dokumen hukum/sanksi, kepatuhan, analisis penting |
-| Campuran | Opus 5.5 | Sonnet 5.5 | Seimbang: pemeriksaan akhir teliti, pengerjaan lebih hemat |
-| Sonnet | Sonnet 5.5 | Sonnet 5.5 | Tugas rutin, draf cepat, biaya paling rendah |
-| Bawaan (.env) | `LEADER_MODEL` | `WORKER_MODEL` | Mengikuti `.env` (default: Opus untuk semua) |
+| Bawaan | Sonnet 5.5 | Sonnet 5.5 | Paling hemat (bawaan mode langganan) |
+| Campuran | Opus 5.5 | Sonnet 5.5 | Sedang: pemeriksaan akhir lebih teliti |
+| Opus | Opus 5.5 | Opus 5.5 | Paling boros: untuk dokumen hukum/sanksi penting |
 
-Harga per 1 juta token: Opus 5.5 $4 masuk / $20 keluar, Sonnet 5.5 $2 / $10.
-Biaya tiap tugas tampil di pil **§** pada bar atas (perkiraan, USD).
+Perkiraan kasar: satu tugas dengan 2–3 agent memakai sekitar $0,15–0,75 kredit di Sonnet, kira-kira dua kali lipat di Opus.
 
 ### Pengaturan lain (`.env`)
 
-| Variabel | Default | Arti |
+Salin `.env.example` menjadi `.env` bila ingin mengubah bawaan:
+
+| Variabel | Bawaan | Arti |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | Kunci API dari console.anthropic.com |
-| `CLAUDE_MODEL` | `claude-opus-5-5` | Model bawaan untuk semua (`claude-opus-5-5` / `claude-sonnet-5-5`) |
+| `MAX_TASK_USD` | `3` | Rem pengaman kredit per tugas (USD perkiraan) |
+| `CLAUDE_MODEL` | `claude-sonnet-5-5` | Model bawaan untuk semua |
 | `LEADER_MODEL` / `WORKER_MODEL` | ikut `CLAUDE_MODEL` | Model bawaan khusus Pemimpin / agent |
-| `LEADER_EFFORT` | `high` | Kedalaman berpikir Pemimpin (`low`–`max`) |
-| `WORKER_EFFORT` | `medium` | Kedalaman berpikir agent |
+| `LEADER_EFFORT` / `WORKER_EFFORT` | `high` / `medium` | Kedalaman berpikir |
+| `CLAUDE_CODE_OAUTH_TOKEN` | — | Alternatif login: hasil `claude setup-token` |
+| `ENGINE` | `langganan` | Isi `api` untuk memakai `ANTHROPIC_API_KEY` berbayar (opsional) |
 | `PORT` / `HOST` | `3000` / `127.0.0.1` | Alamat server |
 
-## Pakai dengan langganan Claude (tanpa biaya API)
+## Pakai langsung di Claude Code (juga tanpa biaya tambahan)
 
-Mode live di atas memakai API dan ditagih terpisah. Bila ingin memakai **langganan Claude Pro/Max** saja,
-jalankan tim ini di **Claude Code** (claude.ai/code, aplikasi desktop, atau CLI). Pemakaiannya masuk kuota langganan.
-Kantor Sims (`public/index.html`) tetap butuh API; di Claude Code pekerjaannya tampil sebagai chat biasa.
+Tanpa aplikasi kantor, tim ini juga bisa dipakai di **Claude Code** (claude.ai/code, aplikasi desktop, atau CLI).
+Pemakaian interaktif ini memakai limit langganan biasa. Pekerjaannya tampil sebagai chat, tanpa animasi.
 
 1. Buka https://claude.ai/code → sesi baru → pilih repo **ColdHula/Claude-Agent**, branch `claude/bold-feynman-27cfgv`.
 2. Pastikan connector **Google Drive** aktif agar konteks ADM PGD bisa dibaca.
@@ -108,7 +123,9 @@ Anda ──tugas──▶ Bima (Pemimpin)
 - `.claude/agents/*.md`: instruksi 8 agent (diambil dari dokumen paket agent). Ini satu-satunya sumber instruksi.
   Ubah aturan agent di sini, lalu restart server.
 - `prompts/pemimpin.md`: instruksi Pemimpin (cara delegasi, daftar cek, format hasil akhir).
-- `src/orchestrator.js`: loop Pemimpin ↔ agent memakai Claude API (streaming, adaptive thinking,
+- `src/orchestrator-sdk.js`: mesin bawaan (langganan). Pemimpin berjalan lewat Claude Agent SDK dengan login akun Claude;
+  8 agent menjadi subagent (web search hanya untuk Riset/Kepatuhan/Cuan), dengan rem pengaman `MAX_TASK_USD`.
+- `src/orchestrator.js` (mesin API, hanya bila `ENGINE=api`): loop Pemimpin ↔ agent memakai Claude API (streaming, adaptive thinking,
   web search untuk Riset/Kepatuhan/Cuan, dan `fallbacks: "default"` agar permintaan yang ditolak
   klasifikasi keamanan otomatis diulang di model cadangan).
 - `server.js`: server HTTP + Server-Sent Events ke browser.
@@ -126,8 +143,3 @@ untuk melihat tugas, progres, bar kebutuhan, dan hasil terakhirnya. Tombol ❚�
   (atau tempel ke Claude in Chrome). Patuhi kebijakan IT Mayora soal alat AI.
 - **Data & Rekap** belum bisa menerima unggahan file lewat UI. Tempel isi CSV di tugas (atau pakai Claude Code/Cowork untuk file besar).
 - Samarkan data pribadi (NIK, rekening) bila tidak perlu, sesuai bagian Keamanan di dokumen paket agent.
-
-## Pakai dari Claude Code
-
-Agent di `.claude/agents/` juga terbaca otomatis sebagai subagent Claude Code. Buka repo ini di Claude Code
-dan kirim tugas biasa. `CLAUDE.md` meminta sesi utama bertindak sebagai Pemimpin dan mendelegasikan ke subagent.

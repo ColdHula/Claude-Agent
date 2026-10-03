@@ -21,7 +21,8 @@ export const PRESETS = {
   sonnet: { label: "Sonnet (lebih cepat & hemat)", leader: "claude-sonnet-5-5", worker: "claude-sonnet-5-5" },
 };
 export function defaultModels() {
-  const base = process.env.CLAUDE_MODEL || "claude-opus-5-5";
+  // Mode langganan memakai Sonnet sebagai bawaan agar kredit Agent SDK bulanan lebih awet.
+  const base = process.env.CLAUDE_MODEL || (process.env.ENGINE === "api" ? "claude-opus-5-5" : "claude-sonnet-5-5");
   return { leader: process.env.LEADER_MODEL || base, worker: process.env.WORKER_MODEL || base };
 }
 

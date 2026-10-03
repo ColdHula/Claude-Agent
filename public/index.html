@@ -235,7 +235,7 @@ details.work summary { cursor: pointer; font-weight: 800; }
     </div>
     <div class="hud-spacer"></div>
     <span class="pill" id="modePill">Memeriksa…</span>
-    <span class="pill" title="Perkiraan biaya Claude API untuk tugas ini (USD)"><span class="simoleon">§</span><span id="cost">0,00</span></span>
+    <span class="pill" id="costPill" title="Perkiraan biaya Claude API untuk tugas ini (USD)"><span class="simoleon">§</span><span id="cost">0,00</span></span>
     <span class="pill" id="clock">--</span>
     <div class="speed" role="group" aria-label="Kecepatan animasi">
       <button data-speed="0" aria-pressed="false" title="Jeda">❚❚</button>
@@ -1181,7 +1181,7 @@ const demo = {
     const allDone = Math.max(...done) + 5;
     this.queue.push({ at: allDone, ev: { type: "review", count: picked.length } });
     const workLog = picked.map((id) => ({ agent: id, sim: byId[id].sim, title: byId[id].title, instruksi: text, output: DEMO_OUT[id] }));
-    const final = `# Hasil (contoh mode demo)\n**Ringkasan:** Ini simulasi. Di mode live, Bima menggabungkan hasil ${picked.map((id) => byId[id].sim).join(", ")} menjadi dokumen siap pakai untuk tugas: _${text.slice(0, 140)}_\n\n## Hasil\n${workLog.map((w) => `### Dari ${w.sim} (${w.title})\n${w.output}`).join("\n\n")}\n\n## Hasil Pemeriksaan Pemimpin\n- [x] Tugas terjawab oleh agent yang tepat\n- [x] Data yang belum pasti ditandai [ISI: …]\n- [ ] Fakta & angka asli (perlu mode live)\n\n## Perlu Dilengkapi / Diputuskan Rahula\n- Isi ANTHROPIC_API_KEY di file .env lalu jalankan \`npm start\` untuk hasil asli.\n\n## Kontribusi Tim\n${workLog.map((w) => `- ${w.sim} — ${w.title}`).join("\n")}`;
+    const final = `# Hasil (contoh mode demo)\n**Ringkasan:** Ini simulasi. Di mode live, Bima menggabungkan hasil ${picked.map((id) => byId[id].sim).join(", ")} menjadi dokumen siap pakai untuk tugas: _${text.slice(0, 140)}_\n\n## Hasil\n${workLog.map((w) => `### Dari ${w.sim} (${w.title})\n${w.output}`).join("\n\n")}\n\n## Hasil Pemeriksaan Pemimpin\n- [x] Tugas terjawab oleh agent yang tepat\n- [x] Data yang belum pasti ditandai [ISI: …]\n- [ ] Fakta & angka asli (perlu mode live)\n\n## Perlu Dilengkapi / Diputuskan Rahula\n- Untuk hasil asli: login akun Claude sekali (\`claude\` lalu /login), klaim kredit Agent SDK di akun Claude, lalu jalankan \`npm start\` di laptop.\n\n## Kontribusi Tim\n${workLog.map((w) => `- ${w.sim} — ${w.title}`).join("\n")}`;
     this.queue.push({ at: allDone + 4, ev: { type: "final", output: final, workLog, usd: 0 } });
     this.queue.sort((a, b) => a.at - b.at);
   },
@@ -1195,7 +1195,7 @@ const demo = {
 /* =====================================================================
    KONEKSI KE SERVER (mode live)
    ===================================================================== */
-let mode = "demo", source = null, jobId = null;
+let mode = "demo", engine = "api", source = null, jobId = null;
 async function detectMode() {
   try {
     const ctl = new AbortController(); setTimeout(() => ctl.abort(), 2500);
@@ -1203,6 +1203,7 @@ async function detectMode() {
     if (!r.ok) throw 0;
     const st = await r.json();
     mode = st.mode === "live" ? "live" : "demo";
+    engine = st.engine || "api";
     if (st.defaultModels) {
       const short = (id) => id.replace(/^claude-/, "").replace(/-(\d+)-(\d+)$/, " $1.$2").replace(/^./, (c) => c.toUpperCase());
       $("preset").options[0].textContent = st.defaultModels.leader === st.defaultModels.worker
@@ -1212,8 +1213,11 @@ async function detectMode() {
   } catch { mode = "demo"; $("downloadResult").hidden = true; /* tanpa server (mis. pratinjau statis) unduhan tidak tersedia */ }
   const pill = $("modePill");
   pill.className = "pill " + (mode === "live" ? "mode-live" : "mode-demo");
-  pill.textContent = mode === "live" ? "● Mode live" : "● Mode demo";
-  pill.title = mode === "live" ? "Tim memakai Claude API sungguhan." : "Simulasi animasi. Jalankan server dengan ANTHROPIC_API_KEY untuk hasil asli.";
+  pill.textContent = mode !== "live" ? "● Mode demo" : engine === "langganan" ? "● Langganan" : "● Mode API";
+  pill.title = mode !== "live" ? "Simulasi animasi. Jalankan npm start di laptop (login akun Claude) untuk hasil asli."
+    : engine === "langganan" ? "Tim memakai login akun Claude Anda. Biaya diambil dari kredit Agent SDK bulanan langganan, tanpa tagihan tambahan."
+    : "Tim memakai ANTHROPIC_API_KEY berbayar.";
+  if (mode === "live" && engine === "langganan") $("costPill").title = "Kredit Agent SDK langganan yang terpakai untuk tugas ini (perkiraan, USD).";
 }
 function attach(id) {
   jobId = id;
