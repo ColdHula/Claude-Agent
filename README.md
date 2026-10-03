@@ -64,6 +64,34 @@ Biaya tiap tugas tampil di pil **§** pada bar atas (perkiraan, USD).
 | `WORKER_EFFORT` | `medium` | Kedalaman berpikir agent |
 | `PORT` / `HOST` | `3000` / `127.0.0.1` | Alamat server |
 
+## Pakai dengan langganan Claude (tanpa biaya API)
+
+Mode live di atas memakai API dan ditagih terpisah. Bila ingin memakai **langganan Claude Pro/Max** saja,
+jalankan tim ini di **Claude Code** (claude.ai/code, aplikasi desktop, atau CLI). Pemakaiannya masuk kuota langganan.
+Kantor Sims (`public/index.html`) tetap butuh API; di Claude Code pekerjaannya tampil sebagai chat biasa.
+
+1. Buka https://claude.ai/code → sesi baru → pilih repo **ColdHula/Claude-Agent**, branch `claude/bold-feynman-27cfgv`.
+2. Pastikan connector **Google Drive** aktif agar konteks ADM PGD bisa dibaca.
+3. Kirim tugas seperti biasa. `CLAUDE.md` membuat sesi itu bertindak sebagai Pemimpin dan mendelegasikan
+   ke 8 subagent di `.claude/agents/`. Pilih Opus atau Sonnet lewat pemilih model di sesi (atau `/model`).
+
+Agar terstruktur, buat satu sesi khusus Pemimpin dan, bila perlu, satu sesi per agent untuk chat langsung
+dengan spesialisnya. Beri judul `Kantor PGA · <Nama> — <Peran>` dan buka dengan pesan:
+
+```
+Di sesi ini kamu adalah <nama-agent> (lihat .claude/agents/<nama-agent>.md) — ikuti file itu sebagai instruksi utama.
+Sebelum tugas pertama, baca Google Doc "Konteks ADM PGD — Tim Agent Kantor PGA" di Google Drive saya.
+Repo ini publik: jangan commit data pribadi (nama karyawan, NIK, nomor laporan, isi perjanjian).
+```
+
+Untuk sesi Pemimpin, ganti baris pertama dengan: `Di sesi ini kamu adalah Pemimpin sesuai CLAUDE.md dan prompts/pemimpin.md.`
+
+### Konteks ADM PGD
+
+Konteks kerja (profil, cabang, penandatangan, format BA dan Perjanjian Bersama, kode absensi, daftar file sumber)
+disimpan di Google Doc pribadi **"Konteks ADM PGD — Tim Agent Kantor PGA"** di Drive Rahula, bukan di repo ini,
+karena repo ini publik. Data yang berubah (kasus, absensi, lembur, outsourcing) dibaca langsung dari file sumbernya di Drive.
+
 ## Cara kerjanya
 
 ```
