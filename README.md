@@ -54,6 +54,12 @@ langsung tanpa server (mode demo).
 
 Setiap hasil akhir disimpan ke `hasil/<tanggal>_<tugas>.md` di laptop Anda (folder ini tidak ikut ke Git).
 
+### Pengetahuan kantor (seperti "Project knowledge" di claude.ai)
+
+Taruh file `.md` atau `.txt` di folder `pengetahuan/`. Isinya otomatis dibaca Bima dan semua agent di setiap tugas,
+tanpa restart. Folder ini **tidak ikut ke GitHub**, jadi aman untuk data internal. Batas total ±120.000 karakter.
+Saat tugas dimulai, log aktivitas menampilkan "📚 Pengetahuan dimuat: …".
+
 ### Memilih model (Opus atau Sonnet)
 
 Di bawah kotak tugas ada pilihan **Model tim** (diingat browser):

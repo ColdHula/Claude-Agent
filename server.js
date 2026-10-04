@@ -71,7 +71,14 @@ function startJob(task, models) {
     for (const res of job.listeners) res.write(`data: ${JSON.stringify(e)}\n\n`);
   };
   emit({ type: "task", id, text: task, models: { leader: MODELS[models.leader].label, worker: MODELS[models.worker].label } });
-  run(task, emit, { ...team, models, signal: job.controller.signal })
+  // Muat ulang instruksi + pengetahuan di setiap tugas, agar file baru di pengetahuan/ langsung terpakai.
+  loadAgents()
+    .then((fresh) => {
+      if (fresh.knowledge.files.length) {
+        emit({ type: "leader_say", text: `📚 Pengetahuan dimuat: ${fresh.knowledge.files.join(", ")} (${fresh.knowledge.chars.toLocaleString("id-ID")} karakter${fresh.knowledge.truncated ? ", sebagian dipotong" : ""}).` });
+      }
+      return run(task, emit, { ...fresh, models, signal: job.controller.signal });
+    })
     .then(async (result) => {
       const file = await saveResult(task, result).catch(() => null);
       emit({ type: "final", output: result.final, file, workLog: result.workLog, usd: Number(result.cost.toFixed(4)) });
@@ -158,5 +165,7 @@ server.listen(PORT, HOST, () => {
   else console.log("  ✅ Mode LIVE (API) — memakai ANTHROPIC_API_KEY berbayar.");
   const dm = defaultModels();
   if (LIVE) console.log(`  🧠 Model bawaan: Pemimpin ${dm.leader}, agent ${dm.worker} (bisa diganti di layar)`);
+  const k = team.knowledge;
+  console.log(k.files.length ? `  📚 Pengetahuan: ${k.files.length} file (${k.chars.toLocaleString("id-ID")} karakter)${k.truncated ? " — melebihi batas, sebagian dipotong" : ""}` : "  📚 Pengetahuan: belum ada (taruh file .md/.txt di folder pengetahuan/)");
   console.log(`  👥 ${team.leader.sim} (Pemimpin) + ${team.agents.map((a) => a.sim).join(", ")}\n`);
 });
