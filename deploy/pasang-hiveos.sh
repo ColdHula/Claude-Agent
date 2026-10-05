@@ -13,7 +13,12 @@
 # Aman dijalankan ulang untuk memperbarui aplikasi.
 set -euo pipefail
 
-REPO="https://github.com/ColdHula/Claude-Agent.git"
+# Bila repo dijadikan private, isi GH_TOKEN (fine-grained token, izin "Contents: Read-only").
+if [ -n "${GH_TOKEN:-}" ]; then
+  REPO="https://x-access-token:${GH_TOKEN}@github.com/ColdHula/Claude-Agent.git"
+else
+  REPO="https://github.com/ColdHula/Claude-Agent.git"
+fi
 BRANCH="${BRANCH:-claude/bold-feynman-27cfgv}"
 APP_USER="${APP_USER:-user}"
 APP_DIR="${APP_DIR:-/home/${APP_USER}/kantor-pga}"

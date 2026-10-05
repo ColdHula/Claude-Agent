@@ -27,6 +27,14 @@ Di terminal rig, tempel perintah ini lalu Enter:
 curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-hiveos.sh | sudo bash
 ```
 
+**Bila repo GitHub sudah dijadikan private**, buat token di GitHub → *Settings* → *Developer settings* →
+*Fine-grained tokens* (repo `Claude-Agent`, izin *Contents: Read-only*), lalu pakai perintah ini sebagai gantinya:
+
+```
+export GH_TOKEN=github_pat_xxxxx
+curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-hiveos.sh | sudo -E bash
+```
+
 Skrip akan bertanya:
 - **Token**: tempel token dari langkah 1.
 - **Kata sandi aplikasi**: buat minimal 12 karakter (atau kosongkan untuk dibuatkan; catat yang muncul).
