@@ -1,8 +1,15 @@
 # Folder pengetahuan (rahasia, tidak ikut ke Git)
 
-Taruh file `.md` atau `.txt` di folder ini. Isinya otomatis dibaca Bima (Pemimpin) dan semua agent
-di setiap tugas, seperti "Project knowledge" di Project claude.ai. Tidak perlu restart server.
+Mirip "Project knowledge" di claude.ai. File `.md`/`.txt` dibaca otomatis di setiap tugas, tanpa restart.
 
-- Hanya file README ini yang ikut ke GitHub; file lain di folder ini tetap di laptop Anda.
-- Batas total ±120.000 karakter (kira-kira 60 halaman). Lebih dari itu dipotong; ringkas dulu bila perlu.
-- Contoh nama file: `01-konteks-adm-pgd.md`, `02-instruksi-project.md`, `03-format-surat.md`.
+| Lokasi | Dibaca oleh |
+|---|---|
+| `pengetahuan/*.md` dan `pengetahuan/umum/*.md` | Pemimpin dan semua agent |
+| `pengetahuan/<id-agent>/*.md` | Hanya agent itu, mis. `pengetahuan/surat-ba/` |
+| `pengetahuan/pemimpin/*.md` | Hanya Pemimpin |
+
+ID agent: `surat-ba`, `kepatuhan-perizinan`, `data-rekap`, `sop-k3-vendor`, `email-kalender`,
+`chrome-portal`, `cari-cuan`, `riset`. Pemimpin melihat daftar file khusus tiap agent.
+
+- Hanya README ini yang ikut ke GitHub; file lain tetap di komputer/rig Anda.
+- Batas ±120.000 karakter per agent. Taruh hal yang dipakai semua agent di `umum/`, sisanya di folder agent.

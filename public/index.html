@@ -1200,6 +1200,7 @@ async function detectMode() {
   try {
     const ctl = new AbortController(); setTimeout(() => ctl.abort(), 2500);
     const r = await fetch("/api/status", { signal: ctl.signal });
+    if (r.status === 401) { location.href = "/login"; return; }
     if (!r.ok) throw 0;
     const st = await r.json();
     mode = st.mode === "live" ? "live" : "demo";
@@ -1237,6 +1238,7 @@ async function send() {
     $("send").disabled = true;
     try {
       const r = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, preset: $("preset").value || undefined }) });
+      if (r.status === 401) { location.href = "/login"; return; }
       const body = await r.json();
       if (!r.ok) throw new Error(body.error || "Gagal mengirim tugas.");
       attach(body.id);

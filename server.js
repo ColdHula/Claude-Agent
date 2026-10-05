@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { loadAgents } from "./src/agents.js";
 import { runTask, MODELS, PRESETS, defaultModels } from "./src/orchestrator.js";
 import { runTaskSdk } from "./src/orchestrator-sdk.js";
+import { makeAuth } from "./src/auth.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -17,6 +18,19 @@ const HOST = process.env.HOST || "127.0.0.1";
 const ENGINE = process.env.ENGINE === "api" ? "api" : "langganan";
 const LIVE = !process.env.DEMO && (ENGINE === "langganan" || Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN));
 const run = ENGINE === "api" ? runTask : runTaskSdk;
+
+// Kata sandi: wajib bila server tidak hanya untuk laptop sendiri.
+const LOCAL_ONLY = ["127.0.0.1", "localhost", "::1"].includes(HOST);
+if (!LOCAL_ONLY && !process.env.APP_PASSWORD) {
+  console.error(`\n  ⛔ HOST=${HOST} membuka Kantor PGA ke jaringan, tetapi APP_PASSWORD belum diisi di .env.`);
+  console.error("     Isi APP_PASSWORD (minimal 12 karakter) agar orang lain tidak bisa memakai kredit dan membaca data PGD.\n");
+  process.exit(1);
+}
+if (process.env.APP_PASSWORD && process.env.APP_PASSWORD.length < 12) {
+  console.error("\n  ⛔ APP_PASSWORD terlalu pendek. Pakai minimal 12 karakter.\n");
+  process.exit(1);
+}
+const guard = makeAuth(process.env.APP_PASSWORD);
 
 const team = await loadAgents();
 const jobs = new Map(); // id -> { events, listeners, done, controller }
@@ -96,6 +110,7 @@ function startJob(task, models) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
+    if (guard && (await guard(req, res, url))) return;
     if (url.pathname === "/api/status") {
       return json(res, 200, {
         mode: LIVE ? "live" : "demo",
@@ -160,6 +175,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`\n  🏢 Kantor PGA buka di http://${HOST}:${PORT}`);
+  console.log(guard ? "  🔒 Kata sandi aktif (APP_PASSWORD)." : "  🔓 Tanpa kata sandi (hanya bisa dibuka dari komputer ini).");
   if (!LIVE) console.log("  🎭 Mode DEMO — animasi saja, tanpa memanggil Claude.");
   else if (ENGINE === "langganan") console.log("  ✅ Mode LIVE (langganan) — memakai login akun Claude + kredit Agent SDK bulanan. Tanpa API key.");
   else console.log("  ✅ Mode LIVE (API) — memakai ANTHROPIC_API_KEY berbayar.");

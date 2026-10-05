@@ -56,8 +56,8 @@ Setiap hasil akhir disimpan ke `hasil/<tanggal>_<tugas>.md` di laptop Anda (fold
 
 ### Pengetahuan kantor (seperti "Project knowledge" di claude.ai)
 
-Taruh file `.md` atau `.txt` di folder `pengetahuan/`. Isinya otomatis dibaca Bima dan semua agent di setiap tugas,
-tanpa restart. Folder ini **tidak ikut ke GitHub**, jadi aman untuk data internal. Batas total ±120.000 karakter.
+Taruh file `.md` atau `.txt` di folder `pengetahuan/`: `umum/` untuk semua, `<id-agent>/` khusus satu agent
+(mis. `surat-ba/`), `pemimpin/` khusus Bima. Dibaca otomatis di setiap tugas, tanpa restart (lihat `pengetahuan/README.md`). Folder ini **tidak ikut ke GitHub**, jadi aman untuk data internal. Batas total ±120.000 karakter.
 Saat tugas dimulai, log aktivitas menampilkan "📚 Pengetahuan dimuat: …".
 
 ### Memilih model (Opus atau Sonnet)
@@ -85,6 +85,11 @@ Salin `.env.example` menjadi `.env` bila ingin mengubah bawaan:
 | `CLAUDE_CODE_OAUTH_TOKEN` | — | Alternatif login: hasil `claude setup-token` |
 | `ENGINE` | `langganan` | Isi `api` untuk memakai `ANTHROPIC_API_KEY` berbayar (opsional) |
 | `PORT` / `HOST` | `3000` / `127.0.0.1` | Alamat server |
+
+## Pasang di rig HiveOS (bisa dibuka dari HP/laptop mana saja)
+
+Lihat [deploy/HIVEOS.md](deploy/HIVEOS.md): satu perintah memasang aplikasi sebagai layanan yang selalu menyala,
+plus akses aman lewat Tailscale dan kata sandi (`APP_PASSWORD`).
 
 ## Pakai langsung di Claude Code (juga tanpa biaya tambahan)
 
