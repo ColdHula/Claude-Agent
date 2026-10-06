@@ -37,8 +37,10 @@ id "$APP_USER" >/dev/null 2>&1 || die "Pengguna '$APP_USER' tidak ada. Jalankan 
 say "1/5 Memeriksa sistem"
 ARCH="$(uname -m)"
 case "$ARCH" in x86_64|aarch64) ok "Arsitektur $ARCH" ;; *) die "Arsitektur $ARCH belum didukung." ;; esac
-GLIBC="$(ldd --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+$' || echo 0)"
-if [ "$(printf '%s\n2.28\n' "$GLIBC" | sort -V | head -1)" != "2.28" ]; then
+# Catatan: hindari "| head" di bawah set -o pipefail (SIGPIPE membuat pipeline dianggap gagal).
+GLIBC="$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}')"
+[ -n "$GLIBC" ] || GLIBC="$(ldd --version 2>/dev/null | awk 'NR==1{print $NF}')"
+if ! printf '2.28\n%s\n' "${GLIBC:-0}" | sort -V -C; then
   die "glibc $GLIBC terlalu lama (butuh ≥ 2.28). Perbarui image HiveOS ke versi berbasis Ubuntu 20.04/22.04 (perintah: hive-replace --list)."
 fi
 ok "glibc $GLIBC"
@@ -121,7 +123,7 @@ else
   TOKEN="$(ask 'Tempel token sk-ant-oat01-... (kosongkan untuk mode demo):')"
   TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
   PASS="$(ask 'Kata sandi aplikasi (min. 12 karakter, kosongkan untuk dibuatkan):')"
-  if [ -z "$PASS" ]; then PASS="$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)"; GENERATED=1; fi
+  if [ -z "$PASS" ]; then PASS="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-16)"; GENERATED=1; fi
   [ "${#PASS}" -ge 12 ] || die "Kata sandi minimal 12 karakter."
   umask 077
   {
@@ -212,7 +214,7 @@ if [ "$(ask 'Pasang Tailscale agar bisa dibuka dari HP/laptop di mana saja? [Y/n
     tailscale up --hostname=kantor-pga
   fi
   if tailscale serve --bg "$PORT" >/dev/null 2>&1; then
-    URL="$(tailscale serve status 2>/dev/null | grep -oE 'https://[^ ]+' | head -1)"
+    URL="$(tailscale serve status 2>/dev/null | grep -oE 'https://[^ ]+' | awk 'NR==1' || true)"
     ok "Tailscale aktif (HTTPS, hanya perangkat di akun Tailscale Anda)"
   else
     warn "HTTPS Tailscale belum aktif. Aktifkan 'MagicDNS' dan 'HTTPS Certificates' di https://login.tailscale.com/admin/dns lalu jalankan: sudo tailscale serve --bg $PORT"
