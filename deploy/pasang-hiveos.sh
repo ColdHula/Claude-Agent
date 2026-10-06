@@ -119,16 +119,17 @@ get_token() {
       u="$(strip_ansi <"$log" | grep -aoE "https://claude\.(com|ai)/[$URL_CHARS]*authorize[$URL_CHARS]*" | awk 'NR==1' || true)"
       if [ -n "$u" ]; then
         sleep 1
+        # Terminal sedang mode raw (dipakai setup-token): setiap baris harus diakhiri \r\n.
         {
           echo
           if command -v qrencode >/dev/null; then
             echo "  ➜ Pindai kode QR ini dengan kamera HP:"
-            qrencode -t ANSIUTF8 -m 1 "$u"
+            qrencode -t ANSIUTF8 -m 2 "$u"
           else
             echo "  ➜ Tautan login (satu baris):"; echo "$u"
           fi
           echo "  ➜ Setelah Authorize, salin kode dari halaman Claude lalu tempel di bawah dan tekan Enter."
-        } >/dev/tty
+        } | sed 's/$/\r/' >/dev/tty
         break
       fi
       sleep 1
