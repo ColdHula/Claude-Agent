@@ -39,6 +39,9 @@ function parseAgentFile(text) {
 // Pemimpin juga mendapat daftar file khusus tiap agent, agar tahu siapa memegang pengetahuan apa.
 const KNOWLEDGE_DIR = path.join(root, "pengetahuan");
 const KNOWLEDGE_MAX_CHARS = 120_000;
+// Mode hemat (bawaan mesin langganan): hanya sebagian pengetahuan ditempel ke prompt,
+// sisanya didaftar sebagai indeks dan dibaca agent dengan alat Read bila perlu.
+const INLINE_BUDGET = Number(process.env.KNOWLEDGE_INLINE_CHARS || 16_000);
 const isDoc = (f) => /\.(md|txt)$/i.test(f) && f.toLowerCase() !== "readme.md";
 
 async function readDocs(dir, label) {
@@ -56,12 +59,31 @@ async function readDocs(dir, label) {
   return out;
 }
 
-function pack(docs) {
-  let text = docs.map((d) => `<file nama="${d.name}">\n${d.body}\n</file>`).join("\n\n");
+const headingOf = (body) => (body.match(/^#+\s+(.+)$/m) || [, body.split("\n")[0]])[1].trim().slice(0, 90);
+
+function pack(docs, { lazy = false } = {}) {
+  let inline = docs;
+  let index = [];
+  if (lazy) {
+    // Tempel berurutan selama muat di anggaran; file lain cukup disebut di indeks.
+    inline = [];
+    let used = 0;
+    for (const d of docs) {
+      if (used + d.body.length <= INLINE_BUDGET) {
+        inline.push(d);
+        used += d.body.length;
+      } else index.push(d);
+    }
+  }
+  let text = inline.map((d) => `<file nama="${d.name}">\n${d.body}\n</file>`).join("\n\n");
+  if (index.length) {
+    text += `${text ? "\n\n" : ""}FILE PENGETAHUAN LAIN (belum ditempel agar hemat; baca dengan Read hanya bila relevan dengan tugas):\n` +
+      index.map((d) => `- pengetahuan/${d.name.replace(/^\//, "")} — ${headingOf(d.body)} (±${Math.round(d.body.length / 100) / 10} rb karakter)`).join("\n");
+  }
   const chars = text.length;
   const truncated = chars > KNOWLEDGE_MAX_CHARS;
   if (truncated) text = text.slice(0, KNOWLEDGE_MAX_CHARS) + "\n[... dipotong: pengetahuan melebihi batas ...]";
-  return { text, chars, truncated, files: docs.map((d) => d.name) };
+  return { text, chars, truncated, files: docs.map((d) => d.name), inlineChars: inline.reduce((n, d) => n + d.body.length, 0) };
 }
 
 export async function loadKnowledge(agentIds = []) {
@@ -80,24 +102,30 @@ PENGETAHUAN KANTOR (dari folder pengetahuan/ milik Rahula; pakai sebagai konteks
 ${packed.text}${extra}`;
 }
 
-export async function loadAgents() {
+/**
+ * @param {{lazy?: boolean}} opts lazy=true: mode hemat token (agent bisa membaca file sendiri).
+ */
+export async function loadAgents({ lazy = false } = {}) {
   const k = await loadKnowledge(ROSTER.map((r) => r.id));
   const agents = [];
   const allFiles = new Set();
   let totalChars = 0;
+  let inlineChars = 0; // rata-rata per agent (mode hemat)
   let truncated = false;
   for (const r of ROSTER) {
     const file = path.join(root, ".claude", "agents", `${r.id}.md`);
     const { meta, body } = parseAgentFile(await fs.readFile(file, "utf8"));
-    const packed = pack([...k.common, ...k.perAgent[r.id]]);
+    const packed = pack([...k.common, ...k.perAgent[r.id]], { lazy });
     packed.files.forEach((f) => allFiles.add(f));
     truncated ||= packed.truncated;
+    inlineChars += packed.inlineChars / ROSTER.length;
     agents.push({ ...r, description: meta.description ?? r.title, system: withKnowledge(body, packed) });
   }
   const leaderTemplate = await fs.readFile(path.join(root, "prompts", "pemimpin.md"), "utf8");
   const daftar = agents
     .map((a) => `- ${a.id} (${a.sim}, ${a.title}): ${a.description}`)
     .join("\n");
+  // Pemimpin tidak memakai alat file, jadi pengetahuannya selalu ditempel utuh.
   const leaderPacked = pack([...k.common, ...k.leaderOnly]);
   leaderPacked.files.forEach((f) => allFiles.add(f));
   truncated ||= leaderPacked.truncated;
@@ -107,5 +135,5 @@ export async function loadAgents() {
   const extra = index ? `\n\nPENGETAHUAN KHUSUS YANG DIPEGANG TIAP AGENT (isinya hanya dibaca agent tersebut):\n${index}` : "";
   const leader = { ...LEADER, system: withKnowledge(leaderTemplate.replace("{{DAFTAR_AGENT}}", daftar), leaderPacked, extra) };
   for (const d of [...k.common, ...k.leaderOnly, ...Object.values(k.perAgent).flat()]) totalChars += d.body.length;
-  return { agents, leader, knowledge: { files: [...allFiles].sort(), chars: totalChars, truncated } };
+  return { agents, leader, knowledge: { files: [...allFiles].sort(), chars: totalChars, inlineChars: Math.round(inlineChars), lazy, truncated } };
 }

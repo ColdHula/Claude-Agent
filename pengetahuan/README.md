@@ -15,3 +15,5 @@ ID agent: `surat-ba`, `kepatuhan-perizinan`, `data-rekap`, `sop-k3-vendor`, `ema
 - Batas ±120.000 karakter per agent. Taruh hal yang dipakai semua agent di `umum/`, sisanya di folder agent.
 - `berkas/` (template, toolkit, dokumen sumber) tidak dimuat ke prompt; agent pembuat file membacanya saat perlu.
 - Bisa diunggah sekaligus sebagai ZIP lewat kartu **Pengetahuan kantor** di aplikasi.
+- `skills/<nama>/SKILL.md` = skill pribadi (format Claude Skills: frontmatter `name` + `description`). Dipakai agent lewat alat Skill, hanya dimuat saat perlu.
+- Mode hemat: hanya ±16.000 karakter pertama per agent yang ditempel ke prompt (urutan: umum/, lalu folder agent). File lain tampil sebagai indeks dan dibaca agent bila relevan.

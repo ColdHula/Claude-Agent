@@ -6,7 +6,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { defaultModels } from "./orchestrator.js";
+import { defaultModels, LIGHT_AGENTS } from "./orchestrator.js";
 
 const LEADER_EFFORT = process.env.LEADER_EFFORT || "high";
 const WORKER_EFFORT = process.env.WORKER_EFFORT || "medium";
@@ -17,6 +17,43 @@ const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 // Agent yang boleh membaca/menulis file dan menjalankan skrip (generator DOCX/PDF, olah Excel/PDF).
 export const FILE_AGENTS = new Set(["surat-ba", "data-rekap", "sop-k3-vendor"]);
 const FILE_TOOLS = ["Bash", "Read", "Write", "Edit", "Glob", "Grep"];
+const READ_TOOLS = ["Read", "Glob", "Grep"];
+// Pemadatan otomatis: ringkas percakapan saat konteks mendekati angka ini (token),
+// agar tiap permintaan tetap kecil. Minimum yang diterima Claude Code: 100.000.
+const AUTO_COMPACT_TOKENS = String(Math.max(100_000, Number(process.env.KONTEKS_MAKS_TOKEN || 100_000)));
+
+// Skill: plugin "kantor" di repo (umum, tanpa data pribadi) + skill pribadi di pengetahuan/skills/.
+// Agent memuat isi skill hanya saat memakainya (alat Skill), jadi hemat token.
+const SKILL_PLUGINS = [
+  { name: "kantor", dir: path.join(APP_ROOT, "skills") },
+  { name: "pgd", dir: path.join(APP_ROOT, "pengetahuan") },
+];
+export async function findSkills() {
+  const plugins = [];
+  const names = [];
+  const details = [];
+  for (const p of SKILL_PLUGINS) {
+    const list = await fs.readdir(path.join(p.dir, "skills"), { withFileTypes: true }).catch(() => []);
+    const found = [];
+    for (const d of list) {
+      if (!d.isDirectory()) continue;
+      const text = await fs.readFile(path.join(p.dir, "skills", d.name, "SKILL.md"), "utf8").catch(() => null);
+      if (text === null) continue;
+      found.push(d.name);
+      const desc = (text.match(/^description:\s*(.+)$/m) || [, ""])[1].trim();
+      details.push({ name: `${p.name}:${d.name}`, description: desc.slice(0, 300) });
+    }
+    if (!found.length) continue;
+    const manifest = path.join(p.dir, ".claude-plugin", "plugin.json");
+    if (!(await fs.stat(manifest).catch(() => null))) {
+      await fs.mkdir(path.dirname(manifest), { recursive: true });
+      await fs.writeFile(manifest, JSON.stringify({ name: p.name, version: "1.0.0", description: "Skill pribadi PGD" }, null, 2));
+    }
+    plugins.push({ type: "local", path: p.dir });
+    names.push(...found.map((n) => `${p.name}:${n}`));
+  }
+  return { plugins, names, details };
+}
 
 function fileAppendix(workDir, inputs) {
   const rel = path.relative(APP_ROOT, workDir);
@@ -34,7 +71,12 @@ RUANG KERJA FILE
 const WORKER_APPENDIX = `
 
 MODE TIM
-Anda menerima tugas dari Pemimpin tim, bukan langsung dari Rahula, dan tidak bisa bertanya balik. Bila data kurang, jangan berhenti: kerjakan sejauh mungkin dengan asumsi wajar yang ditandai [ASUMSI] atau [ISI: ...], lalu tulis daftar "Pertanyaan untuk Rahula" di akhir. Serahkan hasil kerja final lengkap (bukan rencana). Jangan membaca atau menulis file.`;
+Anda menerima tugas dari Pemimpin tim, bukan langsung dari Rahula, dan tidak bisa bertanya balik. Bila data kurang, jangan berhenti: kerjakan sejauh mungkin dengan asumsi wajar yang ditandai [ASUMSI] atau [ISI: ...], lalu tulis daftar "Pertanyaan untuk Rahula" di akhir. Serahkan hasil kerja final lengkap (bukan rencana). Jangan menulis file.
+
+HEMAT TOKEN
+- Anda boleh membaca file pengetahuan (Read/Grep) yang disebut di indeks bila relevan; jangan membuka file yang tidak perlu.
+- Pakai alat Skill bila ada skill yang cocok dengan pekerjaan Anda (daftarnya terlihat di alat Skill).
+- Jangan mengulang instruksi atau pengetahuan di jawaban. Langsung ke hasil.`;
 
 const LEADER_APPENDIX = `
 
@@ -73,6 +115,8 @@ function friendlyError(raw) {
  * @param {{agents: any[], leader: any, signal?: AbortSignal, models?: {leader: string, worker: string}}} team
  */
 export async function runTaskSdk(task, emit, { agents, leader, signal, models = defaultModels(), workDir, inputs = [] }) {
+  const skills = await findSkills();
+  const modelFor = (id) => (LIGHT_AGENTS.has(id) && models.light ? models.light : models.worker);
   const workRel = workDir ? path.relative(APP_ROOT, workDir) : null;
   const ids = new Set(agents.map((a) => a.id));
   const byId = Object.fromEntries(agents.map((a) => [a.id, a]));
@@ -84,12 +128,17 @@ export async function runTaskSdk(task, emit, { agents, leader, signal, models = 
         description: a.description,
         prompt:
           FILE_AGENTS.has(a.id) && workDir
-            ? a.system + WORKER_APPENDIX.replace("Jangan membaca atau menulis file.", "") + fileAppendix(workDir, inputs)
+            ? a.system + WORKER_APPENDIX.replace(" Jangan menulis file.", "") + fileAppendix(workDir, inputs)
             : a.system + WORKER_APPENDIX,
-        tools: [...(a.web ? ["WebSearch", "WebFetch"] : []), ...(FILE_AGENTS.has(a.id) && workDir ? FILE_TOOLS : [])],
+        tools: [
+          ...(a.web ? ["WebSearch", "WebFetch"] : []),
+          ...(FILE_AGENTS.has(a.id) && workDir ? FILE_TOOLS : READ_TOOLS),
+          ...(skills.names.length ? ["Skill"] : []),
+        ],
         maxTurns: FILE_AGENTS.has(a.id) ? 60 : 20,
-        model: models.worker,
-        effort: WORKER_EFFORT,
+        model: modelFor(a.id),
+        // Haiku tidak mendukung pengaturan effort.
+        ...(/haiku/.test(modelFor(a.id)) ? {} : { effort: WORKER_EFFORT }),
       },
     ]),
   );
@@ -104,6 +153,7 @@ export async function runTaskSdk(task, emit, { agents, leader, signal, models = 
     ANTHROPIC_API_KEY: undefined,
     ANTHROPIC_AUTH_TOKEN: undefined,
     CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1",
+    CLAUDE_CODE_AUTO_COMPACT_WINDOW: AUTO_COMPACT_TOKENS,
     // Generator dokumen memakai require("docx") dari node_modules aplikasi.
     NODE_PATH: [path.join(APP_ROOT, "node_modules"), process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
   };
@@ -126,10 +176,11 @@ FILE
   const deny = (reason) => ({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
   const fileGuard = async (input) => {
     const name = input.tool_name;
-    if (!FILE_TOOLS.includes(name)) return {};
-    if (!input.agent_id) return deny("Pemimpin tidak memakai alat file. Delegasikan ke agent.");
+    if (!FILE_TOOLS.includes(name) && name !== "Skill") return {};
+    if (!input.agent_id) return deny("Pemimpin tidak memakai alat file atau skill. Delegasikan ke agent.");
+    if (name === "Skill") return {};
     const t = input.tool_input || {};
-    if (["Write", "Edit"].includes(name) && !inside(t.file_path, workDir)) return deny(`Tulis file hanya di ${workRel}/.`);
+    if (["Write", "Edit"].includes(name) && (!workDir || !inside(t.file_path, workDir))) return deny(workDir ? `Tulis file hanya di ${workRel}/.` : "Tidak ada folder kerja untuk menulis file.");
     if (["Read", "Glob", "Grep"].includes(name)) {
       const target = t.file_path || t.path || APP_ROOT;
       if (!inside(target, APP_ROOT) || path.basename(String(target)) === ".env") return deny("Baca file hanya di dalam folder aplikasi (tanpa .env).");
@@ -141,13 +192,15 @@ FILE
     prompt: task,
     options: {
       model: models.leader,
-      effort: LEADER_EFFORT,
+      effort: models.leaderEffort || LEADER_EFFORT,
       systemPrompt: leader.system + LEADER_APPENDIX + leaderFiles,
       agents: agentDefs,
-      tools: ["Agent", "WebSearch", "WebFetch", ...(workDir ? FILE_TOOLS : [])],
-      allowedTools: ["Agent", "WebSearch", "WebFetch", ...(workDir ? FILE_TOOLS : [])],
+      // Alat subagent harus juga ada di sesi utama; Pemimpin sendiri dicegah memakainya lewat fileGuard.
+      tools: ["Agent", "WebSearch", "WebFetch", ...(workDir ? FILE_TOOLS : READ_TOOLS), ...(skills.names.length ? ["Skill"] : [])],
+      allowedTools: ["Agent", "WebSearch", "WebFetch", ...(workDir ? FILE_TOOLS : READ_TOOLS), ...(skills.names.length ? ["Skill"] : [])],
+      ...(skills.names.length ? { plugins: skills.plugins, skills: skills.names } : {}),
       cwd: APP_ROOT,
-      ...(workDir ? { hooks: { PreToolUse: [{ hooks: [fileGuard] }] } } : {}),
+      hooks: { PreToolUse: [{ hooks: [fileGuard] }] },
       permissionMode: "dontAsk",
       settingSources: [],
       persistSession: false,
@@ -162,6 +215,27 @@ FILE
   const workLog = [];
   const seenAgents = new Set();
   let cost = 0;
+  // Pemakaian token per pesan (pesan yang sama bisa datang beberapa kali saat streaming).
+  const usageById = new Map();
+  let lastTokenEmit = 0;
+  const trackUsage = (msg) => {
+    if (!msg?.usage || !msg.id) return;
+    usageById.set(msg.id, msg.usage);
+    const now = Date.now();
+    if (now - lastTokenEmit < 700) return;
+    lastTokenEmit = now;
+    emitTokens();
+  };
+  const emitTokens = () => {
+    const t = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+    for (const u of usageById.values()) {
+      t.input += u.input_tokens ?? 0;
+      t.output += u.output_tokens ?? 0;
+      t.cacheRead += u.cache_read_input_tokens ?? 0;
+      t.cacheWrite += u.cache_creation_input_tokens ?? 0;
+    }
+    emit({ type: "tokens", ...t });
+  };
 
   const finish = (toolUseId, output, ok) => {
     if (!pending.has(toolUseId)) return;
@@ -184,10 +258,17 @@ FILE
         continue;
       }
 
+      if (m.type === "system" && m.subtype === "compact_boundary") {
+        const md = m.compact_metadata || {};
+        emit({ type: "compact", trigger: md.trigger, before: md.pre_tokens, after: md.post_tokens ?? null });
+        continue;
+      }
+
       if (m.type === "assistant") {
         if (m.error) throw new Error(m.error);
         const blocks = m.message?.content ?? [];
         const parent = m.parent_tool_use_id;
+        trackUsage(m.message);
 
         if (parent && delegations.has(parent)) {
           // Aktivitas agent di dalam subagent.
@@ -200,6 +281,13 @@ FILE
               emit({ type: "worker_search", callId: parent, agent: d.agent, query: b.input?.query ?? "" });
             } else if (b.type === "thinking" && b.thinking) {
               emit({ type: "worker_thinking", callId: parent, agent: d.agent, text: b.thinking.slice(0, 400) });
+            } else if (b.type === "tool_use" && b.name === "Skill") {
+              emit({ type: "worker_skill", callId: parent, agent: d.agent, skill: String(b.input?.skill ?? b.input?.name ?? "") });
+            } else if (b.type === "tool_use" && FILE_TOOLS.includes(b.name)) {
+              const target = String(b.input?.file_path ?? b.input?.path ?? b.input?.pattern ?? b.input?.command ?? "").slice(0, 120);
+              // Tulis di luar folder tugas akan ditolak fileGuard; jangan tampilkan seolah berhasil.
+              if (["Write", "Edit"].includes(b.name) && (!workDir || !inside(b.input?.file_path, workDir))) continue;
+              emit({ type: "worker_tool", callId: parent, agent: d.agent, tool: b.name, target: target.replace(APP_ROOT + "/", "") });
             }
           }
           continue;
@@ -251,6 +339,7 @@ FILE
 
       if (m.type === "result") {
         cost = m.total_cost_usd ?? cost;
+        emitTokens();
         emit({ type: "cost", usd: Number(cost.toFixed(4)) });
         if (m.subtype === "success" && !m.is_error) {
           emit({ type: "leader_status", status: "done", text: "Selesai!" });

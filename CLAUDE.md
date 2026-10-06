@@ -17,5 +17,7 @@ akhir dalam format Pemimpin. Simpan hasil akhir ke `hasil/`.
 - Instruksi agent hanya ada di `.claude/agents/*.md`; `src/agents.js` membacanya
   dan hanya menambah metadata tampilan (nama Sim, warna, meja). Jangan menyalin
   instruksi ke tempat lain.
+- Skill tim ada di `skills/` (plugin lokal "kantor", tanpa data pribadi); skill pribadi di
+  `pengetahuan/skills/` (tidak ikut Git). Agent memuatnya lewat alat Skill saat perlu.
 - `public/index.html` adalah satu file mandiri (CSS + JS inline) dan harus tetap
   bisa jalan tanpa server (mode demo).

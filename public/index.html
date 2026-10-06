@@ -1,313 +1,376 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kantor PGA</title>
-<meta name="description" content="Kantor virtual tim agent Claude PGA PGD bergaya The Sims">
+<meta name="description" content="Kantor virtual isometrik tim agent Claude PGA PGD: Pemimpin Bima dan 8 agent bekerja, rehat ngopi, dan memakai skill secara langsung.">
+<meta name="theme-color" content="#0e1424">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-/* Layout: bar atas ala HUD The Sims → panggung kantor isometrik (kiri) + panel Sim (kanan) → kotak tugas di bawah panggung.
-   Satu dunia visual (UI Sims: panel putih, biru Sims, plumbob hijau), sengaja satu tema. */
+/* Kantor PGA v2. Layout: HUD tipis → panggung isometrik besar (kamera geser/zoom) + kotak tugas di kiri;
+   kanan: kartu Sim terpilih + panel bertab (Chat #kantor-pga, Tim, Skill, Pengetahuan, Hasil).
+   Tema: kantor malam ala "Claude Office" dengan plumbob The Sims sebagai aksen status. */
 :root {
-  --sky: #cfe9f7;          /* latar halaman */
-  --sky-deep: #9fd0ee;
+  --bg: #eef2f8;
+  --bg-2: #dfe6f1;
   --panel: #ffffff;
-  --panel-2: #eef6fc;
-  --ink: #17324d;          /* teks utama */
-  --ink-soft: #55708a;
-  --sims-blue: #1769c9;    /* aksen utama UI */
-  --sims-blue-2: #3b9be8;
-  --plumbob: #3fc948;      /* status baik */
+  --panel-2: #f2f5fa;
+  --panel-3: #e7ecf4;
+  --ink: #16213a;
+  --ink-soft: #5b6680;
+  --ink-faint: #8a93a8;
+  --line: #d9e0ec;
+  --accent: #d97757;        /* oranye Claude */
+  --accent-2: #f0a37f;
+  --blue: #2f6fe4;
+  --plumbob: #3fc948;
   --plumbob-dark: #1f8f2a;
-  --warn: #f2b81f;
+  --warn: #e9a90c;
   --bad: #e2453c;
-  --think: #4aa3ff;
-  --line: #d4e4f1;
+  --think: #3d8ef0;
+  --stage-edge: #c9d3e3;
+  --shadow: 0 10px 30px rgba(22, 33, 58, .10), 0 1px 0 rgba(255,255,255,.7) inset;
   --font-display: "Fredoka", "Nunito", ui-rounded, system-ui, sans-serif;
   --font-body: "Nunito", ui-rounded, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --r-panel: 18px;
-  --shadow: 0 6px 18px rgba(23, 50, 77, .14), 0 1px 0 rgba(255,255,255,.8) inset;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --r: 18px;
   color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1020; --bg-2: #121a30; --panel: #141c31; --panel-2: #1a2440; --panel-3: #22304f;
+    --ink: #e8edf8; --ink-soft: #a3aec6; --ink-faint: #6f7b96; --line: #26324f;
+    --stage-edge: #26324f; --shadow: 0 14px 40px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.04) inset;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1020; --bg-2: #121a30; --panel: #141c31; --panel-2: #1a2440; --panel-3: #22304f;
+  --ink: #e8edf8; --ink-soft: #a3aec6; --ink-faint: #6f7b96; --line: #26324f;
+  --stage-edge: #26324f; --shadow: 0 14px 40px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.04) inset;
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
-  margin: 0;
-  background: radial-gradient(1200px 600px at 30% -10%, #e9f6fd 0%, var(--sky) 45%, var(--sky-deep) 100%) fixed;
-  background-color: var(--sky);
-  color: var(--ink);
+  margin: 0; color: var(--ink); background: var(--bg);
+  background-image: radial-gradient(1100px 520px at 20% -10%, var(--bg-2), transparent 70%), radial-gradient(900px 500px at 110% 10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%);
+  background-attachment: fixed;
   font: 15px/1.5 var(--font-body);
-  padding-inline: 16px;
-  padding-block: 12px 24px;
+  padding: 12px 16px 24px;
 }
-button, textarea, input { font: inherit; color: inherit; }
+button, textarea, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
-:focus-visible { outline: 3px solid var(--sims-blue-2); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.app { max-width: 1440px; margin: 0 auto; display: grid; gap: 12px; }
 
-.app { max-width: 1320px; margin: 0 auto; display: grid; gap: 14px; }
-
-/* ---------- HUD atas ---------- */
+/* ---------- HUD ---------- */
 .hud {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
-  background: linear-gradient(180deg, #ffffff, #e8f3fc);
-  border: 2px solid #fff; border-radius: 999px; box-shadow: var(--shadow);
-  padding: 8px 10px 8px 14px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow);
+  padding: 7px 8px 7px 14px;
 }
-.lot { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.lot-gem { width: 22px; height: 34px; flex: none; }
-.lot h1 { font: 700 22px/1.1 var(--font-display); margin: 0; letter-spacing: .2px; }
-.lot small { display: block; color: var(--ink-soft); font-weight: 700; font-size: 12px; letter-spacing: .4px; text-transform: uppercase; }
-.hud-spacer { flex: 1; }
+.lot { display: flex; align-items: center; gap: 10px; min-width: 0; margin-right: auto; }
+.lot svg { width: 20px; height: 31px; flex: none; filter: drop-shadow(0 0 6px rgba(63,201,72,.55)); animation: bob 3s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-3px); } }
+.lot h1 { font: 700 21px/1.05 var(--font-display); margin: 0; letter-spacing: .2px; }
+.lot small { display: block; color: var(--ink-soft); font-weight: 800; font-size: 11px; letter-spacing: .6px; text-transform: uppercase; }
 .pill {
-  display: inline-flex; align-items: center; gap: 6px; border-radius: 999px;
-  background: var(--panel-2); border: 1px solid var(--line); padding: 5px 12px;
-  font-weight: 800; font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums;
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; white-space: nowrap;
+  background: var(--panel-2); border: 1px solid var(--line); padding: 5px 11px;
+  font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
-.pill.mode-demo { background: #fff4d6; border-color: #f3dc94; color: #7a5600; }
-.pill.mode-live { background: #dff7e1; border-color: #a8e2ad; color: #1d6b25; }
-.simoleon { color: var(--plumbob-dark); font-family: var(--font-display); font-size: 15px; }
-.speed { display: inline-flex; background: var(--sims-blue); border-radius: 999px; padding: 3px; gap: 2px; }
-.speed button {
-  border: 0; background: transparent; color: #fff; width: 34px; height: 28px; border-radius: 999px;
-  font-weight: 800; font-size: 12px; letter-spacing: -2px;
-}
-.speed button[aria-pressed="true"] { background: #fff; color: var(--sims-blue); }
+.pill.mode-demo { background: color-mix(in srgb, var(--warn) 16%, var(--panel)); border-color: color-mix(in srgb, var(--warn) 40%, var(--line)); }
+.pill.mode-live { background: color-mix(in srgb, var(--plumbob) 16%, var(--panel)); border-color: color-mix(in srgb, var(--plumbob) 40%, var(--line)); }
+.pill .k { color: var(--ink-soft); font-weight: 700; }
+.pill.flash { animation: flash 1.4s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+.seg { display: inline-flex; background: var(--panel-3); border-radius: 999px; padding: 3px; gap: 2px; }
+.seg button { border: 0; background: transparent; min-width: 32px; height: 28px; border-radius: 999px; font-weight: 800; font-size: 12px; padding: 0 8px; color: var(--ink-soft); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.icon-btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 999px; height: 32px; min-width: 32px; padding: 0 9px; font-weight: 800; font-size: 13px; }
+.icon-btn:hover { background: var(--panel-3); }
 
 /* ---------- Area utama ---------- */
-.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
-@media (max-width: 960px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 12px; align-items: start; }
+@media (max-width: 1080px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.col { display: grid; gap: 12px; min-width: 0; }
 
 .stage-wrap {
-  position: relative; border-radius: 22px; overflow: hidden;
-  background: linear-gradient(180deg, #7cc4ea 0%, #b6e1f6 60%, #d7effa 100%);
-  border: 3px solid #fff; box-shadow: var(--shadow);
+  position: relative; border-radius: 22px; overflow: hidden; border: 1px solid var(--stage-edge);
+  box-shadow: var(--shadow); height: clamp(380px, 66vh, 820px); background: #0e1424;
 }
-#office { display: block; width: 100%; height: auto; cursor: pointer; touch-action: manipulation; }
-.toasts { position: absolute; left: 12px; top: 12px; display: grid; gap: 8px; width: min(320px, calc(100% - 24px)); pointer-events: none; }
+@media (max-width: 700px) { .stage-wrap { height: auto; aspect-ratio: 4 / 3.6; } }
+#office { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#office.dragging { cursor: grabbing; }
+.toasts { position: absolute; left: 12px; top: 12px; display: grid; gap: 8px; width: min(330px, calc(100% - 24px)); pointer-events: none; }
 .toast {
-  display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 10px; align-items: center;
-  background: rgba(255,255,255,.96); border-radius: 14px; padding: 8px 12px 8px 8px;
-  box-shadow: 0 6px 16px rgba(23,50,77,.22); border-left: 5px solid var(--sims-blue-2);
-  font-size: 13px; animation: toast-in .35s ease-out;
+  display: grid; grid-template-columns: 32px minmax(0,1fr); gap: 10px; align-items: center;
+  background: rgba(14, 20, 36, .86); color: #eef2fb; backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,.1); border-left: 4px solid var(--think);
+  border-radius: 14px; padding: 8px 12px 8px 8px; font-size: 12.5px; animation: toast-in .35s ease-out;
 }
 .toast b { font-family: var(--font-display); font-weight: 600; font-size: 14px; display: block; }
-.toast .av { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 17px; background: var(--panel-2); }
+.toast .av { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; }
 .toast.good { border-left-color: var(--plumbob); }
 .toast.bad { border-left-color: var(--bad); }
 @keyframes toast-in { from { transform: translateX(-20px); opacity: 0; } }
-.stage-legend {
-  position: absolute; right: 12px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end;
-  font-size: 12px; font-weight: 800;
+.cam { position: absolute; right: 12px; top: 12px; display: grid; gap: 6px; }
+.cam button {
+  width: 36px; height: 36px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14);
+  background: rgba(14, 20, 36, .72); color: #fff; font-weight: 800; font-size: 15px; backdrop-filter: blur(6px);
 }
-.stage-legend span { background: rgba(255,255,255,.88); border-radius: 999px; padding: 3px 9px 3px 6px; display: inline-flex; gap: 5px; align-items: center; }
-.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.cam button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+.stage-foot {
+  position: absolute; left: 12px; right: 12px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  pointer-events: none; font-size: 11.5px; font-weight: 800; color: #eef2fb;
+}
+.stage-foot span { background: rgba(14, 20, 36, .72); border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 3px 9px 3px 7px; display: inline-flex; gap: 5px; align-items: center; backdrop-filter: blur(6px); }
+.stage-foot .tip { margin-left: auto; font-weight: 700; color: #c9d2e6; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+@media (max-width: 700px) { .stage-foot .lg { display: none; } .stage-foot .tip { margin-left: 0; } }
 
 /* ---------- Kotak tugas ---------- */
-.composer {
-  background: var(--panel); border-radius: var(--r-panel); box-shadow: var(--shadow); padding: 14px;
-  display: grid; gap: 10px; border: 2px solid #fff;
-}
-.composer-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.composer { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 14px; display: grid; gap: 10px; }
+.composer-head { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; }
 .composer-head h2 { font: 600 18px/1.2 var(--font-display); margin: 0; }
-.composer-head p { margin: 0; color: var(--ink-soft); font-size: 13px; flex: 1 1 220px; }
+.composer-head p { margin: 0; color: var(--ink-soft); font-size: 13px; flex: 1 1 260px; }
 #task {
-  width: 100%; min-height: 84px; resize: vertical; border-radius: 14px; border: 2px solid var(--line);
+  width: 100%; min-height: 84px; resize: vertical; border-radius: 14px; border: 1.5px solid var(--line);
   background: var(--panel-2); padding: 10px 12px; line-height: 1.45;
 }
-#task:focus { border-color: var(--sims-blue-2); outline: none; background: #fff; }
+#task:focus { border-color: var(--accent); outline: none; background: var(--panel); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip {
-  border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 4px 10px;
-  font-size: 12.5px; font-weight: 700; color: var(--sims-blue);
-}
-.chip:hover { background: var(--panel-2); }
+.chip { border: 1px solid var(--line); background: var(--panel-2); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); }
+.chip:hover { border-color: var(--accent); color: var(--ink); }
 .composer-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.btn-sims {
-  border: 0; border-radius: 999px; padding: 10px 20px; font: 600 16px/1 var(--font-display);
-  color: #fff; background: linear-gradient(180deg, #4fb0ff, var(--sims-blue)); box-shadow: 0 3px 0 #0d4f9c, 0 6px 14px rgba(23,105,201,.3);
+.btn-main {
+  border: 0; border-radius: 999px; padding: 10px 20px; font: 600 16px/1 var(--font-display); color: #fff;
+  background: linear-gradient(180deg, #e98a68, var(--accent)); box-shadow: 0 3px 0 #a9553a, 0 8px 18px rgba(217,119,87,.3);
   display: inline-flex; align-items: center; gap: 8px;
 }
-.btn-sims:active { transform: translateY(2px); box-shadow: 0 1px 0 #0d4f9c; }
-.btn-sims:disabled { filter: grayscale(.6); opacity: .6; cursor: not-allowed; }
-.btn-ghost { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 13px; }
-.btn-ghost:hover { background: var(--panel-2); }
+.btn-main:active { transform: translateY(2px); box-shadow: 0 1px 0 #a9553a; }
+.btn-main:disabled { filter: grayscale(.6); opacity: .6; cursor: not-allowed; }
+.btn-ghost { border: 1px solid var(--line); background: var(--panel-2); border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 13px; }
+.btn-ghost:hover { background: var(--panel-3); }
 .hint { font-size: 12.5px; color: var(--ink-soft); }
-[hidden] { display: none !important; }
+.model-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: var(--ink-soft); }
+#preset { border: 1px solid var(--line); background: var(--panel-2); border-radius: 999px; padding: 7px 12px; font-weight: 700; font-size: 13px; max-width: 100%; }
 .attach-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .att { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 6px 3px 10px; font-size: 12.5px; font-weight: 700; max-width: 100%; }
 .att span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
 .att button { border: 0; background: transparent; color: var(--bad); font-weight: 800; padding: 0 4px; }
-.files { display: grid; gap: 6px; margin: 4px 0 14px; }
-.files a { display: flex; justify-content: space-between; gap: 10px; align-items: center; text-decoration: none; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; font-weight: 700; font-size: 13.5px; }
-.files a:hover { border-color: var(--sims-blue-2); }
-.files small { color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
-.kn-list { font-size: 13px; display: grid; gap: 4px; margin-bottom: 10px; }
-.kn-list div { display: flex; justify-content: space-between; gap: 8px; }
-.kn-list b { font-weight: 800; }
-.model-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: var(--ink-soft); }
-#preset { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 12px; font-weight: 700; font-size: 13px; color: var(--ink); max-width: 100%; }
 
 /* ---------- Panel kanan ---------- */
-.side { display: grid; gap: 14px; min-width: 0; }
-.card { background: var(--panel); border-radius: var(--r-panel); box-shadow: var(--shadow); border: 2px solid #fff; padding: 14px; min-width: 0; }
-.card h3 { font: 600 16px/1.2 var(--font-display); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
-.card h3 .count { margin-left: auto; font: 800 12px var(--font-body); color: var(--ink-soft); }
-
-.team { display: grid; gap: 4px; }
-.member {
-  display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 10px; align-items: center;
-  border: 0; background: transparent; text-align: left; padding: 6px 8px; border-radius: 12px; width: 100%;
-}
-.member:hover { background: var(--panel-2); }
-.member[aria-current="true"] { background: #e2f0fd; box-shadow: inset 0 0 0 2px var(--sims-blue-2); }
-.member .face { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
-.member .nm { font-weight: 800; font-size: 14px; line-height: 1.15; }
-.member .rl { font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.status { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 2px 8px; white-space: nowrap; display: inline-flex; gap: 4px; align-items: center; }
-.st-idle { background: #e5f7e6; color: #1d6b25; }
-.st-working { background: #fff3cf; color: #7a5600; }
-.st-thinking, .st-reviewing { background: #e0efff; color: #0f4f9a; }
-.st-done { background: #d9f6dc; color: #136b1f; }
-.st-error { background: #fde3e1; color: #9a1f17; }
-
-.detail-top { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 12px; align-items: center; margin-bottom: 10px; }
-#portrait { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(180deg, #e6f3fd, #c9e5f9); }
-.detail-top h4 { margin: 0; font: 600 20px/1.1 var(--font-display); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 14px; min-width: 0; }
+.detail-top { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 12px; align-items: center; }
+#portrait { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(180deg, var(--panel-2), var(--panel-3)); }
+.detail-top h2 { margin: 0; font: 600 20px/1.1 var(--font-display); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .detail-top p { margin: 2px 0 0; color: var(--ink-soft); font-size: 13px; }
-.needs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 8px 0 10px; }
-.need { font-size: 11.5px; font-weight: 800; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .5px; }
-.need .bar { height: 9px; border-radius: 999px; background: #e3edf5; overflow: hidden; margin-top: 3px; box-shadow: inset 0 1px 2px rgba(0,0,0,.12); }
+.needs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 10px 0; }
+.need { font-size: 11px; font-weight: 800; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .5px; }
+.need .bar { height: 8px; border-radius: 999px; background: var(--panel-3); overflow: hidden; margin-top: 3px; }
 .need .fill { height: 100%; border-radius: inherit; transition: width .6s, background-color .6s; }
-.task-box { background: var(--panel-2); border-radius: 12px; padding: 10px 12px; font-size: 13px; }
-.task-box .lbl { font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--ink-soft); }
-.task-box p { margin: 2px 0 0; overflow-wrap: anywhere; }
+.task-box { background: var(--panel-2); border-radius: 12px; padding: 9px 11px; font-size: 13px; }
 .task-box + .task-box { margin-top: 8px; }
-.preview { max-height: 120px; overflow: auto; white-space: pre-wrap; font-size: 12.5px; margin-top: 4px; overflow-wrap: anywhere; }
+.task-box .lbl { font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--ink-faint); }
+.task-box p { margin: 2px 0 0; overflow-wrap: anywhere; }
+.preview { max-height: 96px; overflow: auto; white-space: pre-wrap; font-size: 12.5px; margin-top: 3px; overflow-wrap: anywhere; }
 .detail-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.status { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 2px 8px; white-space: nowrap; display: inline-flex; gap: 4px; align-items: center; font-family: var(--font-body); }
+.st-idle, .st-done { background: color-mix(in srgb, var(--plumbob) 18%, transparent); color: color-mix(in srgb, var(--plumbob-dark) 70%, var(--ink)); }
+.st-working { background: color-mix(in srgb, var(--warn) 22%, transparent); color: color-mix(in srgb, #8a5d00 70%, var(--ink)); }
+.st-thinking, .st-reviewing { background: color-mix(in srgb, var(--think) 20%, transparent); color: color-mix(in srgb, #0f4f9a 60%, var(--ink)); }
+.st-error { background: color-mix(in srgb, var(--bad) 20%, transparent); color: color-mix(in srgb, #9a1f17 60%, var(--ink)); }
 
-.log { display: grid; gap: 6px; max-height: 260px; overflow: auto; padding-right: 2px; }
-.log-item { display: grid; grid-template-columns: 44px minmax(0,1fr); gap: 8px; font-size: 13px; }
-.log-item time { color: var(--ink-soft); font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; padding-top: 1px; }
-.log-item div { overflow-wrap: anywhere; }
-.log-empty { color: var(--ink-soft); font-size: 13px; }
+.tabs-card { padding: 0; overflow: hidden; display: grid; }
+.tabs { display: flex; gap: 2px; padding: 6px; border-bottom: 1px solid var(--line); background: var(--panel-2); overflow-x: auto; scrollbar-width: none; }
+.tabs button { border: 0; background: transparent; border-radius: 10px; padding: 7px 9px; font-weight: 800; font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; position: relative; }
+.tabs button[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.tabs .badge { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; display: grid; place-items: center; padding: 0 4px; }
+.tabpanel { padding: 12px 14px 14px; min-width: 0; }
+.tabpanel h3 { font: 600 15px/1.2 var(--font-display); margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+.tabpanel h3 .count { margin-left: auto; font: 800 12px var(--font-body); color: var(--ink-soft); }
+
+/* Chat ala Slack */
+.chan { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.chan b { font: 700 14px var(--font-mono); }
+.chan .live { margin-left: auto; font-size: 11px; font-weight: 800; color: var(--plumbob-dark); display: inline-flex; gap: 5px; align-items: center; }
+.chan .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--plumbob); box-shadow: 0 0 0 3px color-mix(in srgb, var(--plumbob) 25%, transparent); }
+.chat { display: grid; gap: 2px; height: 420px; overflow: auto; padding-right: 4px; overscroll-behavior: contain; align-content: start; }
+@media (max-width: 1080px) { .chat { height: 340px; } }
+.msg { display: grid; grid-template-columns: 30px minmax(0,1fr); gap: 9px; padding: 5px 6px; border-radius: 10px; font-size: 13px; }
+.msg:hover { background: var(--panel-2); }
+.msg .av { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 15px; color: #fff; font-weight: 800; }
+.msg .meta { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.msg .meta b { font-weight: 800; }
+.msg .meta small { color: var(--ink-faint); font-size: 11px; font-weight: 700; }
+.msg .meta .tag { font-size: 10.5px; font-weight: 800; color: var(--ink-faint); }
+.msg .body { overflow-wrap: anywhere; color: var(--ink); }
+.msg.cont { padding-top: 0; }
+.msg.cont .av, .msg.cont .meta { visibility: hidden; height: 0; }
+.msg.cont .av { height: 0; }
+.msg.muted .body { color: var(--ink-soft); font-size: 12.5px; }
+.msg.sys .body { color: var(--ink-soft); font-style: italic; }
+.msg .body code { font-family: var(--font-mono); font-size: 11.5px; background: var(--panel-3); border-radius: 5px; padding: 0 4px; }
+.msg .mention { color: var(--accent); font-weight: 800; }
+.msg .body button { margin-top: 4px; }
+.chat-empty { color: var(--ink-soft); font-size: 13px; padding: 8px; }
+
+.team { display: grid; gap: 2px; }
+.member { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 10px; align-items: center; border: 0; background: transparent; text-align: left; padding: 6px 8px; border-radius: 12px; width: 100%; }
+.member:hover { background: var(--panel-2); }
+.member[aria-current="true"] { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.member .face { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; }
+.member .nm { font-weight: 800; font-size: 14px; line-height: 1.15; }
+.member .rl { font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.member .mdl { font: 700 10.5px var(--font-mono); color: var(--ink-faint); }
+
+.skills { display: grid; gap: 8px; }
+.skill { border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px; background: var(--panel-2); }
+.skill b { font: 700 12.5px var(--font-mono); }
+.skill p { margin: 3px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+.skill .used { float: right; font-size: 11px; font-weight: 800; color: var(--accent); }
+.skill.glow { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.savings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+.savings div { background: var(--panel-2); border-radius: 12px; padding: 8px; text-align: center; }
+.savings b { display: block; font: 700 16px var(--font-display); }
+.savings small { font-size: 10.5px; font-weight: 800; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .4px; }
+.note { font-size: 12.5px; color: var(--ink-soft); margin: 8px 0 0; }
+
+.kn-list { font-size: 13px; display: grid; gap: 4px; margin-bottom: 10px; }
+.kn-list div { display: flex; justify-content: space-between; gap: 8px; }
 .history { display: grid; gap: 6px; }
-.history button { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 8px 10px; font-size: 13px; font-weight: 700; }
-.history button:hover { background: var(--panel-2); }
+.history button { text-align: left; border: 1px solid var(--line); background: var(--panel-2); border-radius: 12px; padding: 8px 10px; font-size: 13px; font-weight: 700; }
+.history button:hover { border-color: var(--accent); }
 .history small { display: block; color: var(--ink-soft); font-weight: 600; }
 
 /* ---------- Modal hasil ---------- */
 dialog#result {
-  border: 0; padding: 0; border-radius: 22px; width: min(860px, calc(100vw - 32px)); max-height: calc(100vh - 40px);
-  box-shadow: 0 20px 60px rgba(10,30,60,.4); background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line); padding: 0; border-radius: 22px; width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32px);
+  box-shadow: 0 30px 80px rgba(0,0,0,.45); background: var(--panel); color: var(--ink);
 }
-dialog#result::backdrop { background: rgba(14, 40, 70, .45); }
-.modal-head {
-  display: flex; align-items: center; gap: 10px; padding: 14px 18px; flex-wrap: wrap;
-  background: linear-gradient(180deg, #4fb0ff, var(--sims-blue)); color: #fff;
-}
+dialog#result::backdrop { background: rgba(6, 10, 22, .6); backdrop-filter: blur(3px); }
+.modal-head { display: flex; align-items: center; gap: 8px; padding: 14px 18px; flex-wrap: wrap; background: linear-gradient(135deg, #2a2140, #4a2d2a); color: #fff; }
 .modal-head h2 { margin: 0; font: 600 20px/1.2 var(--font-display); flex: 1 1 200px; }
-.modal-head .btn-ghost { background: rgba(255,255,255,.95); color: var(--sims-blue); border: 0; }
+.modal-head .btn-ghost { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.2); }
 .modal-body { padding: 18px 22px 24px; overflow: auto; max-height: calc(100vh - 120px); }
-.md { line-height: 1.6; max-width: 72ch; }
+.files { display: grid; gap: 6px; margin: 4px 0 14px; }
+.files a { display: flex; justify-content: space-between; gap: 10px; align-items: center; text-decoration: none; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; font-weight: 700; font-size: 13.5px; }
+.files a:hover { border-color: var(--accent); }
+.files small { color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
+.md { line-height: 1.6; max-width: 74ch; }
 .md h1 { font: 600 24px/1.25 var(--font-display); margin: 0 0 8px; text-wrap: balance; }
-.md h2 { font: 600 19px/1.3 var(--font-display); margin: 22px 0 6px; color: var(--sims-blue); text-wrap: balance; }
-.md h3 { font: 700 16px/1.3 var(--font-body); margin: 16px 0 4px; }
+.md h2 { font: 600 19px/1.3 var(--font-display); margin: 22px 0 6px; color: var(--accent); text-wrap: balance; }
+.md h3 { font: 800 15.5px/1.3 var(--font-body); margin: 16px 0 4px; }
 .md p { margin: 6px 0; }
 .md ul, .md ol { margin: 6px 0; padding-left: 22px; }
-.md code { background: var(--panel-2); border-radius: 6px; padding: 1px 5px; font-size: .92em; }
+.md code { font-family: var(--font-mono); background: var(--panel-2); border-radius: 6px; padding: 1px 5px; font-size: .86em; }
 .md pre { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; overflow-x: auto; }
 .md pre code { background: none; padding: 0; }
-.md blockquote { margin: 8px 0; padding: 6px 12px; border-left: 4px solid var(--sims-blue-2); background: var(--panel-2); border-radius: 0 10px 10px 0; }
+.md blockquote { margin: 8px 0; padding: 6px 12px; border-left: 4px solid var(--accent); background: var(--panel-2); border-radius: 0 10px 10px 0; }
 .md hr { border: 0; border-top: 2px dashed var(--line); margin: 18px 0; }
 .md .tbl { overflow-x: auto; margin: 8px 0; }
 .md table { border-collapse: collapse; font-size: 13.5px; min-width: 100%; }
 .md th, .md td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
 .md th { background: var(--panel-2); font-weight: 800; }
-.md a { color: var(--sims-blue); }
+.md a { color: var(--blue); }
 .md .chk { display: inline-block; width: 16px; height: 16px; border-radius: 4px; margin-right: 6px; vertical-align: -3px; border: 2px solid var(--plumbob-dark); }
 .md .chk.on { background: var(--plumbob); }
 details.work { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; margin-top: 8px; }
 details.work summary { cursor: pointer; font-weight: 800; }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .toast, .lot svg, .pill.flash { animation: none; } }
 @media (max-width: 560px) {
-  .hud { border-radius: 22px; }
-  .lot h1 { font-size: 19px; }
-  .stage-legend { display: none; }
+  body { padding: 8px 16px 20px; }
+  .hud { border-radius: 20px; }
+  .lot h1 { font-size: 18px; }
+  .hud .hide-sm { display: none; }
 }
 </style>
-
+</head>
+<body>
 <div class="app">
   <header class="hud">
     <div class="lot">
-      <svg class="lot-gem" viewBox="0 0 22 34" aria-hidden="true">
+      <svg viewBox="0 0 22 34" aria-hidden="true">
         <defs><linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#8ef08f"/><stop offset=".5" stop-color="#3fc948"/><stop offset="1" stop-color="#1f8f2a"/></linearGradient></defs>
         <path d="M11 0 L22 15 L11 34 L0 15 Z" fill="url(#g1)" stroke="#1a7a24" stroke-width="1.2"/>
         <path d="M11 0 L11 34 M0 15 L22 15" stroke="rgba(255,255,255,.45)" stroke-width="1"/>
       </svg>
-      <div><small>Lot · PT Perkasa Gemilang Distrindo</small><h1>Kantor PGA</h1></div>
+      <div><small>PT Perkasa Gemilang Distrindo · PGA</small><h1>Kantor PGA</h1></div>
     </div>
-    <div class="hud-spacer"></div>
     <span class="pill" id="modePill">Memeriksa…</span>
-    <span class="pill" id="costPill" title="Perkiraan biaya Claude API untuk tugas ini (USD)"><span class="simoleon">§</span><span id="cost">0,00</span></span>
-    <span class="pill" id="clock">--</span>
-    <div class="speed" role="group" aria-label="Kecepatan animasi">
+    <span class="pill" id="tokPill" title="Token yang dipakai tugas ini. Cache = bagian prompt yang dibaca ulang dari cache (jauh lebih murah).">⚡ <span class="mono" id="tok">0</span><span class="k">token</span><span class="k hide-sm">· cache</span> <span class="mono hide-sm" id="cache">–</span></span>
+    <span class="pill" id="costPill" title="Perkiraan biaya Claude untuk tugas ini (USD)"><span style="color:var(--plumbob-dark);font-family:var(--font-display)">§</span><span class="mono" id="cost">0,00</span></span>
+    <span class="pill hide-sm" id="clock">--</span>
+    <button class="icon-btn" id="lightBtn" type="button" title="Pencahayaan kantor: otomatis mengikuti jam">🌗</button>
+    <button class="icon-btn" id="themeBtn" type="button" title="Tema tampilan terang/gelap">◐</button>
+    <div class="seg" role="group" aria-label="Kecepatan animasi">
       <button data-speed="0" aria-pressed="false" title="Jeda">❚❚</button>
       <button data-speed="1" aria-pressed="true" title="Normal">▶</button>
       <button data-speed="2" aria-pressed="false" title="Cepat">▶▶</button>
-      <button data-speed="3" aria-pressed="false" title="Sangat cepat">▶▶▶</button>
     </div>
   </header>
 
   <div class="main">
-    <div style="display:grid; gap:14px; min-width:0">
-      <div class="stage-wrap">
-        <canvas id="office" width="800" height="560" aria-label="Kantor PGA: Pemimpin Bima dan 8 agent di meja masing-masing"></canvas>
+    <div class="col">
+      <div class="stage-wrap" id="stageWrap">
+        <canvas id="office" tabindex="0" aria-label="Kantor PGA isometrik: Pemimpin Bima, 8 agent, rak skill, pantry, dan lounge. Seret untuk menggeser, gulir atau cubit untuk zoom, klik lantai untuk berjalan."></canvas>
         <div class="toasts" id="toasts" aria-live="polite"></div>
-        <div class="stage-legend" aria-hidden="true">
-          <span><i class="dot" style="background:var(--plumbob)"></i>Siap</span>
-          <span><i class="dot" style="background:var(--warn)"></i>Bekerja</span>
-          <span><i class="dot" style="background:var(--think)"></i>Berpikir / memeriksa</span>
-          <span><i class="dot" style="background:var(--bad)"></i>Masalah</span>
+        <div class="cam" role="group" aria-label="Kamera">
+          <button type="button" id="zoomIn" title="Perbesar">＋</button>
+          <button type="button" id="zoomOut" title="Perkecil">－</button>
+          <button type="button" id="zoomReset" title="Lihat seluruh kantor">⟲</button>
+          <button type="button" id="followBtn" aria-pressed="false" title="Kamera mengikuti Sim terpilih">🎯</button>
+        </div>
+        <div class="stage-foot">
+          <span class="lg"><i class="dot" style="background:var(--plumbob)"></i>Siap</span>
+          <span class="lg"><i class="dot" style="background:var(--warn)"></i>Bekerja</span>
+          <span class="lg"><i class="dot" style="background:var(--think)"></i>Berpikir</span>
+          <span class="lg"><i class="dot" style="background:var(--bad)"></i>Masalah</span>
+          <span class="tip">Seret = geser · gulir/cubit = zoom · klik lantai = jalan</span>
         </div>
       </div>
 
       <form class="composer" id="composer">
         <div class="composer-head">
-          <h2>Kirim tugas ke Bima (Pemimpin)</h2>
-          <p>Tulis tugas sekali saja. Bima membagi ke agent yang tepat, memeriksa hasilnya, lalu menyerahkan hasil akhir.</p>
+          <h2>Kirim tugas ke Bima</h2>
+          <p>Tulis sekali. Bima membagi ke agent yang tepat, agent memakai skill bila perlu, lalu Bima memeriksa dan menyerahkan hasil akhir.</p>
         </div>
         <label class="sr" for="task">Tugas</label>
         <textarea id="task" placeholder="Contoh: Buat BA kehilangan 2 karton produk di gudang cabang Bekasi, ditemukan saat stock opname 30 September 2026."></textarea>
-        <div class="chips" id="chips" aria-label="Contoh perintah uji"></div>
+        <div class="chips" id="chips" aria-label="Contoh perintah"></div>
         <div class="composer-actions">
-          <button class="btn-sims" id="send" type="submit">Kirim ke Pemimpin ➜</button>
+          <button class="btn-main" id="send" type="submit">Kirim ke Bima ➜</button>
           <button class="btn-ghost" id="cancel" type="button" hidden>Batalkan</button>
-          <label class="model-pick" for="preset">Model tim
+          <label class="model-pick" for="preset">Model
             <select id="preset">
               <option value="">Bawaan (.env)</option>
-              <option value="opus">Opus (paling teliti)</option>
-              <option value="campuran">Campuran: Pemimpin Opus, agent Sonnet</option>
-              <option value="sonnet">Sonnet (lebih cepat &amp; hemat)</option>
+              <option value="hemat">Hemat otomatis: Sonnet + Haiku</option>
+              <option value="sonnet">Sonnet semua</option>
+              <option value="campuran">Campuran: Bima Opus, agent Sonnet</option>
+              <option value="opus">Opus semua (paling teliti)</option>
             </select>
           </label>
           <label class="btn-ghost" id="attachBtn" for="attachInput" hidden style="cursor:pointer">📎 Lampirkan file</label>
           <input id="attachInput" type="file" multiple hidden>
           <span class="hint" id="hint">Ctrl + Enter untuk kirim.</span>
         </div>
-        <div class="attach-row" id="attachList" hidden>
-        </div>
+        <div class="attach-row" id="attachList" hidden></div>
       </form>
     </div>
 
-    <aside class="side">
-      <section class="card" aria-labelledby="teamTitle">
-        <h3 id="teamTitle">Tim <span class="count" id="teamCount"></span></h3>
-        <div class="team" id="team"></div>
-      </section>
-
+    <aside class="col">
       <section class="card" aria-labelledby="detailName">
         <div class="detail-top">
           <canvas id="portrait" width="128" height="128" aria-hidden="true"></canvas>
-          <div><h4 id="detailName">—</h4><p id="detailRole"></p><p id="detailStatus"></p></div>
+          <div><h2 id="detailName">—</h2><p id="detailRole"></p></div>
         </div>
         <div class="needs" id="needs"></div>
         <div class="task-box"><div class="lbl">Tugas saat ini</div><p id="detailTask">Belum ada tugas.</p></div>
@@ -315,22 +378,50 @@ details.work summary { cursor: pointer; font-weight: 800; }
         <div class="detail-actions"><button class="btn-ghost" id="openOutput" type="button" disabled>Buka hasil lengkap</button></div>
       </section>
 
-      <section class="card" aria-labelledby="logTitle">
-        <h3 id="logTitle">Aktivitas kantor</h3>
-        <div class="log" id="log"><p class="log-empty">Belum ada aktivitas. Kirim tugas pertama Anda.</p></div>
-      </section>
+      <section class="card tabs-card">
+        <div class="tabs" role="tablist" aria-label="Panel kantor">
+          <button role="tab" id="tab-chat" aria-controls="p-chat" aria-selected="true">💬 Chat<span class="badge" id="chatBadge" hidden>0</span></button>
+          <button role="tab" id="tab-tim" aria-controls="p-tim" aria-selected="false" tabindex="-1">👥 Tim</button>
+          <button role="tab" id="tab-skill" aria-controls="p-skill" aria-selected="false" tabindex="-1">🧰 Skill</button>
+          <button role="tab" id="tab-kn" aria-controls="p-kn" aria-selected="false" tabindex="-1">📚 Konteks</button>
+          <button role="tab" id="tab-hasil" aria-controls="p-hasil" aria-selected="false" tabindex="-1">📁 Hasil·<span id="histCount" class="mono">0</span></button>
+        </div>
 
-      <section class="card" aria-labelledby="knTitle" id="knCard" hidden>
-        <h3 id="knTitle">Pengetahuan kantor <span class="count" id="knCount"></span></h3>
-        <div class="kn-list" id="knList"><p class="log-empty">Memuat…</p></div>
-        <label class="btn-ghost" for="knInput" style="cursor:pointer;display:inline-block">⬆ Unggah paket ZIP</label>
-        <input id="knInput" type="file" accept=".zip" hidden>
-        <p class="hint" id="knHint" style="margin:8px 0 0">ZIP berisi folder pengetahuan (umum/, &lt;agent&gt;/, berkas/). File lama dengan nama sama ditimpa.</p>
-      </section>
+        <div class="tabpanel" role="tabpanel" id="p-chat" aria-labelledby="tab-chat">
+          <div class="chan"><b>#kantor-pga</b><span class="hint" id="chanSub">Bima + 8 agent</span><span class="live">live</span></div>
+          <div class="chat" id="chat" aria-live="polite"><p class="chat-empty">Belum ada obrolan. Kirim tugas pertama Anda.</p></div>
+        </div>
 
-      <section class="card" aria-labelledby="histTitle">
-        <h3 id="histTitle">Hasil selesai <span class="count" id="histCount">0</span></h3>
-        <div class="history" id="history"><p class="log-empty">Hasil akhir dari Bima muncul di sini.</p></div>
+        <div class="tabpanel" role="tabpanel" id="p-tim" aria-labelledby="tab-tim" hidden>
+          <h3>Tim <span class="count" id="teamCount"></span></h3>
+          <div class="team" id="team"></div>
+        </div>
+
+        <div class="tabpanel" role="tabpanel" id="p-skill" aria-labelledby="tab-skill" hidden>
+          <div class="savings" aria-label="Penghematan token">
+            <div><b id="svCache">–</b><small>Cache</small></div>
+            <div><b id="svCompact">0</b><small>Pemadatan</small></div>
+            <div><b id="svSkill">0</b><small>Skill dipakai</small></div>
+          </div>
+          <h3>Skill tim <span class="count" id="skillCount"></span></h3>
+          <div class="skills" id="skills"></div>
+          <p class="note">Skill dimuat hanya saat dipakai, pengetahuan besar dibaca sesuai kebutuhan, agent ringan (Maya, Andi) memakai Haiku, dan percakapan panjang dipadatkan otomatis. Tambah skill pribadi di <code>pengetahuan/skills/&lt;nama&gt;/SKILL.md</code>.</p>
+        </div>
+
+        <div class="tabpanel" role="tabpanel" id="p-kn" aria-labelledby="tab-kn" hidden>
+          <h3>Pengetahuan kantor <span class="count" id="knCount"></span></h3>
+          <div id="knCard" hidden>
+            <div class="kn-list" id="knList"><p class="chat-empty">Memuat…</p></div>
+            <label class="btn-ghost" for="knInput" style="cursor:pointer;display:inline-block">⬆ Unggah paket ZIP</label>
+            <input id="knInput" type="file" accept=".zip" hidden>
+            <p class="note" id="knHint">ZIP berisi folder pengetahuan (umum/, &lt;agent&gt;/, skills/, berkas/). File lama dengan nama sama ditimpa.</p>
+          </div>
+          <p class="note" id="knOff">Tersedia saat aplikasi berjalan di server dengan mode langganan.</p>
+        </div>
+
+        <div class="tabpanel" role="tabpanel" id="p-hasil" aria-labelledby="tab-hasil" hidden>
+          <div class="history" id="history"><p class="chat-empty">Hasil akhir dari Bima muncul di sini.</p></div>
+        </div>
       </section>
     </aside>
   </div>
@@ -354,64 +445,84 @@ details.work summary { cursor: pointer; font-weight: 800; }
 const LEADER = { id: "pemimpin", sim: "Bima", title: "Pemimpin", icon: "⭐",
   look: { shirt: "#2c3e66", pants: "#1d2638", skin: "#c98f63", hair: "#2b1d14", hairStyle: "short", tie: "#d63b3b" } };
 const ROSTER = [
-  { id: "surat-ba", sim: "Sari", title: "Surat & BA", icon: "📄", web: false, look: { shirt: "#e86f9a", pants: "#3c4a6b", skin: "#e0aa80", hair: "#3a2416", hairStyle: "long" } },
+  { id: "surat-ba", sim: "Sari", title: "Surat & BA", icon: "📄", web: false, files: true, look: { shirt: "#e86f9a", pants: "#3c4a6b", skin: "#e0aa80", hair: "#3a2416", hairStyle: "long" } },
   { id: "kepatuhan-perizinan", sim: "Dimas", title: "Kepatuhan & Perizinan", icon: "⚖️", web: true, look: { shirt: "#5a7fd6", pants: "#2e3440", skin: "#b8794f", hair: "#1b1410", hairStyle: "short" } },
-  { id: "data-rekap", sim: "Rina", title: "Data & Rekap", icon: "📊", web: false, look: { shirt: "#2bb3a3", pants: "#40384f", skin: "#f0c09a", hair: "#6b3b1d", hairStyle: "bun" } },
-  { id: "sop-k3-vendor", sim: "Joko", title: "SOP, K3 & Vendor", icon: "🦺", web: false, look: { shirt: "#f28b2c", pants: "#3b4b33", skin: "#a96c45", hair: "#151010", hairStyle: "helmet" } },
-  { id: "email-kalender", sim: "Maya", title: "Email & Kalender", icon: "✉️", web: false, look: { shirt: "#9b6be0", pants: "#2f3a55", skin: "#e8b48e", hair: "#20140c", hairStyle: "hijab", hijab: "#d9a5c9" } },
-  { id: "chrome-portal", sim: "Andi", title: "Chrome & Portal", icon: "🌐", web: false, look: { shirt: "#3aa0d8", pants: "#28303c", skin: "#c88a5c", hair: "#2a1a10", hairStyle: "spiky" } },
+  { id: "data-rekap", sim: "Rina", title: "Data & Rekap", icon: "📊", web: false, files: true, look: { shirt: "#2bb3a3", pants: "#40384f", skin: "#f0c09a", hair: "#6b3b1d", hairStyle: "bun" } },
+  { id: "sop-k3-vendor", sim: "Joko", title: "SOP, K3 & Vendor", icon: "🦺", web: false, files: true, look: { shirt: "#f28b2c", pants: "#3b4b33", skin: "#a96c45", hair: "#151010", hairStyle: "helmet" } },
+  { id: "email-kalender", sim: "Maya", title: "Email & Kalender", icon: "✉️", web: false, light: true, look: { shirt: "#9b6be0", pants: "#2f3a55", skin: "#e8b48e", hair: "#20140c", hairStyle: "hijab", hijab: "#d9a5c9" } },
+  { id: "chrome-portal", sim: "Andi", title: "Chrome & Portal", icon: "🌐", web: false, light: true, look: { shirt: "#3aa0d8", pants: "#28303c", skin: "#c88a5c", hair: "#2a1a10", hairStyle: "spiky" } },
   { id: "cari-cuan", sim: "Budi", title: "Cari Cuan", icon: "💰", web: true, look: { shirt: "#4fbf5a", pants: "#5a4632", skin: "#b07a52", hair: "#111", hairStyle: "cap", cap: "#f2c12e" } },
   { id: "riset", sim: "Laras", title: "Riset", icon: "🔎", web: true, look: { shirt: "#d9534f", pants: "#2c3446", skin: "#efc3a0", hair: "#4a2a18", hairStyle: "bob", glasses: true } },
 ];
+const PLAYER = { id: "rahula", sim: "Rahula", title: "Anda · PGA PGD", icon: "🧑‍💼",
+  look: { shirt: "#f4f6fa", pants: "#33415c", skin: "#c48a5e", hair: "#16100c", hairStyle: "short", lanyard: "#d97757" } };
+// Skill bawaan (skills/ di repo). Mode live mengganti daftar ini dari /api/status.
+let SKILLS = [
+  { name: "kantor:dokumen-resmi", description: "BA, surat, PB, SOP sebagai DOCX + PDF dari generator, lalu cek render." },
+  { name: "kantor:rekap-excel", description: "Rekap Excel dengan COUNTIF/COUNTIFS saja dan validasi LibreOffice." },
+  { name: "kantor:baca-lampiran", description: "Membaca PDF/DOCX/XLSX/foto seperlunya agar hemat token." },
+  { name: "kantor:sop-hiradc", description: "Kerangka SOP + tabel HIRADC + evaluasi vendor (EVAS)." },
+  { name: "kantor:riset-sumber", description: "Riset sumber primer dengan batas pencarian dan daftar yang belum pasti." },
+];
+const AGENT_SKILL = { "surat-ba": "kantor:dokumen-resmi", "data-rekap": "kantor:rekap-excel", "sop-k3-vendor": "kantor:sop-hiradc", "riset": "kantor:riset-sumber", "kepatuhan-perizinan": "kantor:riset-sumber", "email-kalender": "kantor:baca-lampiran" };
 const EXAMPLES = [
   ["BA kehilangan Bekasi", "Buat BA kehilangan 2 karton produk di gudang cabang Bekasi, ditemukan saat stock opname 30 September 2026."],
   ["Izin habis < Jan 2027", "Dari file rekap, izin cabang mana yang habis sebelum Januari 2027? Susun rencana perpanjangannya."],
   ["Rekap keterlambatan", "Ini CSV fingerprint September. Buat rekap pelanggaran keterlambatan per departemen, pisahkan DKI dan Banten."],
   ["SOP tumpahan MMEA", "Buat SOP penanganan tumpahan produk MMEA di gudang, termasuk tabel bahaya dan pengendaliannya."],
-  ["Triase inbox", "Cek inbox 2 hari terakhir, lalu buatkan draf balasan untuk yang SEGERA."],
-  ["Portal absensi", "Buka menu laporan absensi di portal, tampilkan data cabang Kalideres bulan September, jangan ubah apa pun."],
+  ["Triase inbox", "Ini 6 email terakhir saya. Kelompokkan dan buatkan draf balasan untuk yang SEGERA."],
+  ["Portal absensi", "Susun langkah membuka laporan absensi cabang Kalideres bulan September di portal, jangan ubah apa pun."],
   ["5 peluang cuan", "Dengan 8 jam/minggu dan modal Rp5 juta, beri 5 peluang dan pilih satu untuk diuji bulan ini."],
-  ["Riset Permenaker 11/2026", "Riset kewajiban perusahaan setelah Permenaker 11/2026 berlaku, dan apa yang harus disiapkan PGA sebelum pengawas datang."],
+  ["Riset regulasi K3", "Riset kewajiban K3 gudang distribusi terbaru dan apa yang harus disiapkan PGA sebelum pengawas datang."],
 ];
 const SIMLISH = ["Sul sul!", "Dag dag!", "Vadish!", "Fredishay!", "Sh'boo!", "Nooboo!", "Litzergam!", "Woohoo!"];
 
 /* =====================================================================
-   PETA KANTOR (grid isometrik)
+   PETA KANTOR (grid isometrik 20 × 14)
    ===================================================================== */
-const COLS = 14, ROWS = 11, TW = 64, TH = 32, OX = ROWS * TW / 2 + 0, OY = 140;
-const W = 800, H = 560;
+const COLS = 20, ROWS = 14, TW = 64, TH = 32, WH = 136;
+const OX = ROWS * TW / 2 + 28, OY = WH + 48;
+const WORLD = { w: (COLS + ROWS) * TW / 2 + 56, h: (COLS + ROWS) * TH / 2 + OY + 40 };
 const iso = (gx, gy) => ({ x: (gx - gy) * TW / 2 + OX, y: (gx + gy) * TH / 2 + OY });
+const toGrid = (x, y) => { const a = (x - OX) / TW, b = (y - OY) / TH; return { gx: a + b, gy: b - a }; };
 
-// Meja kerja: baris depan & belakang. Kursi (seat) di belakang meja agar wajah Sim terlihat.
-const DESK_SPOTS = [[2,5],[4,5],[6,5],[8,5],[2,8],[4,8],[6,8],[8,8]];
-const LEADER_DESK = { tiles: [[11,3],[12,3]], seat: [12,2] };
+// Meja kerja: dua pod (belakang & depan), kursi di belakang meja agar wajah Sim terlihat.
+const DESK_SPOTS = [[3,5],[4,5],[6,5],[7,5],[3,9],[4,9],[6,9],[7,9]];
+const LEADER_DESK = { tiles: [[15,3],[16,3]], seat: [16,2] };
+const PLAYER_HOME = [11, 11];
 const blocked = new Set();
 const key = (x, y) => x + "," + y;
-const objects = []; // furnitur yang di-sort berdasarkan kedalaman
-
-function addObj(o) { objects.push(o); (o.tiles || []).forEach(([x, y]) => blocked.add(key(x, y))); }
-
-DESK_SPOTS.forEach(([x, y], i) => addObj({ kind: "desk", tiles: [[x, y]], depth: x + y + 1, gx: x, gy: y, agent: i }));
-addObj({ kind: "bossdesk", tiles: LEADER_DESK.tiles, depth: 12 + 3 + 1, gx: 11, gy: 3 });
-addObj({ kind: "shelf", tiles: [[0, 2], [0, 3]], depth: 0 + 3 + 1, gx: 0, gy: 2 });
-addObj({ kind: "coffee", tiles: [[0, 8]], depth: 9, gx: 0, gy: 8 });
-addObj({ kind: "cooler", tiles: [[6, 0]], depth: 7, gx: 6, gy: 0 });
-addObj({ kind: "plant", tiles: [[13, 10]], depth: 24, gx: 13, gy: 10 });
-addObj({ kind: "plant", tiles: [[0, 10]], depth: 11, gx: 0, gy: 10 });
-addObj({ kind: "plant", tiles: [[9, 0]], depth: 10, gx: 9, gy: 0 });
-addObj({ kind: "sofa", tiles: [[13, 6], [13, 7], [13, 8]], depth: 13 + 8 + 1, gx: 13, gy: 6 });
-addObj({ kind: "table", tiles: [[11, 7]], depth: 19, gx: 11, gy: 7 });
-addObj({ kind: "printer", tiles: [[10, 10]], depth: 21, gx: 10, gy: 10 });
+const objects = [];
+function addObj(o) {
+  const t = o.tiles || [];
+  o.depth ??= Math.max(...t.map(([x, y]) => x + y)) + 1;
+  objects.push(o); t.forEach(([x, y]) => blocked.add(key(x, y)));
+}
+DESK_SPOTS.forEach(([x, y], i) => addObj({ kind: "desk", tiles: [[x, y]], gx: x, gy: y, agent: i }));
+addObj({ kind: "bossdesk", tiles: LEADER_DESK.tiles, gx: 15, gy: 3 });
+addObj({ kind: "skillshelf", tiles: [[0,1],[0,2],[0,3],[0,4],[0,5]], gx: 0, gy: 1 });
+addObj({ kind: "counter", tiles: [[0,8],[0,9],[0,10]], gx: 0, gy: 8 });
+addObj({ kind: "cooler", tiles: [[0,7]], gx: 0, gy: 7 });
+addObj({ kind: "bistro", tiles: [[3,12]], gx: 3, gy: 12 });
+addObj({ kind: "meeting", tiles: [[11,7],[12,7],[11,8],[12,8]], gx: 11, gy: 7 });
+addObj({ kind: "sofa", tiles: [[19,9],[19,10],[19,11]], gx: 19, gy: 9 });
+addObj({ kind: "lowtable", tiles: [[17,10]], gx: 17, gy: 10 });
+addObj({ kind: "printer", tiles: [[9,13]], gx: 9, gy: 13 });
+addObj({ kind: "cabinet", tiles: [[13,1]], gx: 13, gy: 1 });
+for (const [x, y, big] of [[9,1,1],[19,1,0],[19,13,1],[9,4,0],[13,11,0],[0,12,0],[19,7,0]]) addObj({ kind: "plant", tiles: [[x, y]], gx: x, gy: y, big });
 
 const IDLE_SPOTS = [
-  { at: [1, 8], icon: "☕", label: "Ngopi dulu" },
-  { at: [6, 1], icon: "💧", label: "Minum air" },
-  { at: [1, 3], icon: "📚", label: "Baca arsip" },
-  { at: [12, 7], icon: "🛋️", label: "Rehat sebentar" },
-  { at: [10, 9], icon: "🖨️", label: "Ambil print" },
-  { at: [3, 1], icon: "🪟", label: "Lihat jendela" },
-  { at: [10, 7], icon: "💬", label: "Ngobrol" },
+  { at: [1, 9], icon: "☕", label: "Ngopi dulu", chat: "rehat ngopi sebentar ☕" },
+  { at: [1, 7], icon: "💧", label: "Minum air", chat: "isi botol minum 💧" },
+  { at: [1, 3], icon: "📘", label: "Baca skill", chat: "baca-baca rak skill 📘" },
+  { at: [18, 10], icon: "🛋️", label: "Rehat", chat: "selonjoran di lounge 🛋️" },
+  { at: [9, 12], icon: "🖨️", label: "Ambil print" },
+  { at: [3, 1], icon: "🌆", label: "Lihat kota" },
+  { at: [10, 8], icon: "💬", label: "Ngobrol", pair: true },
+  { at: [13, 8], icon: "💬", label: "Ngobrol", pair: true },
+  { at: [3, 11], icon: "🍪", label: "Ngemil", chat: "ngemil di pantry 🍪" },
 ];
+const SPOT = { coffee: [1, 9], shelf: [1, 3], printer: [9, 12] };
 
 function bfs(from, to) {
   const [sx, sy] = from, [tx, ty] = to;
@@ -441,41 +552,40 @@ function bfs(from, to) {
    ===================================================================== */
 const STATUS_TEXT = { idle: "Siap", working: "Bekerja", thinking: "Berpikir", reviewing: "Memeriksa", done: "Selesai", error: "Ada masalah" };
 const STATUS_ICON = { idle: "●", working: "✎", thinking: "💭", reviewing: "🔎", done: "✓", error: "!" };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 class Sim {
-  constructor(def, seat, isLeader) {
+  constructor(def, seat, opts = {}) {
     Object.assign(this, def);
-    this.isLeader = !!isLeader;
+    this.isLeader = !!opts.leader; this.isPlayer = !!opts.player;
     this.seat = seat;
     this.x = seat[0] + .5; this.y = seat[1] + .5;
     this.path = []; this.actions = []; this.wait = 0;
     this.status = "idle"; this.bubble = null; this.carrying = false; this.jump = 0;
     this.facing = 1; this.walkPhase = Math.random() * 6;
     this.needs = { energi: 70 + Math.random() * 25, fokus: 70 + Math.random() * 25, sosial: 50 + Math.random() * 40, senang: 60 + Math.random() * 30 };
-    this.idleTimer = 8 + Math.random() * 20;
+    this.idleTimer = 10 + Math.random() * 30;
     this.task = null; this.output = null; this.chars = 0;
   }
   get tile() { return [Math.floor(this.x), Math.floor(this.y)]; }
   get atSeat() { return !this.path.length && Math.floor(this.x) === this.seat[0] && Math.floor(this.y) === this.seat[1]; }
-  get seated() { return this.atSeat && this.jump <= 0 && !this.standing; }
+  get seated() { return !this.isPlayer && this.atSeat && this.jump <= 0 && !this.standing; }
   say(icon, text, ms = 2600) { this.bubble = { icon, text: text || "", until: now + ms }; }
-  // Mengganti antrean aksi (dipakai saat ada tugas baru yang lebih penting dari jalan-jalan).
   interrupt() { this.actions = []; this.wait = 0; this.standing = false; const t = this.tile; this.path = []; this.x = t[0] + .5; this.y = t[1] + .5; }
   queue(...acts) { this.actions.push(...acts); }
   update(dt) {
     if (this.jump > 0) this.jump -= dt;
     if (this.bubble && now > this.bubble.until) this.bubble = null;
-    // kebutuhan ala Sims
     const n = this.needs, busy = this.status === "working" || this.status === "reviewing" || this.status === "thinking";
     n.energi = clamp(n.energi - dt * (busy ? 0.9 : 0.12), 5, 100);
     n.fokus = clamp(n.fokus + dt * (busy ? -0.6 : 0.4), 5, 100);
     n.sosial = clamp(n.sosial - dt * 0.15, 5, 100);
     n.senang = clamp(n.senang + dt * (this.status === "done" ? 0.8 : -0.05), 5, 100);
-
     if (this.path.length) {
       const [tx, ty] = this.path[0];
       const gx = tx + .5, gy = ty + .5, dx = gx - this.x, dy = gy - this.y;
-      const d = Math.hypot(dx, dy), step = dt * 2.6;
+      const d = Math.hypot(dx, dy), step = dt * (this.isPlayer ? 3.2 : 2.7);
       if (dx - dy !== 0) this.facing = (dx - dy) > 0 ? 1 : -1;
       this.walkPhase += dt * 12;
       if (d <= step) { this.x = gx; this.y = gy; this.path.shift(); }
@@ -485,254 +595,400 @@ class Sim {
     if (this.wait > 0) { this.wait -= dt; return; }
     const a = this.actions.shift();
     if (!a) { this.idleBehaviour(dt); return; }
-    if (a.walk) { this.path = bfs(this.tile, a.walk); this.standing = true; if (a.walk[0] === this.seat[0] && a.walk[1] === this.seat[1]) this.standing = false; }
+    if (a.walk) { this.path = bfs(this.tile, a.walk); this.standing = !(a.walk[0] === this.seat[0] && a.walk[1] === this.seat[1]); }
     else if (a.wait) this.wait = a.wait;
     else if (a.fn) a.fn(this);
   }
   idleBehaviour(dt) {
-    if (this.isLeader) return;
+    if (this.isLeader || this.isPlayer) return;
     if (this.status !== "idle" && this.status !== "done") return;
     if (!this.atSeat) { this.queue({ walk: this.seat }); return; }
     this.idleTimer -= dt;
     if (this.idleTimer > 0) return;
-    this.idleTimer = 18 + Math.random() * 26;
-    const spot = IDLE_SPOTS[Math.floor(Math.random() * IDLE_SPOTS.length)];
+    this.idleTimer = 22 + Math.random() * 34;
+    const spot = pick(IDLE_SPOTS);
     const target = freeNear(spot.at);
-    this.queue({ walk: target }, { fn: (s) => { s.say(spot.icon, spot.label, 3200); s.needs.energi = Math.min(100, s.needs.energi + 25); s.needs.sosial = Math.min(100, s.needs.sosial + 12); } },
-      { wait: 3.2 }, { walk: this.seat }, { fn: (s) => { if (s.status === "done") s.status = "idle"; } });
+    this.queue({ walk: target }, { fn: (s) => {
+        s.say(spot.icon, spot.label, 3400);
+        s.needs.energi = Math.min(100, s.needs.energi + 25); s.needs.sosial = Math.min(100, s.needs.sosial + 12);
+        if (spot.pair) {
+          const buddy = workers.find((o) => o !== s && !o.path.length && Math.hypot(o.x - s.x, o.y - s.y) < 2.6);
+          if (buddy) { setTimeout(() => buddy.say("💬", pick(SIMLISH), 2400), 900); if (Math.random() < .5) post(s, `ngobrol sama ${buddy.sim} ${pick(["soal makan siang 🍜", "soal macet tadi pagi 🚗", "soal laporan bulanan 📈"])}`, { muted: true }); }
+        } else if (spot.chat && Math.random() < .35) post(s, spot.chat, { muted: true });
+        if (spot.icon === "☕") steam = 3;
+      } },
+      { wait: 3.4 }, { walk: this.seat }, { fn: (s) => { if (s.status === "done") s.status = "idle"; } });
   }
 }
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function freeNear([x, y]) {
   if (!blocked.has(key(x, y))) return [x, y];
-  for (const [dx, dy] of [[1,0],[0,1],[-1,0],[0,-1],[1,1],[-1,-1]]) {
+  for (const [dx, dy] of [[1,0],[0,1],[-1,0],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]) {
     const nx = x + dx, ny = y + dy;
     if (nx >= 0 && ny >= 0 && nx < COLS && ny < ROWS && !blocked.has(key(nx, ny))) return [nx, ny];
   }
   return [x, y];
 }
-// Tile kosong di samping kursi seseorang (untuk menyerahkan berkas).
 function besideSeat(sim, preferFrom) {
-  const [x, y] = sim.seat;
+  const [x, y] = sim.isPlayer ? sim.tile : sim.seat;
   const seats = new Set(sims.map((s) => key(s.seat[0], s.seat[1])));
-  const opts = [[x - 1, y], [x + 1, y], [x, y - 1]].filter(([a, b]) => a >= 0 && b >= 0 && a < COLS && b < ROWS && !blocked.has(key(a, b)) && !seats.has(key(a, b)));
-  if (!opts.length) return [x, y - 1];
+  const opts = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].filter(([a, b]) => a >= 0 && b >= 0 && a < COLS && b < ROWS && !blocked.has(key(a, b)) && !seats.has(key(a, b)));
+  if (!opts.length) return freeNear([x, y + 1]);
   const [fx, fy] = preferFrom;
   opts.sort((p, q) => (Math.abs(p[0] - fx) + Math.abs(p[1] - fy)) - (Math.abs(q[0] - fx) + Math.abs(q[1] - fy)));
   return opts[0];
 }
 
-const leader = new Sim(LEADER, LEADER_DESK.seat, true);
+const leader = new Sim(LEADER, LEADER_DESK.seat, { leader: true });
 const workers = ROSTER.map((r, i) => new Sim(r, [DESK_SPOTS[i][0], DESK_SPOTS[i][1] - 1]));
-const sims = [leader, ...workers];
-const byId = Object.fromEntries(sims.map((s) => [s.id, s]));
+const sims = [leader, ...workers];                  // tim (panel, event)
+const player = new Sim(PLAYER, PLAYER_HOME, { player: true });
+const people = [player, ...sims];                   // semua yang digambar
+const byId = Object.fromEntries(people.map((s) => [s.id, s]));
 
 /* =====================================================================
-   RENDER
+   KAMERA + KANVAS
    ===================================================================== */
 const canvas = document.getElementById("office");
 let ctx = canvas.getContext("2d");
-let dpr = 1;
+let dpr = 1, cw = 800, ch = 560, fit = 1;
+const cam = { zoom: 1, x: 0, y: 0, follow: false };
 function resize() {
+  const r = canvas.getBoundingClientRect();
   dpr = Math.min(2, window.devicePixelRatio || 1);
-  canvas.width = W * dpr; canvas.height = H * dpr;
+  cw = Math.max(200, r.width); ch = Math.max(200, r.height);
+  canvas.width = Math.round(cw * dpr); canvas.height = Math.round(ch * dpr);
+  fit = Math.min(cw / WORLD.w, ch / WORLD.h);
 }
+new ResizeObserver(resize).observe(canvas);
 resize();
-window.addEventListener("resize", resize);
+function view() { const s = fit * cam.zoom; return { s, ox: cw / 2 - (WORLD.w / 2 + cam.x) * s, oy: ch / 2 - (WORLD.h / 2 + cam.y) * s }; }
+function toWorld(px, py) { const v = view(); return { x: (px - v.ox) / v.s, y: (py - v.oy) / v.s }; }
+function clampCam() {
+  const mx = WORLD.w * .5 * (1 - 1 / cam.zoom) + 120 / cam.zoom, my = WORLD.h * .5 * (1 - 1 / cam.zoom) + 120 / cam.zoom;
+  cam.x = clamp(cam.x, -mx, mx); cam.y = clamp(cam.y, -my, my);
+}
+function zoomAt(px, py, factor) {
+  const before = toWorld(px, py);
+  cam.zoom = clamp(cam.zoom * factor, .8, 3.2);
+  const after = toWorld(px, py);
+  cam.x += before.x - after.x; cam.y += before.y - after.y; clampCam();
+}
 
+/* =====================================================================
+   PENCAHAYAAN: siang / malam (otomatis mengikuti jam, bisa diganti)
+   ===================================================================== */
+let lightMode = "auto";
+try { lightMode = localStorage.getItem("kantor-pga-light") || "auto"; } catch {}
+let nightLevel = 0;
+function wantNight() { if (lightMode === "day") return 0; if (lightMode === "night") return 1; const h = new Date().getHours(); return h >= 18 || h < 6 ? 1 : 0; }
+nightLevel = wantNight();
+
+/* =====================================================================
+   PRIMITIF GAMBAR
+   ===================================================================== */
 function shade(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
-  let r = (n >> 16) + amt, g = ((n >> 8) & 255) + amt, b = (n & 255) + amt;
-  r = clamp(r, 0, 255); g = clamp(g, 0, 255); b = clamp(b, 0, 255);
+  const r = clamp((n >> 16) + amt, 0, 255), g = clamp(((n >> 8) & 255) + amt, 0, 255), b = clamp((n & 255) + amt, 0, 255);
   return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
-function poly(pts, fill, stroke) {
+function poly(pts, fill, stroke, lw = 1) {
   ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath();
   if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
 }
 const up = (p, h) => ({ x: p.x, y: p.y - h });
-// Kotak isometrik: (gx,gy) sudut, w×d tile, tinggi h, z dasar.
 function box(gx, gy, w, d, h, color, z = 0) {
   const a = up(iso(gx, gy), z), b = up(iso(gx + w, gy), z), c = up(iso(gx + w, gy + d), z), e = up(iso(gx, gy + d), z);
-  poly([e, c, up(c, h), up(e, h)], shade(color, -28));          // sisi kiri-depan
-  poly([b, c, up(c, h), up(b, h)], shade(color, -50));          // sisi kanan-depan
-  poly([up(a, h), up(b, h), up(c, h), up(e, h)], color, shade(color, -60)); // atas
+  poly([e, c, up(c, h), up(e, h)], shade(color, -26));
+  poly([b, c, up(c, h), up(b, h)], shade(color, -46));
+  poly([up(a, h), up(b, h), up(c, h), up(e, h)], color, shade(color, -54));
 }
+const wallB = (gx, h) => up(iso(gx, 0), h);   // dinding belakang (sepanjang gx)
+const wallL = (gy, h) => up(iso(0, gy), h);   // dinding kiri (sepanjang gy)
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+const glows = []; // titik cahaya untuk lapisan malam: {x,y,r,c}
 
+/* =====================================================================
+   RUANGAN
+   ===================================================================== */
+const BUILDINGS = Array.from({ length: 26 }, (_, i) => ({ w: .35 + ((i * 37) % 7) / 14, h: 30 + ((i * 53) % 9) * 7, seed: i }));
 function drawRoom(t) {
-  // lantai
+  const night = nightLevel > .5;
+  // Lantai
   for (let x = 0; x < COLS; x++) for (let y = 0; y < ROWS; y++) {
-    const carpet = x >= 1 && x <= 9 && y >= 3 && y <= 9;
-    const rug = x >= 10 && x <= 13 && y >= 1 && y <= 4;
-    let c;
-    if (rug) c = (x + y) % 2 ? "#b8433f" : "#c44d48";
-    else if (carpet) c = (x + y) % 2 ? "#8fa9c4" : "#98b2cc";
-    else c = (x + y) % 2 ? "#d9a86a" : "#e2b377";
-    poly([iso(x, y), iso(x + 1, y), iso(x + 1, y + 1), iso(x, y + 1)], c, rug ? "#a63a36" : carpet ? "#86a0bb" : "#c8975c");
+    const pod = x >= 2 && x <= 8 && y >= 3 && y <= 10;
+    const rug = x >= 13 && x <= 18 && y >= 1 && y <= 5;
+    const lounge = x >= 15 && x <= 19 && y >= 8 && y <= 12;
+    const pantry = x <= 4 && y >= 7 && y <= 13;
+    let c, s;
+    if (rug) { c = (x + y) % 2 ? "#8e3b3b" : "#9a4444"; s = "#7c3333"; }
+    else if (pod) { c = (x + y) % 2 ? "#4f6178" : "#55687f"; s = "#46566b"; }
+    else if (lounge) { c = (x + y) % 2 ? "#2f7a74" : "#34827b"; s = "#2a6c66"; }
+    else if (pantry) { c = (x + y) % 2 ? "#e9e4da" : "#f3efe6"; s = "#d8d1c4"; }
+    else { c = y % 2 ? "#c48d58" : "#cd965f"; s = "#b47f4c"; }
+    poly([iso(x, y), iso(x + 1, y), iso(x + 1, y + 1), iso(x, y + 1)], c, s, .8);
+    if (!rug && !pod && !lounge && !pantry && (x + y * 3) % 4 === 0) { // garis papan kayu
+      const a = iso(x + .5, y), b = iso(x + .5, y + 1); ctx.strokeStyle = "rgba(90,50,20,.18)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
   }
-  // tepi lantai (tebal)
-  poly([iso(0, ROWS), iso(COLS, ROWS), up(iso(COLS, ROWS), -10), up(iso(0, ROWS), -10)], "#a8743e");
-  poly([iso(COLS, 0), iso(COLS, ROWS), up(iso(COLS, ROWS), -10), up(iso(COLS, 0), -10)], "#8d5f30");
+  poly([iso(0, ROWS), iso(COLS, ROWS), up(iso(COLS, ROWS), -12), up(iso(0, ROWS), -12)], "#7a5230");
+  poly([iso(COLS, 0), iso(COLS, ROWS), up(iso(COLS, ROWS), -12), up(iso(COLS, 0), -12)], "#5f3f24");
 
-  const WH = 118;
-  // dinding kiri (sepanjang gy) & kanan (sepanjang gx)
-  poly([iso(0, 0), iso(0, ROWS), up(iso(0, ROWS), WH), up(iso(0, 0), WH)], "#a9dcc8");
-  poly([iso(0, 0), iso(COLS, 0), up(iso(COLS, 0), WH), up(iso(0, 0), WH)], "#bfe7d6");
-  // garis wallpaper
-  ctx.save(); ctx.globalAlpha = .35;
-  for (let i = 0.5; i < COLS; i += 0.5) { const p = iso(i, 0); ctx.strokeStyle = "#9fd3bf"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(p.x, p.y - 22); ctx.lineTo(p.x, p.y - WH); ctx.stroke(); }
-  for (let i = 0.5; i < ROWS; i += 0.5) { const p = iso(0, i); ctx.strokeStyle = "#8fc9b4"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(p.x, p.y - 22); ctx.lineTo(p.x, p.y - WH); ctx.stroke(); }
-  ctx.restore();
-  // lis bawah (wainscot)
-  poly([iso(0, 0), iso(COLS, 0), up(iso(COLS, 0), 22), up(iso(0, 0), 22)], "#f4f7f2");
-  poly([iso(0, 0), iso(0, ROWS), up(iso(0, ROWS), 22), up(iso(0, 0), 22)], "#e5ebe4");
-  // tepi atas dinding
-  poly([up(iso(0, 0), WH), up(iso(COLS, 0), WH), up(iso(COLS, 0), WH + 8), up(iso(0, 0), WH + 8)], "#fdfdfb");
-  poly([up(iso(0, 0), WH), up(iso(0, ROWS), WH), up(iso(0, ROWS), WH + 8), up(iso(0, 0), WH + 8)], "#eef2ee");
+  // Dinding
+  poly([iso(0, 0), iso(0, ROWS), wallL(ROWS, WH), wallL(0, WH)], "#d9d2c6");
+  poly([iso(0, 0), iso(COLS, 0), wallB(COLS, WH), wallB(0, WH)], "#e8e2d7");
+  poly([iso(0, 0), iso(COLS, 0), wallB(COLS, 16), wallB(0, 16)], "#6b4a33");
+  poly([iso(0, 0), iso(0, ROWS), wallL(ROWS, 16), wallL(0, 16)], "#5d4030");
+  poly([wallB(0, WH), wallB(COLS, WH), wallB(COLS, WH + 9), wallB(0, WH + 9)], "#f6f2ea");
+  poly([wallL(0, WH), wallL(ROWS, WH), wallL(ROWS, WH + 9), wallL(0, WH + 9)], "#ece6db");
 
-  // jendela dinding kanan
-  for (const [a, b] of [[1.5, 4], [6.6, 8.6]]) wallWindowR(a, b, 40, 100, t);
-  // jendela dinding kiri
-  wallWindowL(5.6, 7.4, 40, 100, t);
-  // papan tulis dekat pemimpin
-  const wb = [up(iso(10, 0), 40), up(iso(12.8, 0), 40), up(iso(12.8, 0), 98), up(iso(10, 0), 98)];
-  poly(wb, "#ffffff", "#9aa7b3");
-  ctx.save(); ctx.strokeStyle = "#3b7dd8"; ctx.lineWidth = 2; ctx.beginPath();
-  const w0 = up(iso(10.4, 0), 84); ctx.moveTo(w0.x, w0.y); const w1 = up(iso(11.6, 0), 84); ctx.lineTo(w1.x, w1.y); ctx.stroke();
-  ctx.strokeStyle = "#e2453c"; ctx.beginPath(); const w2 = up(iso(10.4, 0), 70); ctx.moveTo(w2.x, w2.y); const w3 = up(iso(12.2, 0), 70); ctx.lineTo(w3.x, w3.y); ctx.stroke();
-  ctx.strokeStyle = "#3fc948"; ctx.beginPath(); const w4 = up(iso(10.4, 0), 56); ctx.moveTo(w4.x, w4.y); const w5 = up(iso(11.2, 0), 56); ctx.lineTo(w5.x, w5.y); ctx.stroke();
+  // Jendela kaca besar dengan pemandangan kota
+  for (const [a, b] of [[.6, 3.4], [3.6, 6.4], [6.6, 9.4]]) cityWindow(a, b, 26, 122, t, night);
+  // Jendela dinding kiri (pantry)
+  sideWindow(6.6, 9.6, 58, 118, night);
+  // Pintu
+  poly([wallL(11.4, 0), wallL(12.9, 0), wallL(12.9, 92), wallL(11.4, 92)], "#7a5636", "#5b3f27");
+  poly([wallL(11.55, 6), wallL(12.75, 6), wallL(12.75, 86), wallL(11.55, 86)], "#8d6644");
+  { const k = wallL(12.6, 44); ctx.fillStyle = "#e7c46a"; ctx.beginPath(); ctx.arc(k.x, k.y, 2.6, 0, 7); ctx.fill(); }
+  // Papan "RAK SKILL"
+  wallSign(wallL, 1.2, 5.6, 118, 100, "🧰 RAK SKILL", "#d97757", -0.5, skillGlow > 0);
+  // Papan tulis kanban
+  whiteboard(10.1, 12.9, 44, 112);
+  // Jam
+  wallClock(13.7, 96);
+  // Neon PGA · PGD
+  neon(14.6, 19.2, 92, 122, t);
+}
+function cityWindow(a, b, h0, h1, t, night) {
+  const P = (gx, h) => wallB(gx, h);
+  poly([P(a, h0), P(b, h0), P(b, h1), P(a, h1)], "#2b2f38");
+  const ins = [P(a + .08, h0 + 4), P(b - .08, h0 + 4), P(b - .08, h1 - 4), P(a + .08, h1 - 4)];
+  const g = ctx.createLinearGradient(0, ins[2].y, 0, ins[0].y);
+  if (night) { g.addColorStop(0, "#0a1230"); g.addColorStop(1, "#28356a"); } else { g.addColorStop(0, "#6fbff0"); g.addColorStop(1, "#d8f0fb"); }
+  poly(ins, g);
+  ctx.save(); poly(ins); ctx.clip();
+  if (night) { // bintang + bulan
+    for (let i = 0; i < 9; i++) { const p = P(a + .2 + ((i * 0.37) % (b - a - .4)), h1 - 10 - (i * 13 % 26)); ctx.fillStyle = `rgba(255,255,255,${.4 + .4 * Math.sin(t * 2 + i)})`; ctx.fillRect(p.x, p.y, 1.6, 1.6); }
+    if (a < 1) { const m = P(a + .9, h1 - 18); ctx.fillStyle = "#fff5cf"; ctx.beginPath(); ctx.arc(m.x, m.y, 7, 0, 7); ctx.fill(); }
+  } else { // awan
+    const span = (b - a); const cx = a + ((t * .05 + a) % (span + .8)) - .4; const c = P(cx, h1 - 22);
+    ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.beginPath(); ctx.ellipse(c.x, c.y, 15, 5, .46, 0, 7); ctx.ellipse(c.x + 9, c.y - 2, 9, 5, .46, 0, 7); ctx.fill();
+  }
+  // gedung
+  let gx = a + .02, i = Math.floor(a * 3);
+  while (gx < b) {
+    const B = BUILDINGS[i++ % BUILDINGS.length], gx2 = Math.min(b, gx + B.w), hb = h0 + 4 + B.h * .9;
+    poly([P(gx, h0 + 4), P(gx2, h0 + 4), P(gx2, hb), P(gx, hb)], night ? (B.seed % 2 ? "#1b2340" : "#222b4b") : (B.seed % 2 ? "#8aa3bd" : "#9db3c9"));
+    for (let r = 0; r < Math.floor(B.h / 12); r++) for (let c = 0; c < 2; c++) {
+      const lit = night ? ((B.seed * 7 + r * 3 + c) % 5 < 2) : ((B.seed + r + c) % 3 === 0);
+      const p = P(gx + .07 + c * (B.w * .45), h0 + 12 + r * 11);
+      ctx.fillStyle = lit ? (night ? "#ffd977" : "rgba(255,255,255,.65)") : (night ? "#11182c" : "rgba(60,80,110,.35)");
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + 5, p.y + 2.5); ctx.lineTo(p.x + 5, p.y - 2.5); ctx.lineTo(p.x, p.y - 5); ctx.closePath(); ctx.fill();
+      if (lit && night) glows.push({ x: p.x + 2.5, y: p.y - 1, r: 7, c: "rgba(255,210,120,.35)" });
+    }
+    gx = gx2 + .03;
+  }
   ctx.restore();
-  // papan nama di dinding kiri
-  const s0 = up(iso(0, 1.4), 92), s1 = up(iso(0, 4.6), 92), s2 = up(iso(0, 4.6), 64), s3 = up(iso(0, 1.4), 64);
-  poly([s0, s1, s2, s3], "#1769c9", "#0d4f9c");
-  ctx.save();
-  const mid = up(iso(0, 3), 78);
-  ctx.translate(mid.x, mid.y); ctx.transform(1, -0.5, 0, 1, 0, 0);
-  ctx.fillStyle = "#fff"; ctx.font = "600 15px Fredoka, Nunito, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText("PGA · PGD", 0, 0);
-  ctx.restore();
-  // jam dinding
-  const cp = up(iso(5.2, 0), 80);
-  ctx.save(); ctx.translate(cp.x, cp.y); ctx.transform(1, 0.5, 0, 1, 0, 0);
-  ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = "#1769c9"; ctx.stroke();
+  // kusen
+  for (let m = a + (b - a) / 2, k = 0; k < 1; k++) { const p1 = P(m, h0 + 4), p2 = P(m, h1 - 4); ctx.strokeStyle = "#2b2f38"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
+  poly([P(a, h0 - 2), P(b, h0 - 2), P(b, h0 + 4), P(a, h0 + 4)], "#3a3f4a");
+}
+function sideWindow(a, b, h0, h1, night) {
+  const P = (gy, h) => wallL(gy, h);
+  poly([P(a, h0), P(b, h0), P(b, h1), P(a, h1)], "#3a3f4a");
+  const ins = [P(a + .1, h0 + 4), P(b - .1, h0 + 4), P(b - .1, h1 - 4), P(a + .1, h1 - 4)];
+  const g = ctx.createLinearGradient(0, ins[2].y, 0, ins[0].y);
+  if (night) { g.addColorStop(0, "#0a1230"); g.addColorStop(1, "#1f2b58"); } else { g.addColorStop(0, "#7cc8f2"); g.addColorStop(1, "#e2f4fc"); }
+  poly(ins, g);
+  const m1 = P((a + b) / 2, h0 + 4), m2 = P((a + b) / 2, h1 - 4);
+  ctx.strokeStyle = "#3a3f4a"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(m1.x, m1.y); ctx.lineTo(m2.x, m2.y); ctx.stroke();
+}
+function wallSign(W, a, b, h1, h0, text, color, skew, lit) {
+  poly([W(a, h0), W(b, h0), W(b, h1), W(a, h1)], color, shade(color, -40));
+  const mid = W((a + b) / 2, (h0 + h1) / 2);
+  ctx.save(); ctx.translate(mid.x, mid.y); ctx.transform(1, skew, 0, 1, 0, 0);
+  ctx.fillStyle = "#fff"; ctx.font = "700 12px Fredoka, Nunito, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  if (lit) { ctx.shadowColor = "#ffd1b8"; ctx.shadowBlur = 12; }
+  ctx.fillText(text, 0, 1); ctx.restore();
+}
+function whiteboard(a, b, h0, h1) {
+  const P = (gx, h) => wallB(gx, h);
+  poly([P(a, h0), P(b, h0), P(b, h1), P(a, h1)], "#ffffff", "#9aa3ae", 1.5);
+  ctx.save(); const top = P(a + .1, h1 - 9);
+  ctx.translate(top.x, top.y); ctx.transform(1, .5, 0, 1, 0, 0);
+  ctx.font = "800 7.5px Nunito, sans-serif"; ctx.fillStyle = "#5b6680"; ctx.textBaseline = "middle";
+  ctx.fillText("TUGAS", 4, 0); ctx.fillText("PROSES", 34, 0); ctx.fillText("SELESAI", 66, 0); ctx.restore();
+  // kolom
+  for (const gx of [a + (b - a) / 3, a + 2 * (b - a) / 3]) { const p1 = P(gx, h0 + 4), p2 = P(gx, h1 - 4); ctx.strokeStyle = "#e1e5ea"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
+  // sticky note: tugas aktif (kolom 1), agent bekerja (kolom 2), selesai (kolom 3)
+  const cols = [[], [], []];
+  if (activeTask) cols[0].push("#ffd84d");
+  for (const w of workers) { if (w.status === "working") cols[1].push(w.look.shirt); else if ((w.status === "done" || w.output) && w.task) cols[2].push(w.look.shirt); }
+  cols.forEach((list, ci) => list.slice(0, 8).forEach((c, i) => {
+    const gx = a + (b - a) * ci / 3 + .12 + (i % 2) * .38, h = h1 - 22 - Math.floor(i / 2) * 15;
+    const q = [P(gx, h), P(gx + .3, h), P(gx + .3, h - 11), P(gx, h - 11)];
+    poly(q.map((p) => ({ x: p.x, y: p.y })), c);
+  }));
+}
+function wallClock(gx, h) {
+  const cp = wallB(gx, h);
+  ctx.save(); ctx.translate(cp.x, cp.y); ctx.transform(1, .5, 0, 1, 0, 0);
+  ctx.beginPath(); ctx.arc(0, 0, 12, 0, 7); ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = "#2b2f38"; ctx.stroke();
   const d = new Date(), hA = ((d.getHours() % 12) + d.getMinutes() / 60) / 12 * Math.PI * 2, mA = d.getMinutes() / 60 * Math.PI * 2;
-  ctx.strokeStyle = "#17324d"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(hA) * 7, -Math.cos(hA) * 7); ctx.stroke();
-  ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(mA) * 10, -Math.cos(mA) * 10); ctx.stroke();
+  ctx.strokeStyle = "#16213a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(hA) * 6, -Math.cos(hA) * 6); ctx.stroke();
+  ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(mA) * 9, -Math.cos(mA) * 9); ctx.stroke();
   ctx.restore();
 }
-function wallWindowR(a, b, h0, h1, t) {
-  const pts = [up(iso(a, 0), h0), up(iso(b, 0), h0), up(iso(b, 0), h1), up(iso(a, 0), h1)];
-  poly(pts, "#ffffff");
-  const inset = [up(iso(a + .12, 0), h0 + 5), up(iso(b - .12, 0), h0 + 5), up(iso(b - .12, 0), h1 - 5), up(iso(a + .12, 0), h1 - 5)];
-  const g = ctx.createLinearGradient(0, inset[2].y, 0, inset[0].y); g.addColorStop(0, "#6ec3f2"); g.addColorStop(1, "#cdeefd");
-  poly(inset, g);
-  // awan bergerak
-  ctx.save(); poly(inset); ctx.clip();
-  const cx = inset[0].x + ((t * 6) % (inset[1].x - inset[0].x + 60)) - 30, cy = inset[0].y - 34 + (cx - inset[0].x) * -0.5;
-  ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.beginPath(); ctx.ellipse(cx, cy, 16, 6, -0.46, 0, Math.PI * 2); ctx.ellipse(cx + 10, cy - 7, 10, 6, -0.46, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-  const m1 = up(iso((a + b) / 2, 0), h0 + 5), m2 = up(iso((a + b) / 2, 0), h1 - 5);
-  ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(m1.x, m1.y); ctx.lineTo(m2.x, m2.y); ctx.stroke();
-}
-function wallWindowL(a, b, h0, h1) {
-  const pts = [up(iso(0, a), h0), up(iso(0, b), h0), up(iso(0, b), h1), up(iso(0, a), h1)];
-  poly(pts, "#f3f6f8");
-  const inset = [up(iso(0, a + .12), h0 + 5), up(iso(0, b - .12), h0 + 5), up(iso(0, b - .12), h1 - 5), up(iso(0, a + .12), h1 - 5)];
-  const g = ctx.createLinearGradient(0, inset[2].y, 0, inset[0].y); g.addColorStop(0, "#5fb5e6"); g.addColorStop(1, "#bfe6fa");
-  poly(inset, g);
-  const m1 = up(iso(0, (a + b) / 2), h0 + 5), m2 = up(iso(0, (a + b) / 2), h1 - 5);
-  ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(m1.x, m1.y); ctx.lineTo(m2.x, m2.y); ctx.stroke();
+function neon(a, b, h0, h1, t) {
+  const P = (gx, h) => wallB(gx, h);
+  poly([P(a, h0), P(b, h0), P(b, h1), P(a, h1)], "#1b1f2a", "#0d1017", 1.5);
+  const mid = P((a + b) / 2, (h0 + h1) / 2);
+  ctx.save(); ctx.translate(mid.x, mid.y); ctx.transform(1, .5, 0, 1, 0, 0);
+  const flick = Math.sin(t * 13) > -.97 ? 1 : .4;
+  ctx.font = "700 17px Fredoka, Nunito, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.shadowColor = "#ff9b6e"; ctx.shadowBlur = 16 * flick; ctx.fillStyle = `rgba(255,190,160,${flick})`;
+  ctx.fillText("PGA · PGD", 0, 1); ctx.restore();
+  glows.push({ x: mid.x, y: mid.y, r: 70, c: "rgba(255,140,90,.20)" });
 }
 
+/* =====================================================================
+   FURNITUR
+   ===================================================================== */
+let skillGlow = 0, steam = 0, printing = 0;
 function drawObject(o, t) {
   const { gx, gy } = o;
   switch (o.kind) {
     case "desk": {
       const w = workers[o.agent];
-      box(gx + .06, gy + .1, .88, .8, 20, "#f1f3f6");
-      // laci
-      const f1 = iso(gx + .2, gy + .9), f2 = iso(gx + .5, gy + .9);
-      ctx.fillStyle = "#c9d2dc"; ctx.fillRect(Math.min(f1.x, f2.x), f1.y - 15, Math.abs(f2.x - f1.x), 3);
-      // monitor (bagian belakang menghadap kamera)
-      box(gx + .22, gy + .16, .56, .12, 15, "#2d3a4a", 20);
-      if (w.status === "working") {
-        const m = up(iso(gx + .5, gy + .2), 36);
-        ctx.save(); ctx.globalAlpha = .45 + .25 * Math.sin(t * 8); ctx.fillStyle = "#7fe0ff";
-        ctx.beginPath(); ctx.ellipse(m.x, m.y - 2, 22, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      box(gx + .04, gy + .1, .92, .8, 20, "#eef0f3");
+      box(gx + .08, gy + .14, .05, .7, 18, "#9aa3ae"); // kaki
+      // dua monitor
+      for (const off of [.12, .52]) {
+        box(gx + off, gy + .16, .36, .08, 14, "#1d2433", 22);
+        if (w.status === "working" || w.status === "thinking") {
+          const m = up(iso(gx + off + .18, gy + .18), 31);
+          ctx.save(); ctx.globalAlpha = .55 + .25 * Math.sin(t * 7 + off * 9); ctx.fillStyle = w.status === "working" ? "#7fe0ff" : "#9fb8ff";
+          ctx.beginPath(); ctx.ellipse(m.x, m.y, 10, 5, 0, 0, 7); ctx.fill(); ctx.restore();
+          glows.push({ x: m.x, y: m.y + 8, r: 46, c: "rgba(120,200,255,.28)" });
+        }
       }
-      // cangkir & kertas
-      box(gx + .7, gy + .55, .12, .12, 7, "#ffffff", 20);
-      box(gx + .18, gy + .5, .26, .2, 2, w.output ? "#fffbe6" : "#ffffff", 20);
-      // ikon peran di sisi depan meja
-      const lab = iso(gx + .45, gy + .95);
-      ctx.font = "13px system-ui, 'Apple Color Emoji', 'Segoe UI Emoji'"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(w.icon, lab.x - 2, lab.y - 9);
+      box(gx + .72, gy + .58, .1, .1, 7, "#ffffff", 20);
+      box(gx + .2, gy + .5, .28, .2, 2, w.output ? "#fff3c4" : "#ffffff", 20);
+      const lab = iso(gx + .5, gy + .96);
+      ctx.font = "12px system-ui, 'Apple Color Emoji', 'Segoe UI Emoji'"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(w.icon, lab.x - 2, lab.y - 10);
       break;
     }
     case "bossdesk": {
-      box(gx + .05, gy + .1, 1.9, .85, 22, "#8a5a36");
-      box(gx + .8, gy + .15, .7, .12, 16, "#2d3a4a", 22);
-      box(gx + .25, gy + .45, .3, .25, 3, "#ffffff", 22);
-      box(gx + 1.55, gy + .5, .14, .14, 8, "#ffffff", 22);
-      // papan nama
-      box(gx + .25, gy + .75, .45, .08, 6, "#d8b24a", 22);
+      box(gx + .04, gy + .1, 1.92, .85, 23, "#6e4a2f");
+      box(gx + .7, gy + .15, .8, .1, 17, "#1d2433", 23);
       if (leader.status === "reviewing" || leader.status === "thinking") {
-        const m = up(iso(gx + 1.15, gy + .2), 40);
-        ctx.save(); ctx.globalAlpha = .4 + .2 * Math.sin(t * 6); ctx.fillStyle = "#9fd2ff";
-        ctx.beginPath(); ctx.ellipse(m.x, m.y, 24, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        const m = up(iso(gx + 1.1, gy + .2), 38);
+        ctx.save(); ctx.globalAlpha = .45 + .2 * Math.sin(t * 6); ctx.fillStyle = "#9fd2ff";
+        ctx.beginPath(); ctx.ellipse(m.x, m.y, 22, 8, 0, 0, 7); ctx.fill(); ctx.restore();
+        glows.push({ x: m.x, y: m.y + 8, r: 56, c: "rgba(140,200,255,.28)" });
+      }
+      box(gx + .25, gy + .45, .3, .25, 3, "#ffffff", 23);
+      box(gx + 1.6, gy + .5, .14, .14, 8, "#ffffff", 23);
+      box(gx + .22, gy + .76, .5, .08, 6, "#d8b24a", 23);
+      { const l = up(iso(gx + 1.75, gy + .3), 23); box(gx + 1.72, gy + .26, .1, .1, 22, "#2b2f38", 23); glows.push({ x: l.x, y: l.y - 28, r: 40, c: "rgba(255,210,140,.35)" }); }
+      break;
+    }
+    case "skillshelf": {
+      box(gx + .05, gy, .5, 5, 104, "#6b4a33");
+      const colors = ["#d97757", "#3d8ef0", "#3fc948", "#e9a90c", "#9b6be0", "#2bb3a3", "#e2453c"];
+      for (let r = 0; r < 4; r++) {
+        const z = 10 + r * 24;
+        box(gx + .5, gy + .05, .06, 4.9, 2, "#5a3d2a", z - 2);
+        for (let j = 0; j < 14; j++) {
+          const hot = skillGlow > 0 && (j + r * 3) % 7 === Math.floor(t * 3) % 7;
+          box(gx + .5, gy + .15 + j * .34, .05, .22, 14 + (j % 3) * 2, hot ? "#fff0b8" : colors[(r * 5 + j) % colors.length], z);
+          if (hot) { const p = up(iso(gx + .55, gy + .26 + j * .34), z + 8); glows.push({ x: p.x, y: p.y, r: 34, c: "rgba(255,190,120,.55)" }); }
+        }
       }
       break;
     }
-    case "shelf":
-      box(gx + .05, gy, .45, 2, 78, "#9b6b42");
-      for (let i = 0; i < 3; i++) {
-        const z = 14 + i * 22;
-        for (let j = 0; j < 6; j++) box(gx + .45, gy + .15 + j * .3, .05, .22, 14, ["#e2453c", "#1769c9", "#f2b81f", "#3fc948", "#9b6be0", "#ffffff"][(i + j) % 6], z);
-      }
-      break;
-    case "coffee":
-      box(gx + .05, gy + .05, .9, .9, 32, "#dfe6ee");
-      box(gx + .25, gy + .2, .45, .45, 22, "#3b3f46", 32);
-      box(gx + .55, gy + .65, .15, .15, 6, "#ffffff", 32);
-      if (Math.sin(t * 1.3) > 0) { const p = up(iso(gx + .62, gy + .72), 46); ctx.save(); ctx.globalAlpha = .5; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(p.x, p.y - (t * 10 % 10), 3, 0, 7); ctx.fill(); ctx.restore(); }
+    case "counter":
+      box(gx + .05, gy, .85, 3, 34, "#f1ede6");
+      box(gx + .05, gy, .9, 3, 4, "#cfc6b8", 34);
+      // mesin kopi
+      box(gx + .2, gy + .2, .5, .55, 26, "#2b2f38", 38);
+      box(gx + .55, gy + .62, .14, .14, 7, "#ffffff", 38);
+      if (steam > 0 || Math.sin(t * 1.3) > .2) { const p = up(iso(gx + .62, gy + .7), 52); ctx.save(); ctx.globalAlpha = .55; ctx.fillStyle = "#fff"; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(p.x + Math.sin(t * 3 + i) * 2, p.y - ((t * 14 + i * 6) % 18), 2.6, 0, 7); ctx.fill(); } ctx.restore(); }
+      // toples kue + teko
+      box(gx + .3, gy + 1.4, .3, .3, 12, "#f2c46d", 38);
+      box(gx + .3, gy + 2.2, .35, .4, 14, "#9aa3ae", 38);
       break;
     case "cooler":
-      box(gx + .25, gy + .25, .5, .5, 34, "#eef2f6");
-      { const p = up(iso(gx + .5, gy + .5), 48); ctx.fillStyle = "rgba(110,190,240,.85)"; ctx.beginPath(); ctx.ellipse(p.x, p.y, 10, 14, 0, 0, Math.PI * 2); ctx.fill(); }
+      box(gx + .25, gy + .25, .5, .5, 36, "#eef2f6");
+      { const p = up(iso(gx + .5, gy + .5), 50); ctx.fillStyle = "rgba(110,190,240,.85)"; ctx.beginPath(); ctx.ellipse(p.x, p.y, 10, 14, 0, 0, 7); ctx.fill(); }
       break;
-    case "plant": {
-      box(gx + .3, gy + .3, .4, .4, 16, "#c96f3b");
-      const p = up(iso(gx + .5, gy + .5), 28), sway = Math.sin(t * 1.5 + gx) * 1.5;
-      ctx.fillStyle = "#2e9e45"; ctx.beginPath(); ctx.arc(p.x + sway, p.y - 8, 13, 0, 7); ctx.fill();
-      ctx.fillStyle = "#3fc95a"; ctx.beginPath(); ctx.arc(p.x - 6 + sway, p.y - 14, 8, 0, 7); ctx.arc(p.x + 7 + sway, p.y - 4, 8, 0, 7); ctx.fill();
+    case "bistro":
+      box(gx + .3, gy + .3, .4, .4, 22, "#9aa3ae");
+      { const c = up(iso(gx + .5, gy + .5), 24); ctx.fillStyle = "#f6f2ea"; ctx.beginPath(); ctx.ellipse(c.x, c.y, 24, 12, 0, 0, 7); ctx.fill(); ctx.strokeStyle = "#cfc6b8"; ctx.stroke(); }
+      box(gx + .45, gy + .4, .12, .12, 6, "#d97757", 24);
+      break;
+    case "meeting": {
+      box(gx + .1, gy + .1, 1.8, 1.8, 20, "#efe7da");
+      for (const [cx, cy] of [[gx - .25, gy + .5], [gx - .25, gy + 1.3], [gx + .55, gy - .3], [gx + 1.35, gy - .3]]) box(cx + .1, cy + .1, .3, .3, 12, "#2f6fe4");
+      box(gx + .7, gy + .6, .5, .4, 2, "#ffffff", 20);
+      const c = up(iso(gx + 1, gy + 1), 20); glows.push({ x: c.x, y: c.y - 6, r: 70, c: "rgba(255,220,160,.18)" });
       break;
     }
     case "sofa":
-      box(gx + .15, gy + .05, .8, 2.9, 14, "#3b9be8");
-      box(gx + .65, gy + .05, .3, 2.9, 30, "#2c84cf");
-      box(gx + .15, gy + .05, .8, .25, 24, "#2c84cf");
-      box(gx + .15, gy + 2.7, .8, .25, 24, "#2c84cf");
+      box(gx + .1, gy + .05, .85, 2.9, 15, "#d97757");
+      box(gx + .62, gy + .05, .33, 2.9, 32, "#bf6446");
+      box(gx + .1, gy + .05, .85, .25, 25, "#bf6446");
+      box(gx + .1, gy + 2.7, .85, .25, 25, "#bf6446");
+      box(gx + .2, gy + .5, .3, .5, 6, "#f2c46d", 15);
       break;
-    case "table":
-      box(gx + .2, gy + .2, .6, .6, 16, "#f6d27a");
-      box(gx + .35, gy + .35, .15, .15, 6, "#ffffff", 16);
+    case "lowtable":
+      box(gx + .15, gy + .15, .7, .7, 12, "#6e4a2f");
+      box(gx + .3, gy + .3, .15, .15, 5, "#ffffff", 12);
       break;
-    case "printer":
-      box(gx + .1, gy + .15, .8, .7, 22, "#cfd6de");
-      box(gx + .2, gy + .25, .6, .4, 6, "#7d8794", 22);
+    case "printer": {
+      box(gx + .1, gy + .15, .8, .7, 24, "#cfd6de");
+      box(gx + .2, gy + .25, .6, .4, 6, "#5b6680", 24);
+      if (printing > 0) { const p = up(iso(gx + .5, gy + .9), 20 + (1 - printing % 1) * 6); ctx.fillStyle = "#fff"; ctx.save(); ctx.translate(p.x, p.y); ctx.transform(1, .5, 0, 1, 0, 0); ctx.fillRect(-7, -6, 14, 10); ctx.restore(); glows.push({ x: p.x, y: p.y, r: 30, c: "rgba(120,255,160,.3)" }); }
       break;
+    }
+    case "cabinet":
+      box(gx + .1, gy + .1, .8, .7, 52, "#9aa3ae");
+      for (let i = 0; i < 3; i++) box(gx + .1, gy + .8, .8, .02, 2, "#5b6680", 12 + i * 15);
+      break;
+    case "plant": {
+      const big = o.big;
+      box(gx + .3, gy + .3, .4, .4, big ? 18 : 14, "#c96f3b");
+      const p = up(iso(gx + .5, gy + .5), big ? 30 : 24), sway = Math.sin(t * 1.4 + gx) * 1.5, r = big ? 15 : 11;
+      ctx.fillStyle = "#2e8f43"; ctx.beginPath(); ctx.arc(p.x + sway, p.y - r * .7, r, 0, 7); ctx.fill();
+      ctx.fillStyle = "#43b85d"; ctx.beginPath(); ctx.arc(p.x - r * .45 + sway, p.y - r * 1.1, r * .6, 0, 7); ctx.arc(p.x + r * .5 + sway, p.y - r * .4, r * .6, 0, 7); ctx.fill();
+      if (big) { ctx.fillStyle = "#58cc72"; ctx.beginPath(); ctx.arc(p.x + sway, p.y - r * 1.6, r * .5, 0, 7); ctx.fill(); }
+      break;
+    }
+  }
+}
+// Lampu gantung (di atas segalanya)
+const LAMPS = [[[3.1, 4.5], [4.9, 4.5]], [[6.1, 4.5], [7.9, 4.5]], [[3.1, 8.5], [4.9, 8.5]], [[6.1, 8.5], [7.9, 8.5]], [[11.3, 7.9], [12.7, 7.9]], [[15.2, 2.5], [16.8, 2.5]]];
+function drawLamps() {
+  for (const [[ax, ay], [bx, by]] of LAMPS) {
+    const a = up(iso(ax, ay), 150), b = up(iso(bx, by), 150);
+    ctx.strokeStyle = "rgba(40,40,50,.55)"; ctx.lineWidth = 1;
+    for (const p of [a, b]) { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - 60); ctx.stroke(); }
+    ctx.strokeStyle = "#2b2f38"; ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.strokeStyle = nightLevel > .5 ? "#ffe2a8" : "#f4f1ea"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x, a.y + 2); ctx.lineTo(b.x, b.y + 2); ctx.stroke(); ctx.lineCap = "butt";
+    for (let k = 0; k <= 2; k++) { const fx = ax + (bx - ax) * k / 2, fy = ay + (by - ay) * k / 2, f = iso(fx, fy); glows.push({ x: f.x, y: f.y - 20, r: 80, c: "rgba(255,214,150,.17)" }); }
   }
 }
 
+/* =====================================================================
+   SIM: badan, plumbob, balon
+   ===================================================================== */
 const PLUMBOB = { idle: ["#8ef08f", "#3fc948", "#1f8f2a"], done: ["#8ef08f", "#3fc948", "#1f8f2a"], working: ["#ffe58a", "#f2b81f", "#b88400"], thinking: ["#b8dcff", "#4aa3ff", "#1b6fc9"], reviewing: ["#b8dcff", "#4aa3ff", "#1b6fc9"], error: ["#ff9a93", "#e2453c", "#a3211a"] };
-
 function drawPlumbob(x, y, t, status, scale = 1) {
   const [l, m, d] = PLUMBOB[status] || PLUMBOB.idle;
   const spin = Math.cos(t * 1.6), w = Math.max(.18, Math.abs(spin)) * 7 * scale, hTop = 9 * scale, hBot = 11 * scale;
   const yy = y + Math.sin(t * 2.2) * 2;
-  ctx.save();
-  ctx.shadowColor = m; ctx.shadowBlur = 10;
+  ctx.save(); ctx.shadowColor = m; ctx.shadowBlur = 12;
   const g = ctx.createLinearGradient(x - w, 0, x + w, 0);
   g.addColorStop(0, spin > 0 ? l : d); g.addColorStop(.5, m); g.addColorStop(1, spin > 0 ? d : l);
   ctx.fillStyle = g;
@@ -741,18 +997,14 @@ function drawPlumbob(x, y, t, status, scale = 1) {
   ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.beginPath(); ctx.moveTo(x - w, yy); ctx.lineTo(x + w, yy); ctx.stroke();
   ctx.restore();
 }
-
-function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
-
-// Menggambar satu Sim. (x,y) = titik kaki di layar. Dipakai juga untuk potret panel.
 function paintSim(s, x, y, t, opts = {}) {
   const L = s.look, walking = opts.walking, seated = opts.seated, typing = opts.typing;
   const bob = walking ? Math.abs(Math.sin(s.walkPhase)) * 2 : 0;
   const jump = opts.jump ? Math.abs(Math.sin(t * 9)) * 9 : 0;
   const by = y - bob - jump + (seated ? 3 : 0);
-  if (!opts.noShadow) { ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(x, y, 11, 5, 0, 0, Math.PI * 2); ctx.fill(); }
+  if (!opts.noShadow) { ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.beginPath(); ctx.ellipse(x, y, 11, 5, 0, 0, Math.PI * 2); ctx.fill(); }
   if (opts.selected) { ctx.strokeStyle = "#3fc948"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(x, y, 15, 7, 0, 0, Math.PI * 2); ctx.stroke(); }
-  // kaki
+  if (seated && !opts.noShadow) { ctx.fillStyle = "#2f3646"; roundRect(x - 10, by - 18, 20, 6, 3); ctx.fill(); roundRect(x - 9, by - 36, 18, 18, 5); ctx.fill(); }
   const sw = walking ? Math.sin(s.walkPhase) * 3 : 0;
   ctx.fillStyle = L.pants;
   roundRect(x - 7 + sw * .4, by - 15, 6, 15 - Math.max(0, sw), 2); ctx.fill();
@@ -760,14 +1012,13 @@ function paintSim(s, x, y, t, opts = {}) {
   ctx.fillStyle = "#2b2b33";
   roundRect(x - 8 + sw * .4, by - 3 - Math.max(0, sw), 7, 3, 1.5); ctx.fill();
   roundRect(x + 1 - sw * .4, by - 3 - Math.max(0, -sw), 7, 3, 1.5); ctx.fill();
-  // badan
   ctx.fillStyle = L.shirt; roundRect(x - 9, by - 32, 18, 19, 6); ctx.fill();
   if (s.isLeader) {
     ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.moveTo(x - 4, by - 32); ctx.lineTo(x + 4, by - 32); ctx.lineTo(x, by - 24); ctx.closePath(); ctx.fill();
     ctx.fillStyle = L.tie; ctx.beginPath(); ctx.moveTo(x - 1.6, by - 29); ctx.lineTo(x + 1.6, by - 29); ctx.lineTo(x + 2, by - 19); ctx.lineTo(x, by - 17); ctx.lineTo(x - 2, by - 19); ctx.closePath(); ctx.fill();
   }
+  if (L.lanyard) { ctx.strokeStyle = L.lanyard; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x - 4, by - 32); ctx.lineTo(x, by - 22); ctx.lineTo(x + 4, by - 32); ctx.stroke(); ctx.fillStyle = "#fff"; ctx.fillRect(x - 2.5, by - 22, 5, 6); ctx.strokeStyle = "#9aa3ae"; ctx.lineWidth = .8; ctx.strokeRect(x - 2.5, by - 22, 5, 6); }
   if (L.hairStyle === "helmet") { ctx.fillStyle = "#e6f14a"; ctx.fillRect(x - 9, by - 24, 18, 3); }
-  // lengan
   ctx.fillStyle = shade(L.shirt, -20);
   if (typing) {
     const k = Math.sin(t * 22) * 1.5;
@@ -778,8 +1029,7 @@ function paintSim(s, x, y, t, opts = {}) {
     roundRect(x - 12, by - 30 + a, 5, 14, 2.5); ctx.fill(); roundRect(x + 7, by - 30 - a, 5, 14, 2.5); ctx.fill();
     ctx.fillStyle = L.skin; ctx.beginPath(); ctx.arc(x - 9.5, by - 15 + a, 2.6, 0, 7); ctx.arc(x + 9.5, by - 15 - a, 2.6, 0, 7); ctx.fill();
   }
-  if (opts.carrying) { ctx.fillStyle = "#fff"; ctx.strokeStyle = "#9aa7b3"; ctx.lineWidth = 1; ctx.save(); ctx.translate(x + 11, by - 20); ctx.rotate(-.2); ctx.fillRect(-5, -7, 10, 13); ctx.strokeRect(-5, -7, 10, 13); ctx.fillStyle = "#9aa7b3"; ctx.fillRect(-3, -4, 6, 1); ctx.fillRect(-3, -1, 6, 1); ctx.fillRect(-3, 2, 4, 1); ctx.restore(); }
-  // kepala
+  if (opts.carrying) { ctx.save(); ctx.translate(x + 11, by - 20); ctx.rotate(-.2); ctx.fillStyle = opts.carrying === "book" ? "#d97757" : "#fff"; ctx.strokeStyle = "#9aa3ae"; ctx.lineWidth = 1; ctx.fillRect(-5, -7, 10, 13); ctx.strokeRect(-5, -7, 10, 13); ctx.fillStyle = opts.carrying === "book" ? "#fff0b8" : "#9aa3ae"; ctx.fillRect(-3, -4, 6, 1); ctx.fillRect(-3, -1, 6, 1); ctx.fillRect(-3, 2, 4, 1); ctx.restore(); }
   const hx = x, hy = by - 41;
   if (L.hairStyle === "long") { ctx.fillStyle = L.hair; roundRect(hx - 10, hy - 6, 20, 22, 8); ctx.fill(); }
   if (L.hairStyle === "hijab") { ctx.fillStyle = L.hijab; ctx.beginPath(); ctx.arc(hx, hy, 11.5, 0, 7); ctx.fill(); roundRect(hx - 11, hy, 22, 14, 7); ctx.fill(); }
@@ -793,10 +1043,8 @@ function paintSim(s, x, y, t, opts = {}) {
     case "bob": ctx.beginPath(); ctx.arc(hx, hy - 1, 10, Math.PI * .95, Math.PI * 2.05); ctx.fill(); ctx.fillRect(hx - 10, hy - 2, 4, 9); ctx.fillRect(hx + 6, hy - 2, 4, 9); break;
     case "helmet": ctx.fillStyle = "#f2c12e"; ctx.beginPath(); ctx.arc(hx, hy - 2, 10, Math.PI, Math.PI * 2); ctx.fill(); ctx.fillRect(hx - 12, hy - 3, 24, 3); break;
     case "cap": ctx.fillStyle = L.cap; ctx.beginPath(); ctx.arc(hx, hy - 2, 9.5, Math.PI, Math.PI * 2); ctx.fill(); ctx.fillRect(hx + (s.facing > 0 ? 0 : -14), hy - 4, 14, 3); break;
-    case "hijab": break;
   }
   if (L.hairStyle === "hijab") { ctx.fillStyle = L.hijab; ctx.beginPath(); ctx.arc(hx, hy - 1, 10.5, Math.PI * 1.02, Math.PI * 1.98); ctx.fill(); }
-  // wajah
   const f = (s.facing || 1) * 2;
   const blink = (Math.sin(t * 1.3 + s.x * 3) > .985);
   ctx.fillStyle = "#1b1b22";
@@ -810,60 +1058,82 @@ function paintSim(s, x, y, t, opts = {}) {
   ctx.fillStyle = "rgba(255,120,120,.28)"; ctx.beginPath(); ctx.arc(hx - 5.5 + f, hy + 3, 1.8, 0, 7); ctx.arc(hx + 5.5 + f, hy + 3, 1.8, 0, 7); ctx.fill();
   return { headY: hy };
 }
-
 function drawBubble(x, y, b, t) {
-  const text = b.text.length > 26 ? b.text.slice(0, 25) + "…" : b.text;
-  ctx.font = "700 11.5px Nunito, system-ui, sans-serif";
+  const text = b.text.length > 28 ? b.text.slice(0, 27) + "…" : b.text;
+  ctx.font = "700 11px Nunito, system-ui, sans-serif";
   const tw = text ? ctx.measureText(text).width + 8 : 0;
-  const w = 30 + tw, h = 28, bx = x - w / 2, byy = y - h - 14 + Math.sin(t * 3) * 1.2;
+  const w = 28 + tw, h = 26, bx = x - w / 2, byy = y - h - 14 + Math.sin(t * 3) * 1.2;
   ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,.18)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
-  ctx.fillStyle = "#fff"; roundRect(bx, byy, w, h, 14); ctx.fill();
+  ctx.shadowColor = "rgba(0,0,0,.28)"; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
+  ctx.fillStyle = "#fff"; roundRect(bx, byy, w, h, 13); ctx.fill();
   ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-  ctx.beginPath(); ctx.arc(x - 3, byy + h + 5, 4, 0, 7); ctx.arc(x - 7, byy + h + 12, 2.5, 0, 7); ctx.fill();
-  ctx.font = "16px system-ui, 'Apple Color Emoji', 'Segoe UI Emoji'"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-  ctx.fillStyle = "#17324d"; ctx.fillText(b.icon, bx + 7, byy + h / 2 + 1);
-  if (text) { ctx.font = "700 11.5px Nunito, system-ui, sans-serif"; ctx.fillText(text, bx + 28, byy + h / 2 + 1); }
+  ctx.beginPath(); ctx.arc(x - 3, byy + h + 5, 4, 0, 7); ctx.arc(x - 7, byy + h + 11, 2.4, 0, 7); ctx.fill();
+  ctx.font = "15px system-ui, 'Apple Color Emoji', 'Segoe UI Emoji'"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#16213a"; ctx.fillText(b.icon, bx + 6, byy + h / 2 + 1);
+  if (text) { ctx.font = "700 11px Nunito, system-ui, sans-serif"; ctx.fillText(text, bx + 26, byy + h / 2 + 1); }
   ctx.restore();
+}
+function nameTag(sc, s, strong) {
+  ctx.font = "800 10.5px Nunito, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const label = strong ? `${s.sim} · ${s.title}` : s.sim, w = ctx.measureText(label).width + 12;
+  ctx.fillStyle = strong ? "rgba(217,119,87,.95)" : "rgba(14,20,36,.78)"; roundRect(sc.x - w / 2, sc.y + 7, w, 16, 8); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.fillText(label, sc.x, sc.y + 15.5);
 }
 
 let hoverSim = null, selected = leader;
-function drawSims(t, list) {
-  for (const s of list) {
-    const p = iso(s.x, s.y);
-    const walking = s.path.length > 0, seated = s.seated, typing = seated && s.status === "working";
-    const { headY } = paintSim(s, p.x, p.y, t, { walking, seated, typing, carrying: s.carrying, jump: s.jump > 0, selected: s === selected, sad: s.status === "error" });
-    s._screen = { x: p.x, y: p.y, top: headY - 30 };
-    drawPlumbob(p.x, headY - 22, t + s.x, s.status, s.isLeader ? 1.25 : 1);
-  }
+function drawSim(s, t) {
+  const p = iso(s.x, s.y);
+  const walking = s.path.length > 0, seated = s.seated, typing = seated && s.status === "working";
+  const { headY } = paintSim(s, p.x, p.y, t, { walking, seated, typing, carrying: s.carrying, jump: s.jump > 0, selected: s === selected, sad: s.status === "error" });
+  s._screen = { x: p.x, y: p.y, top: headY - 30 };
+  drawPlumbob(p.x, headY - 22, t + s.x, s.isPlayer ? "idle" : s.status, s.isLeader ? 1.25 : s.isPlayer ? 1.1 : 1);
 }
 function drawOverlays(t) {
-  for (const s of sims) {
+  for (const s of people) {
     const sc = s._screen; if (!sc) continue;
+    const strong = s === hoverSim || s === selected;
+    if (strong || s.isPlayer || s.status === "working" || s.status === "reviewing") nameTag(sc, s, strong);
     if (s.bubble) drawBubble(sc.x, sc.top, s.bubble, t);
-    if (s === hoverSim || s === selected) {
-      ctx.font = "800 11px Nunito, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      const label = s.sim + " · " + s.title, w = ctx.measureText(label).width + 14;
-      ctx.fillStyle = "rgba(23,105,201,.92)"; roundRect(sc.x - w / 2, sc.y + 8, w, 17, 8.5); ctx.fill();
-      ctx.fillStyle = "#fff"; ctx.fillText(label, sc.x, sc.y + 16.5);
-    }
-    if (s.status === "working" && s.chars > 0 && s.seated) {
-      // indikator ketikan
+    if (s.status === "working" && s.chars > 0 && s.seated && !s.bubble) {
       const dots = 1 + Math.floor(t * 3) % 3;
-      ctx.fillStyle = "rgba(255,255,255,.9)"; roundRect(sc.x + 12, sc.top + 4, 24, 12, 6); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.92)"; roundRect(sc.x + 12, sc.top + 4, 24, 12, 6); ctx.fill();
       ctx.fillStyle = "#b88400"; for (let i = 0; i < dots; i++) { ctx.beginPath(); ctx.arc(sc.x + 18 + i * 6, sc.top + 10, 1.8, 0, 7); ctx.fill(); }
     }
   }
 }
-
+let walkMarker = null;
 function render(t) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, W, H);
+  const night = nightLevel;
+  const bg = ctx.createLinearGradient(0, 0, 0, ch);
+  bg.addColorStop(0, night > .5 ? "#0b1020" : "#bcd9ee"); bg.addColorStop(1, night > .5 ? "#161f3a" : "#e7f1f8");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, cw, ch);
+  const v = view();
+  ctx.setTransform(dpr * v.s, 0, 0, dpr * v.s, dpr * v.ox, dpr * v.oy);
+  glows.length = 0;
   drawRoom(t);
-  // urutkan furnitur + sim berdasarkan kedalaman isometrik
-  const items = objects.map((o) => ({ d: o.depth, o })).concat(sims.map((s) => ({ d: s.x + s.y - .01, s })));
+  if (walkMarker && walkMarker.until > now) {
+    const p = iso(walkMarker.x + .5, walkMarker.y + .5), k = (walkMarker.until - now) / 900;
+    ctx.strokeStyle = `rgba(63,201,72,${k})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(p.x, p.y, 16 * (1.4 - k * .4), 8 * (1.4 - k * .4), 0, 0, 7); ctx.stroke();
+  }
+  const items = objects.map((o) => ({ d: o.depth, o })).concat(people.map((s) => ({ d: s.x + s.y - .01, s })));
   items.sort((a, b) => a.d - b.d);
-  for (const it of items) { if (it.o) drawObject(it.o, t); else drawSims(t, [it.s]); }
+  for (const it of items) { if (it.o) drawObject(it.o, t); else drawSim(it.s, t); }
+  drawLamps();
+  // Lapisan malam: gelapkan lalu tambahkan cahaya lampu & monitor
+  if (night > .01) {
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = `rgba(8, 12, 34, ${.46 * night})`; ctx.fillRect(0, 0, cw, ch);
+    ctx.setTransform(dpr * v.s, 0, 0, dpr * v.s, dpr * v.ox, dpr * v.oy);
+    ctx.globalCompositeOperation = "lighter";
+    for (const g of glows) {
+      const rg = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, g.r);
+      rg.addColorStop(0, g.c); rg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.globalAlpha = night; ctx.fillStyle = rg; ctx.fillRect(g.x - g.r, g.y - g.r, g.r * 2, g.r * 2);
+    }
+    ctx.restore();
+  }
   drawOverlays(t);
 }
 
@@ -875,134 +1145,259 @@ function frame(ts) {
   const real = Math.min(.1, (ts - last) / 1000); last = ts;
   const dt = real * speed;
   now += dt * 1000; simClock += dt;
-  for (const s of sims) s.update(dt);
+  skillGlow = Math.max(0, skillGlow - real); steam = Math.max(0, steam - real); printing = Math.max(0, printing - real);
+  nightLevel += (wantNight() - nightLevel) * Math.min(1, real * 1.5);
+  for (const s of people) s.update(dt);
   demo.tick(simClock);
+  if (cam.follow && selected) {
+    const p = iso(selected.x, selected.y);
+    cam.x += ((p.x - 30) - WORLD.w / 2 - cam.x) * Math.min(1, real * 3);
+    cam.y += ((p.y - 30) - WORLD.h / 2 - cam.y) * Math.min(1, real * 3);
+    clampCam();
+  }
   render(now / 1000);
   if (Math.floor(ts / 400) !== Math.floor((ts - real * 1000) / 400)) refreshPanel();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
-document.querySelectorAll(".speed button").forEach((b) => b.addEventListener("click", () => {
+document.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => {
   speed = Number(b.dataset.speed);
-  document.querySelectorAll(".speed button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
 }));
-if (matchMedia("(prefers-reduced-motion: reduce)").matches) { /* tetap jalan, tapi pelan */ speed = 1; }
 
-function canvasPoint(e) {
-  const r = canvas.getBoundingClientRect();
-  return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
-}
+/* ---------- Interaksi kanvas: geser, zoom, klik ---------- */
+function canvasPoint(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 function simAt(p) {
+  const w = toWorld(p.x, p.y);
   let best = null, bd = 1e9;
-  for (const s of sims) {
+  for (const s of people) {
     const sc = s._screen; if (!sc) continue;
-    if (p.x > sc.x - 14 && p.x < sc.x + 14 && p.y > sc.top && p.y < sc.y + 4) {
-      const d = Math.abs(p.y - (sc.y - 25)); if (d < bd) { bd = d; best = s; }
-    }
+    if (w.x > sc.x - 15 && w.x < sc.x + 15 && w.y > sc.top && w.y < sc.y + 5) { const d = Math.abs(w.y - (sc.y - 25)) - sc.y * .001; if (d < bd) { bd = d; best = s; } }
   }
   return best;
 }
-canvas.addEventListener("mousemove", (e) => { hoverSim = simAt(canvasPoint(e)); });
-canvas.addEventListener("mouseleave", () => { hoverSim = null; });
-canvas.addEventListener("click", (e) => { const s = simAt(canvasPoint(e)); if (s) select(s); });
+const pointers = new Map();
+let drag = null, pinch = null;
+canvas.addEventListener("pointerdown", (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, canvasPoint(e));
+  if (pointers.size === 1) drag = { start: canvasPoint(e), last: canvasPoint(e), moved: false };
+  else if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) }; drag = null; }
+});
+canvas.addEventListener("pointermove", (e) => {
+  const p = canvasPoint(e);
+  if (!pointers.has(e.pointerId)) { hoverSim = simAt(p); return; }
+  pointers.set(e.pointerId, p);
+  if (pinch && pointers.size === 2) {
+    const [a, b] = [...pointers.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
+    zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, d / pinch.d); pinch.d = d; return;
+  }
+  if (drag) {
+    if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) > 5) { drag.moved = true; canvas.classList.add("dragging"); cam.follow = false; $("followBtn").setAttribute("aria-pressed", "false"); }
+    if (drag.moved) { const s = fit * cam.zoom; cam.x -= (p.x - drag.last.x) / s; cam.y -= (p.y - drag.last.y) / s; clampCam(); }
+    drag.last = p;
+  }
+});
+function endPointer(e) {
+  const p = canvasPoint(e);
+  if (drag && !drag.moved && pointers.size === 1) clickAt(p);
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (!pointers.size) { drag = null; canvas.classList.remove("dragging"); }
+}
+canvas.addEventListener("pointerup", endPointer);
+canvas.addEventListener("pointercancel", (e) => { pointers.delete(e.pointerId); drag = null; pinch = null; canvas.classList.remove("dragging"); });
+canvas.addEventListener("pointerleave", () => { hoverSim = null; });
+canvas.addEventListener("wheel", (e) => { e.preventDefault(); const p = canvasPoint(e); zoomAt(p.x, p.y, Math.exp(-e.deltaY * .0015)); }, { passive: false });
+canvas.addEventListener("keydown", (e) => {
+  const step = 40 / (fit * cam.zoom), k = e.key.toLowerCase();
+  if (["arrowleft", "a"].includes(k)) cam.x -= step; else if (["arrowright", "d"].includes(k)) cam.x += step;
+  else if (["arrowup", "w"].includes(k)) cam.y -= step; else if (["arrowdown", "s"].includes(k)) cam.y += step;
+  else if (k === "+" || k === "=") zoomAt(cw / 2, ch / 2, 1.2); else if (k === "-") zoomAt(cw / 2, ch / 2, 1 / 1.2);
+  else return;
+  e.preventDefault(); clampCam();
+});
+function clickAt(p) {
+  const s = simAt(p);
+  if (s) { select(s); if (s !== player) walkPlayerTo(besideSeat(s, player.tile), `Halo, ${s.sim}!`); return; }
+  const w = toWorld(p.x, p.y), g = toGrid(w.x, w.y);
+  const tx = Math.floor(g.gx), ty = Math.floor(g.gy);
+  if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return;
+  walkPlayerTo(freeNear([tx, ty]));
+}
+function walkPlayerTo(tile, greet) {
+  walkMarker = { x: tile[0], y: tile[1], until: now + 900 };
+  player.interrupt(); player.queue({ walk: tile });
+  if (greet) player.queue({ fn: (s) => s.say("👋", greet, 2200) });
+}
+$("zoomIn").addEventListener("click", () => zoomAt(cw / 2, ch / 2, 1.25));
+$("zoomOut").addEventListener("click", () => zoomAt(cw / 2, ch / 2, 1 / 1.25));
+$("zoomReset").addEventListener("click", () => { cam.zoom = 1; cam.x = 0; cam.y = 0; cam.follow = false; $("followBtn").setAttribute("aria-pressed", "false"); });
+$("followBtn").addEventListener("click", () => { cam.follow = !cam.follow; if (cam.follow && cam.zoom < 1.6) cam.zoom = 1.8; $("followBtn").setAttribute("aria-pressed", String(cam.follow)); });
+function $(id) { return document.getElementById(id); }
+
+/* ---------- Tema & pencahayaan ---------- */
+const LIGHT_LABEL = { auto: "🌗", day: "☀️", night: "🌙" };
+function applyLight() { $("lightBtn").textContent = LIGHT_LABEL[lightMode]; $("lightBtn").title = { auto: "Pencahayaan: otomatis (malam pukul 18.00–06.00)", day: "Pencahayaan: siang", night: "Pencahayaan: malam" }[lightMode]; }
+$("lightBtn").addEventListener("click", () => { lightMode = { auto: "day", day: "night", night: "auto" }[lightMode]; try { localStorage.setItem("kantor-pga-light", lightMode); } catch {} applyLight(); });
+applyLight();
+try { const th = localStorage.getItem("kantor-pga-theme"); if (th) document.documentElement.dataset.theme = th; } catch {}
+$("themeBtn").addEventListener("click", () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("kantor-pga-theme", next); } catch {}
+});
 
 /* =====================================================================
    PANEL
    ===================================================================== */
-const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-
+let modelLabels = { worker: "Sonnet 5.5", light: "Haiku 4.5", leader: "Sonnet 5.5" };
 function buildTeam() {
   $("team").innerHTML = sims.map((s) => `
     <button class="member" type="button" data-id="${s.id}">
       <span class="face" style="background:${s.look.shirt}">${s.icon}</span>
-      <span style="min-width:0"><span class="nm">${esc(s.sim)}</span><span class="rl" style="display:block">${esc(s.title)}</span></span>
+      <span style="min-width:0"><span class="nm">${esc(s.sim)}</span><span class="rl">${esc(s.title)}${s.web ? " · web" : ""}${s.files ? " · file" : ""}</span><span class="mdl" data-mdl="${s.id}"></span></span>
       <span class="status" data-st="${s.id}"></span>
     </button>`).join("");
-  $("team").querySelectorAll(".member").forEach((b) => b.addEventListener("click", () => select(byId[b.dataset.id])));
+  $("team").querySelectorAll(".member").forEach((b) => b.addEventListener("click", () => { select(byId[b.dataset.id]); if (cam.zoom > 1.2) cam.follow = true; }));
   $("teamCount").textContent = `1 pemimpin · ${workers.length} agent`;
+  renderModels();
+}
+function renderModels() {
+  for (const s of sims) { const el = document.querySelector(`[data-mdl="${s.id}"]`); if (el) el.textContent = s.isLeader ? modelLabels.leader : s.light ? modelLabels.light : modelLabels.worker; }
 }
 function select(s) { selected = s; refreshPanel(true); }
-
 const NEED_LABEL = { energi: "Energi", fokus: "Fokus", sosial: "Sosial", senang: "Semangat" };
-function needColor(v) { return v > 60 ? "#3fc948" : v > 30 ? "#f2b81f" : "#e2453c"; }
-function refreshPanel(full) {
+const needColor = (v) => v > 60 ? "#3fc948" : v > 30 ? "#e9a90c" : "#e2453c";
+function refreshPanel() {
   for (const s of sims) {
     const el = document.querySelector(`[data-st="${s.id}"]`);
     if (el) { el.className = "status st-" + s.status; el.textContent = STATUS_ICON[s.status] + " " + STATUS_TEXT[s.status]; }
   }
   document.querySelectorAll(".member").forEach((b) => b.setAttribute("aria-current", String(b.dataset.id === selected.id)));
   const s = selected;
-  $("detailName").textContent = s.sim;
-  $("detailRole").textContent = s.isLeader ? "Pemimpin · delegasi & cek akhir" : s.title + (s.web ? " · bisa cari di web" : "");
-  $("detailStatus").innerHTML = `<span class="status st-${s.status}">${STATUS_ICON[s.status]} ${STATUS_TEXT[s.status]}</span>`;
+  $("detailName").innerHTML = `${esc(s.sim)} ${s.isPlayer ? "" : `<span class="status st-${s.status}">${STATUS_ICON[s.status]} ${STATUS_TEXT[s.status]}</span>`}`;
+  $("detailRole").textContent = s.isPlayer ? "Anda. Klik lantai untuk berjalan, klik Sim untuk menyapa." : s.isLeader ? `Pemimpin · delegasi & cek akhir · ${modelLabels.leader}` : `${s.title}${s.web ? " · cari di web" : ""}${s.files ? " · membuat file" : ""} · ${s.light ? modelLabels.light : modelLabels.worker}`;
   $("needs").innerHTML = Object.entries(s.needs).map(([k, v]) => `<div class="need">${NEED_LABEL[k]}<div class="bar"><div class="fill" style="width:${v.toFixed(0)}%;background:${needColor(v)}"></div></div></div>`).join("");
-  $("detailTask").textContent = s.task ? s.task : (s.isLeader ? (activeTask ? activeTask : "Menunggu tugas dari Rahula.") : "Belum ada tugas.");
-  const out = s.isLeader ? (lastFinal && lastFinal.output) : s.output;
+  $("detailTask").textContent = s.isPlayer ? (activeTask || "Belum mengirim tugas.") : s.task ? s.task : (s.isLeader ? (activeTask || "Menunggu tugas dari Rahula.") : "Belum ada tugas.");
+  const out = s.isLeader || s.isPlayer ? (lastFinal && lastFinal.output) : s.output;
   $("detailOutput").textContent = out ? out.slice(0, 900) : (s.status === "working" ? `Sedang menulis… ${s.chars.toLocaleString("id-ID")} karakter` : "—");
   $("openOutput").disabled = !out;
   drawPortrait(s);
 }
 const pctx = $("portrait").getContext("2d");
 function drawPortrait(s) {
-  ctxSwap(pctx, () => {
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 128, 128);
-    ctx.setTransform(2.4, 0, 0, 2.4, 0, 0);
-    paintSim(s, 26.5, 66, now / 1000, { noShadow: true });
-  });
+  ctxSwap(pctx, () => { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 128, 128); ctx.setTransform(2.4, 0, 0, 2.4, 0, 0); paintSim(s, 26.5, 66, now / 1000, { noShadow: true }); });
 }
-// paintSim menggambar ke `ctx`; tukar sementara untuk kanvas potret.
 function ctxSwap(c, fn) { const keep = ctx; ctx = c; try { fn(); } finally { ctx = keep; } }
 $("openOutput").addEventListener("click", () => {
   const s = selected;
-  if (s.isLeader && lastFinal) openResult(lastFinal);
-  else if (s.output) openResult({ title: `${s.sim} — ${s.title}`, output: s.output, workLog: [] , task: s.task });
+  if ((s.isLeader || s.isPlayer) && lastFinal) openResult(lastFinal);
+  else if (s.output) openResult({ title: `${s.sim} — ${s.title}`, output: s.output, workLog: [], task: s.task });
 });
 
-function log(html) {
-  const box = $("log");
-  if (box.querySelector(".log-empty")) box.innerHTML = "";
-  const d = new Date();
-  const item = document.createElement("div");
-  item.className = "log-item";
-  item.innerHTML = `<time>${String(d.getHours()).padStart(2, "0")}.${String(d.getMinutes()).padStart(2, "0")}</time><div>${html}</div>`;
-  box.prepend(item);
-  while (box.children.length > 80) box.lastChild.remove();
+/* ---------- Tab ---------- */
+const TABS = ["chat", "tim", "skill", "kn", "hasil"];
+let currentTab = "chat";
+function showTab(name) {
+  currentTab = name;
+  for (const t of TABS) { const on = t === name; $("tab-" + t).setAttribute("aria-selected", String(on)); $("tab-" + t).tabIndex = on ? 0 : -1; $("p-" + t).hidden = !on; }
+  if (name === "chat") { unread = 0; $("chatBadge").hidden = true; const c = $("chat"); c.scrollTop = c.scrollHeight; }
+}
+TABS.forEach((t, i) => {
+  $("tab-" + t).addEventListener("click", () => showTab(t));
+  $("tab-" + t).addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    const n = TABS[(i + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length]; showTab(n); $("tab-" + n).focus();
+  });
+});
+
+/* ---------- Chat #kantor-pga ---------- */
+let unread = 0, lastPoster = null;
+function post(who, text, opts = {}) {
+  const box = $("chat");
+  box.querySelector(".chat-empty")?.remove();
+  const d = new Date(), time = `${String(d.getHours()).padStart(2, "0")}.${String(d.getMinutes()).padStart(2, "0")}`;
+  const sys = who === "sys", w = sys ? null : who;
+  const id = sys ? "sys" : w.id;
+  const el = document.createElement("div");
+  el.className = "msg" + (opts.muted ? " muted" : "") + (sys ? " sys" : "") + (lastPoster === id && !opts.fresh ? " cont" : "");
+  const av = sys ? `<span class="av" style="background:#5b6680">⚙</span>` : `<span class="av" style="background:${w.look.shirt}">${w.icon}</span>`;
+  const name = sys ? "Sistem kantor" : w.sim, tag = sys ? "" : w.isPlayer ? "Anda" : w.isLeader ? "Pemimpin" : w.title;
+  el.innerHTML = `${av}<div><div class="meta"><b style="color:${sys ? "inherit" : `color-mix(in srgb, ${w.look.shirt} 62%, var(--ink))`}">${esc(name)}</b><span class="tag">${esc(tag)}</span><small>${time}</small></div><div class="body">${opts.html ? text : esc(text).replace(/@(\w+)/g, '<span class="mention">@$1</span>')}</div></div>`;
+  box.append(el);
+  lastPoster = id;
+  while (box.children.length > 220) box.firstChild.remove();
+  const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 140;
+  if (nearBottom || opts.fresh) box.scrollTop = box.scrollHeight;
+  if (currentTab !== "chat" && !opts.muted) { unread++; $("chatBadge").textContent = unread > 9 ? "9+" : unread; $("chatBadge").hidden = false; }
+  return el;
 }
 function toast(sim, title, text, kind = "") {
   const el = document.createElement("div");
   el.className = "toast " + kind;
-  el.innerHTML = `<span class="av" style="background:${sim.look.shirt}22">${sim.icon}</span><div><b>${esc(title)}</b>${esc(text)}</div>`;
+  el.innerHTML = `<span class="av" style="background:${sim.look.shirt}">${sim.icon}</span><div><b>${esc(title)}</b>${esc(text)}</div>`;
   $("toasts").prepend(el);
   while ($("toasts").children.length > 3) $("toasts").lastChild.remove();
   setTimeout(() => el.remove(), 5200);
 }
 
+/* ---------- Skill & penghematan ---------- */
+const skillUse = {};
+let compacts = 0;
+function renderSkills() {
+  $("skillCount").textContent = `${SKILLS.length} skill`;
+  $("skills").innerHTML = SKILLS.map((s) => `<div class="skill" data-skill="${esc(s.name)}"><span class="used">${skillUse[s.name] ? `${skillUse[s.name]}× dipakai` : ""}</span><b>${esc(s.name)}</b><p>${esc(s.description || "")}</p></div>`).join("") || '<p class="chat-empty">Belum ada skill.</p>';
+  $("svSkill").textContent = Object.values(skillUse).reduce((a, b) => a + b, 0);
+  $("svCompact").textContent = compacts;
+}
+function flashSkill(name) {
+  const el = [...document.querySelectorAll(".skill")].find((x) => x.dataset.skill === name || x.dataset.skill.endsWith(":" + name));
+  if (el) { el.classList.add("glow"); setTimeout(() => el.classList.remove("glow"), 4000); }
+}
+const fmtTok = (n) => n >= 1e6 ? (n / 1e6).toFixed(2).replace(".", ",") + " jt" : n >= 1e3 ? (n / 1e3).toFixed(1).replace(".", ",") + " rb" : String(n);
+function setTokens(t) {
+  const total = t.input + t.output + t.cacheRead + t.cacheWrite;
+  $("tok").textContent = fmtTok(total);
+  const inAll = t.input + t.cacheRead + t.cacheWrite;
+  const pct = inAll ? Math.round(t.cacheRead / inAll * 100) + "%" : "–";
+  $("cache").textContent = pct; $("svCache").textContent = pct;
+  $("tokPill").title = `Masukan ${fmtTok(t.input)} · keluaran ${fmtTok(t.output)} · dibaca dari cache ${fmtTok(t.cacheRead)} · ditulis ke cache ${fmtTok(t.cacheWrite)}. Cache = bagian prompt yang dibaca ulang dengan harga ±10%.`;
+}
+
 /* =====================================================================
-   KOREOGRAFI — menerjemahkan event kerja menjadi animasi
+   KOREOGRAFI — event kerja → animasi + chat
    ===================================================================== */
 let activeTask = null, lastFinal = null, cost = 0;
 const history = [];
-const pick = (a) => a[Math.floor(Math.random() * a.length)];
-
 function setCost(usd) { cost = usd; $("cost").textContent = usd.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 }); }
+const firstWords = (s, n) => (s || "").replace(/[#*_`>]/g, "").trim().split(/\s+/).slice(0, n).join(" ");
+const shortModel = (m) => String(m || "").replace(/^claude-/, "");
 
 function handle(ev) {
   switch (ev.type) {
     case "task": {
-      activeTask = ev.text; setCost(0);
+      activeTask = ev.text; setCost(0); setTokens({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
       for (const w of workers) { w.task = null; w.output = null; w.chars = 0; if (w.status !== "idle") w.status = "idle"; }
+      if (ev.models) { modelLabels = { leader: ev.models.leader, worker: ev.models.worker, light: ev.models.light || ev.models.worker }; renderModels(); }
+      // Rahula mengantar tugas ke meja Bima
+      const spot = besideSeat(leader, player.tile);
+      player.interrupt();
+      player.queue({ fn: (s) => { s.carrying = true; } }, { walk: spot }, { fn: (s) => { s.carrying = false; s.say("📄", "Tolong ya, Bima!", 2400); leader.say("📥", "Siap, saya bagi!", 2600); } });
       leader.interrupt(); leader.queue({ walk: leader.seat });
-      leader.status = "thinking"; leader.say("📥", "Tugas baru!", 3000);
+      leader.status = "thinking";
+      post(player, ev.text, { fresh: true });
+      if (ev.models) post("sys", `Model: Bima ${ev.models.leader} · agent ${ev.models.worker}${ev.models.light && ev.models.light !== ev.models.worker ? ` · agent ringan ${ev.models.light}` : ""}`, { muted: true });
       toast(leader, "Tugas diterima", "Bima sedang membaca tugas Anda.");
-      log(`📥 <b>Tugas baru</b>: ${esc(ev.text.slice(0, 160))}${ev.models ? ` <br><small>Model: Pemimpin ${esc(ev.models.leader)} · agent ${esc(ev.models.worker)}</small>` : ""}`);
       setRunning(true);
       break;
     }
     case "leader_status": if (ev.status === "thinking") { leader.status = "thinking"; leader.say("💭", ev.text || "Hmm…"); } break;
-    case "leader_thinking": leader.status = "thinking"; leader.say("💭", firstWords(ev.text, 4), 3000); log(`💭 <b>Bima berpikir</b>: ${esc(ev.text.slice(0, 220))}`); break;
-    case "leader_say": log(`⭐ <b>Bima</b>: ${esc(ev.text.slice(0, 300))}`); break;
+    case "leader_thinking": leader.status = "thinking"; leader.say("💭", firstWords(ev.text, 4), 3000); post(leader, "💭 " + ev.text.slice(0, 240), { muted: true }); break;
+    case "leader_say": post(leader, ev.text.slice(0, 400), { muted: /^📚|^📎/.test(ev.text) }); break;
     case "delegate": {
       const w = byId[ev.agent]; if (!w) break;
       w.task = ev.summary + (ev.instruksi ? "\n\n" + ev.instruksi : "");
@@ -1014,16 +1409,38 @@ function handle(ev) {
         { fn: (s) => { s.carrying = true; s.status = "thinking"; } },
         { walk: spot },
         { fn: (s) => { s.carrying = false; s.say("📋", ev.revision ? "Tolong revisi ya" : pick(["Ini tugasmu!", "Sul sul!", "Tolong ya!"]), 2400); w.say(w.icon, ev.revision ? "Siap, revisi!" : pick(["Siap, Bos!", "Vadish!", "Oke!"]), 2400); s.needs.sosial = Math.min(100, s.needs.sosial + 10); } },
-        { wait: 1.2 },
+        { wait: 1.1 },
         { walk: leader.seat },
       );
-      toast(w, `${w.sim} dapat tugas`, ev.summary, "");
-      log(`📋 <b>Bima → ${w.sim}</b>${ev.revision ? " (revisi)" : ""}: ${esc(ev.summary)}`);
+      toast(w, `${w.sim} dapat tugas`, ev.summary);
+      post(leader, `@${w.sim} ${ev.revision ? "(revisi) " : ""}${ev.summary}`);
+      post(w, `🚀 mulai: ${ev.summary}`, { muted: true });
       break;
     }
-    case "worker_progress": { const w = byId[ev.agent]; if (w) { w.chars = ev.chars; if (Math.random() < .12) w.say(w.icon, pick(["Mengetik…", "Hampir…", "Merapikan…", "Cek ulang…"]), 1800); } break; }
-    case "worker_search": { const w = byId[ev.agent]; if (w) { w.say("🔍", ev.query || "Mencari…", 2800); log(`🔍 <b>${w.sim}</b> mencari: ${esc(ev.query || "")}`); } break; }
+    case "worker_progress": { const w = byId[ev.agent]; if (w) { w.chars = ev.chars; if (Math.random() < .1) w.say(w.icon, pick(["Mengetik…", "Hampir…", "Merapikan…", "Cek ulang…"]), 1800); } break; }
+    case "worker_search": { const w = byId[ev.agent]; if (w) { w.say("🔍", ev.query || "Mencari…", 2800); post(w, `🔍 mencari: ${ev.query || ""}`, { muted: true }); } break; }
     case "worker_thinking": { const w = byId[ev.agent]; if (w) w.say("💭", firstWords(ev.text, 4), 2200); break; }
+    case "worker_skill": {
+      const w = byId[ev.agent]; if (!w) break;
+      const name = ev.skill || "skill";
+      const full = SKILLS.find((s) => s.name === name || s.name.endsWith(":" + name))?.name || name;
+      skillUse[full] = (skillUse[full] || 0) + 1; renderSkills(); flashSkill(full);
+      skillGlow = 6;
+      const back = w.status === "working";
+      w.interrupt();
+      w.queue({ walk: freeNear(SPOT.shelf) }, { fn: (s) => { s.carrying = "book"; s.say("📘", full.replace(/^.*:/, ""), 2600); } }, { wait: 1 }, { walk: w.seat }, { fn: (s) => { s.carrying = false; if (back) s.status = "working"; } });
+      post(w, `📘 memakai skill <code>${esc(full)}</code>`, { muted: true, html: true });
+      break;
+    }
+    case "worker_tool": {
+      const w = byId[ev.agent]; if (!w) break;
+      const tgt = String(ev.target || "");
+      const icon = { Read: "📖", Grep: "🔎", Glob: "🗂️", Write: "💾", Edit: "✏️", Bash: "⚙️" }[ev.tool] || "🛠️";
+      w.say(icon, ev.tool === "Bash" ? firstWords(tgt, 3) : tgt.split("/").pop(), 2000);
+      if (ev.tool === "Write") { printing = 2.4; post(w, `💾 membuat file <code>${esc(tgt.split("/").pop())}</code>`, { muted: true, html: true }); }
+      else if (ev.tool === "Read" && /pengetahuan\//.test(tgt)) post(w, `📖 membaca <code>${esc(tgt.replace(/^.*pengetahuan\//, ""))}</code>`, { muted: true, html: true });
+      break;
+    }
     case "worker_done": {
       const w = byId[ev.agent]; if (!w) break;
       w.output = ev.output; w.status = ev.ok ? "done" : "error";
@@ -1033,33 +1450,46 @@ function handle(ev) {
         { wait: .8 },
         { walk: spot },
         { fn: (s) => { s.carrying = false; s.say("📄", pick(SIMLISH), 2200); leader.say("👀", "Terima kasih, " + s.sim, 2200); s.needs.sosial = Math.min(100, s.needs.sosial + 15); s.needs.senang = Math.min(100, s.needs.senang + 15); } },
-        { wait: 1.4 },
+        { wait: 1.3 },
         { walk: w.seat },
       );
-      toast(w, ev.ok ? `${w.sim} selesai` : `${w.sim} terkendala`, ev.ok ? "Hasil diserahkan ke Bima untuk diperiksa." : ev.output.slice(0, 90), ev.ok ? "good" : "bad");
-      log(`${ev.ok ? "✅" : "❗"} <b>${w.sim}</b> ${ev.ok ? "menyerahkan hasil" : "gagal"} (${(ev.output || "").length.toLocaleString("id-ID")} karakter)`);
+      toast(w, ev.ok ? `${w.sim} selesai` : `${w.sim} terkendala`, ev.ok ? "Hasil diserahkan ke Bima untuk diperiksa." : (ev.output || "").slice(0, 90), ev.ok ? "good" : "bad");
+      post(w, `${ev.ok ? "✅ selesai" : "❗ terkendala"} · ${(ev.output || "").length.toLocaleString("id-ID")} karakter`);
       break;
     }
-    case "review": leader.status = "reviewing"; leader.say("🔎", "Memeriksa hasil…", 4000); log(`🔎 <b>Bima</b> memeriksa ${ev.count} hasil kerja.`); break;
+    case "review": leader.status = "reviewing"; leader.say("🔎", "Memeriksa hasil…", 4000); post(leader, `🔎 memeriksa ${ev.count} hasil kerja`, { muted: true }); break;
     case "cost": setCost(ev.usd); break;
+    case "tokens": setTokens(ev); break;
+    case "compact": {
+      compacts++; renderSkills();
+      leader.say("🗜️", "Merapikan catatan…", 3200);
+      const pill = $("tokPill"); pill.classList.remove("flash"); void pill.offsetWidth; pill.classList.add("flash");
+      post("sys", `🗜️ Konteks dipadatkan otomatis${ev.before ? `: ${fmtTok(ev.before)}${ev.after ? ` → ${fmtTok(ev.after)}` : ""} token` : ""}. Permintaan berikutnya lebih ringan.`);
+      break;
+    }
     case "final": {
       leader.status = "done"; leader.say("🎉", "Selesai! Sul sul!", 4000);
-      for (const s of sims) { s.jump = 2.2; if (s.status === "done") s.needs.senang = Math.min(100, s.needs.senang + 20); }
+      for (const s of people) { s.jump = 2.2; if (s.status === "done") s.needs.senang = Math.min(100, s.needs.senang + 20); }
       setTimeout(() => { leader.status = "idle"; }, 6000);
       if (typeof ev.usd === "number") setCost(ev.usd);
       const title = (ev.output.match(/^#\s+(.+)$/m) || [, "Hasil akhir"])[1];
       lastFinal = { title, output: ev.output, workLog: ev.workLog || [], task: activeTask, file: ev.file, files: ev.files || [], usd: cost, at: new Date() };
       history.unshift(lastFinal); renderHistory();
+      if (lastFinal.files.length) printing = 3;
+      // Bima mengantar hasil ke Rahula
+      const spot = besideSeat(player, leader.seat);
+      leader.queue({ fn: (s) => { s.carrying = true; } }, { walk: spot }, { fn: (s) => { s.carrying = false; s.say("🎁", "Ini hasilnya!", 2600); player.say("🙏", "Mantap!", 2400); } }, { wait: 1.2 }, { walk: leader.seat });
       toast(leader, "Hasil akhir siap", title, "good");
-      log(`🎉 <b>Hasil akhir siap</b>: ${esc(title)}${ev.file ? ` · tersimpan di <code>hasil/${esc(ev.file)}</code>` : ""}`);
+      const el = post(leader, `🎉 <b>Hasil akhir siap</b>: ${esc(title)}${lastFinal.files.length ? ` · ${lastFinal.files.length} file` : ""}<br><button class="btn-ghost" type="button">Buka hasil</button>`, { html: true });
+      el.querySelector("button").addEventListener("click", () => openResult(history.find((h) => h.title === title) || lastFinal));
       setRunning(false); activeTask = null;
-      setTimeout(() => openResult(lastFinal), 1600);
+      setTimeout(() => openResult(lastFinal), 1800);
       break;
     }
     case "error": {
       leader.status = "error"; leader.say("❗", "Ada masalah", 5000);
       toast(leader, "Tugas terhenti", ev.message, "bad");
-      log(`❗ <b>Masalah</b>: ${esc(ev.message)}`);
+      post("sys", `❗ ${ev.message}`);
       setRunning(false); activeTask = null;
       setTimeout(() => { if (leader.status === "error") leader.status = "idle"; }, 8000);
       break;
@@ -1067,11 +1497,10 @@ function handle(ev) {
   }
   refreshPanel();
 }
-const firstWords = (s, n) => (s || "").replace(/[#*_`>]/g, "").trim().split(/\s+/).slice(0, n).join(" ");
 
 function renderHistory() {
   $("histCount").textContent = history.length;
-  $("history").innerHTML = history.map((h, i) => `<button type="button" data-i="${i}">${esc(h.title)}<small>${h.at.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} · ${h.workLog.length} agent terlibat</small></button>`).join("") || '<p class="log-empty">Hasil akhir dari Bima muncul di sini.</p>';
+  $("history").innerHTML = history.map((h, i) => `<button type="button" data-i="${i}">${esc(h.title)}<small>${h.at.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} · ${h.workLog.length} agent${h.files && h.files.length ? ` · ${h.files.length} file` : ""}</small></button>`).join("") || '<p class="chat-empty">Hasil akhir dari Bima muncul di sini.</p>';
   $("history").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => openResult(history[Number(b.dataset.i)])));
 }
 
@@ -1160,7 +1589,7 @@ $("downloadResult").addEventListener("click", () => {
 });
 
 /* =====================================================================
-   MODE DEMO — simulasi tanpa API key (event sama persis dengan server)
+   MODE DEMO — simulasi tanpa server (event sama dengan server)
    ===================================================================== */
 const DEMO_RULES = [
   ["surat-ba", /\b(ba|berita acara|surat|memo|sk|klarifikasi|peringatan|kehilangan)\b/i],
@@ -1173,14 +1602,14 @@ const DEMO_RULES = [
   ["riset", /riset|research|pasar|bandingkan|cari tahu|kewajiban/i],
 ];
 const DEMO_OUT = {
-  "surat-ba": "## Draf Berita Acara\n\n**BERITA ACARA KEHILANGAN BARANG**\nNomor: [ISI: nomor surat]\n\nPada hari Rabu, 30 September 2026, pukul [ISI: jam] WIB, bertempat di gudang cabang [ISI: cabang], telah dilakukan stock opname…\n\n| Dibuat oleh | Diketahui oleh | Disetujui oleh |\n|---|---|---|\n| Rahula Fajar (PGA) | Delfri / Ryan (AOS), Sofian (RBM) | Benedictus R. Galla (IRGA Sect. Head) |\n\n**Catatan Risiko**\n- Hindari menyebut nama terduga sebelum investigasi selesai.\n\n_(Contoh mode demo: isi asli ditulis oleh Claude saat mode live.)_",
+  "surat-ba": "## Draf Berita Acara\n\n**BERITA ACARA KEHILANGAN BARANG**\nNomor: [ISI: nomor surat]\n\nPada hari Rabu, 30 September 2026, pukul [ISI: jam] WIB, bertempat di gudang cabang [ISI: cabang], telah dilakukan stock opname…\n\n| Dibuat oleh | Diketahui oleh | Disetujui oleh |\n|---|---|---|\n| [ISI] | [ISI] | [ISI] |\n\n_(Contoh mode demo: isi asli ditulis Claude saat mode live.)_",
   "kepatuhan-perizinan": "**Kesimpulan:** [contoh demo] 3 izin perlu diperpanjang sebelum Januari 2027.\n\n| Cabang | Isu | Dasar hukum | Risiko | Tindakan | PIC | Tenggat |\n|---|---|---|---|---|---|---|\n| [ISI] | SKMB habis | [ISI: regulasi] | Tinggi | Ajukan perpanjangan | [ISI] | [ISI] |\n\n_(Contoh mode demo.)_",
-  "data-rekap": "**Ringkasan data:** [contoh demo] 0 baris — belum ada file CSV yang dilampirkan.\n\nRencana rekap: sheet per departemen, area DKI/Banten, sheet CEK_MANUAL dan CATATAN.\n\n**Pertanyaan untuk Rahula**\n- Mohon lampirkan CSV fingerprint September.\n\n_(Contoh mode demo.)_",
-  "sop-k3-vendor": "## SOP (contoh demo)\n1. **Tujuan** …\n2. **Ruang Lingkup** …\n3. **Prosedur**: Amankan area, pakai APD, serap tumpahan, catat di form.\n\n| Bahaya | Risiko | Pengendalian |\n|---|---|---|\n| Lantai licin | Terpeleset | Rambu + absorben |\n\n_(Contoh mode demo.)_",
-  "email-kalender": "Saya tidak terhubung ke inbox. Tempel isi email ke tugas, lalu saya kelompokkan: SEGERA / TINDAK LANJUT / INFO / ABAIKAN.\n\n_(Contoh mode demo.)_",
-  "chrome-portal": "**Rencana langkah (Rahula yang menjalankan):**\n1. Login portal (oleh Rahula).\n2. Menu Laporan → Absensi.\n3. Pilih cabang Kalideres, periode September.\n4. BERHENTI sebelum klik apa pun yang mengubah data.\n\n_(Contoh mode demo.)_",
+  "data-rekap": "**Ringkasan data:** [contoh demo] belum ada file CSV yang dilampirkan.\n\nRencana rekap: sheet per departemen, area DKI/Banten, sheet CEK_MANUAL dan CATATAN.\n\n_(Contoh mode demo.)_",
+  "sop-k3-vendor": "## SOP (contoh demo)\n1. **Tujuan** …\n2. **Ruang Lingkup** …\n3. **Prosedur**: Amankan area, pakai APD, serap tumpahan, catat di form.\n\n| Bahaya | Risiko | L | S | Skor | Pengendalian |\n|---|---|---|---|---|---|\n| Lantai licin | Terpeleset | 3 | 3 | 9 | Rambu + absorben |\n\n_(Contoh mode demo.)_",
+  "email-kalender": "Tempel isi email ke tugas, lalu saya kelompokkan: SEGERA / TINDAK LANJUT / INFO / ABAIKAN.\n\n_(Contoh mode demo.)_",
+  "chrome-portal": "**Rencana langkah (Rahula yang menjalankan):**\n1. Login portal (oleh Rahula).\n2. Menu Laporan → Absensi.\n3. Pilih cabang, periode September.\n4. BERHENTI sebelum klik apa pun yang mengubah data.\n\n_(Contoh mode demo.)_",
   "cari-cuan": "| Peluang | Modal | Jam/minggu | Pesimis | Realistis | Optimis |\n|---|---|---|---|---|---|\n| Template absensi UMKM | Rp500 rb | 4 | Rp0 | Rp1,5 jt | Rp4 jt |\n\nRekomendasi uji 30 hari: template absensi. Tidak ada yang pasti untung.\n\n_(Contoh mode demo.)_",
-  "riset": "**Jawaban inti (contoh demo):** sumber primer perlu diverifikasi di JDIH/peraturan.go.id.\n\n**Yang masih belum pasti:** isi pasal per pasal.\n\n**Sumber:** [contoh] https://peraturan.go.id\n\n_(Contoh mode demo.)_",
+  "riset": "**Jawaban inti (contoh demo):** sumber primer perlu diverifikasi di JDIH/peraturan.go.id.\n\n**Yang masih belum pasti:** isi pasal per pasal.\n\n_(Contoh mode demo.)_",
 };
 const demo = {
   queue: [], running: false,
@@ -1190,26 +1619,33 @@ const demo = {
     let t = simClock;
     const at = (dt, ev) => { t += dt; this.queue.push({ at: t, ev }); };
     this.queue = []; this.running = true;
-    const P = { "": ["Opus 5.5", "Opus 5.5"], opus: ["Opus 5.5", "Opus 5.5"], campuran: ["Opus 5.5", "Sonnet 5.5"], sonnet: ["Sonnet 5.5", "Sonnet 5.5"] }[$("preset").value] || ["Opus 5.5", "Opus 5.5"];
-    at(0, { type: "task", text, models: { leader: P[0], worker: P[1] } });
-    at(1.6, { type: "leader_thinking", text: `Tugas ini paling cocok untuk ${picked.map((id) => byId[id].sim).join(" dan ")}. Saya bagi dan periksa hasilnya.` });
-    at(1.4, { type: "leader_say", text: `Saya delegasikan ke ${picked.map((id) => byId[id].sim).join(", ")} secara paralel.` });
-    const base = t;
-    const done = [];
+    const P = { "": ["Sonnet 5.5", "Sonnet 5.5", "Haiku 4.5"], hemat: ["Sonnet 5.5", "Sonnet 5.5", "Haiku 4.5"], opus: ["Opus 5.5", "Opus 5.5", "Opus 5.5"], campuran: ["Opus 5.5", "Sonnet 5.5", "Sonnet 5.5"], sonnet: ["Sonnet 5.5", "Sonnet 5.5", "Sonnet 5.5"] }[$("preset").value] || ["Sonnet 5.5", "Sonnet 5.5", "Haiku 4.5"];
+    at(0, { type: "task", text, models: { leader: P[0], worker: P[1], light: P[2] } });
+    at(2.2, { type: "leader_say", text: "📚 Pengetahuan: 16 file; mode hemat: sebagian ditempel, sisanya dibaca agent bila perlu." });
+    at(1.4, { type: "leader_thinking", text: `Tugas ini paling cocok untuk ${picked.map((id) => byId[id].sim).join(" dan ")}. Saya bagi paralel lalu periksa hasilnya.` });
+    at(1.2, { type: "leader_say", text: `Saya delegasikan ke ${picked.map((id) => byId[id].sim).join(", ")} secara paralel.` });
+    const base = t, done = [];
+    let tok = { input: 2400, output: 300, cacheRead: 0, cacheWrite: 9800 };
+    this.queue.push({ at: base - 1, ev: { type: "tokens", ...tok } });
     picked.forEach((id, i) => {
       const w = byId[id];
       this.queue.push({ at: base + i * .3, ev: { type: "delegate", callId: "d" + i, agent: id, summary: w.title + ": " + text.slice(0, 40) + (text.length > 40 ? "…" : ""), instruksi: "(mode demo) " + text } });
-      const dur = 9 + Math.random() * 7;
-      for (let k = 1; k < dur / 1.2; k++) this.queue.push({ at: base + 2.5 + k * 1.2, ev: { type: "worker_progress", callId: "d" + i, agent: id, chars: Math.round(k * 160 + Math.random() * 80) } });
-      if (w.web) this.queue.push({ at: base + 4 + i, ev: { type: "worker_search", callId: "d" + i, agent: id, query: text.split(/\s+/).slice(0, 4).join(" ") } });
-      const end = base + 2.5 + dur;
-      done.push(end);
+      const dur = 12 + Math.random() * 7;
+      for (let k = 1; k < dur / 1.2; k++) this.queue.push({ at: base + 3 + k * 1.2, ev: { type: "worker_progress", callId: "d" + i, agent: id, chars: Math.round(k * 160 + Math.random() * 80) } });
+      if (AGENT_SKILL[id]) this.queue.push({ at: base + 4.5 + i * .6, ev: { type: "worker_skill", callId: "d" + i, agent: id, skill: AGENT_SKILL[id] } });
+      this.queue.push({ at: base + 6 + i, ev: { type: "worker_tool", callId: "d" + i, agent: id, tool: "Read", target: `pengetahuan/${id}/01-catatan.md` } });
+      if (w.files) this.queue.push({ at: base + dur, ev: { type: "worker_tool", callId: "d" + i, agent: id, tool: "Write", target: `hasil/tugas-demo/${w.title.split(/[ ,&]/)[0]}_draf.docx` } });
+      if (w.web) this.queue.push({ at: base + 8 + i, ev: { type: "worker_search", callId: "d" + i, agent: id, query: text.split(/\s+/).slice(0, 4).join(" ") } });
+      const end = base + 3 + dur; done.push(end);
       this.queue.push({ at: end, ev: { type: "worker_done", callId: "d" + i, agent: id, ok: true, output: DEMO_OUT[id] } });
     });
-    const allDone = Math.max(...done) + 5;
+    for (let k = 1; k <= 8; k++) { tok = { input: tok.input + 900, output: tok.output + 650, cacheRead: tok.cacheRead + 11000, cacheWrite: tok.cacheWrite + 400 }; this.queue.push({ at: base + k * 2.4, ev: { type: "tokens", ...tok } }); }
+    const allDone = Math.max(...done) + 4;
+    if (picked.length >= 3) this.queue.push({ at: allDone - 1, ev: { type: "compact", trigger: "auto", before: 104000, after: 18000 } });
     this.queue.push({ at: allDone, ev: { type: "review", count: picked.length } });
     const workLog = picked.map((id) => ({ agent: id, sim: byId[id].sim, title: byId[id].title, instruksi: text, output: DEMO_OUT[id] }));
-    const final = `# Hasil (contoh mode demo)\n**Ringkasan:** Ini simulasi. Di mode live, Bima menggabungkan hasil ${picked.map((id) => byId[id].sim).join(", ")} menjadi dokumen siap pakai untuk tugas: _${text.slice(0, 140)}_\n\n## Hasil\n${workLog.map((w) => `### Dari ${w.sim} (${w.title})\n${w.output}`).join("\n\n")}\n\n## Hasil Pemeriksaan Pemimpin\n- [x] Tugas terjawab oleh agent yang tepat\n- [x] Data yang belum pasti ditandai [ISI: …]\n- [ ] Fakta & angka asli (perlu mode live)\n\n## Perlu Dilengkapi / Diputuskan Rahula\n- Untuk hasil asli: login akun Claude sekali (\`claude\` lalu /login), klaim kredit Agent SDK di akun Claude, lalu jalankan \`npm start\` di laptop.\n\n## Kontribusi Tim\n${workLog.map((w) => `- ${w.sim} — ${w.title}`).join("\n")}`;
+    const final = `# Hasil (contoh mode demo)\n**Ringkasan:** Ini simulasi. Di mode live, Bima menggabungkan hasil ${picked.map((id) => byId[id].sim).join(", ")} menjadi dokumen siap pakai untuk tugas: _${text.slice(0, 140)}_\n\n## Hasil\n${workLog.map((w) => `### Dari ${w.sim} (${w.title})\n${w.output}`).join("\n\n")}\n\n## Hasil Pemeriksaan Pemimpin\n- [x] Tugas terjawab oleh agent yang tepat\n- [x] Data yang belum pasti ditandai [ISI: …]\n- [ ] Fakta & angka asli (perlu mode live)\n\n## Perlu Dilengkapi / Diputuskan Rahula\n- Untuk hasil asli: jalankan \`npm start\` (login akun Claude) atau buka aplikasi di rig.\n\n## Kontribusi Tim\n${workLog.map((w) => `- ${w.sim} — ${w.title}`).join("\n")}`;
+    this.queue.push({ at: allDone + 3, ev: { type: "tokens", ...tok, output: tok.output + 1400 } });
     this.queue.push({ at: allDone + 4, ev: { type: "final", output: final, workLog, usd: 0 } });
     this.queue.sort((a, b) => a.at - b.at);
   },
@@ -1235,22 +1671,62 @@ async function detectMode() {
     engine = st.engine || "api";
     if (st.defaultModels) {
       const short = (id) => id.replace(/^claude-/, "").replace(/-(\d+)-(\d+)$/, " $1.$2").replace(/^./, (c) => c.toUpperCase());
-      $("preset").options[0].textContent = st.defaultModels.leader === st.defaultModels.worker
-        ? `Bawaan: ${short(st.defaultModels.leader)}` : `Bawaan: Pemimpin ${short(st.defaultModels.leader)}, agent ${short(st.defaultModels.worker)}`;
+      const dm = st.defaultModels;
+      $("preset").options[0].textContent = `Bawaan: Bima ${short(dm.leader)}, agent ${short(dm.worker)}${dm.light && dm.light !== dm.worker ? ` + ${short(dm.light)}` : ""}`;
+      modelLabels = { leader: short(dm.leader), worker: short(dm.worker), light: short(dm.light || dm.worker) }; renderModels();
     }
+    if (Array.isArray(st.skills)) { SKILLS = st.skills; renderSkills(); }
     if (mode === "live" && st.running) attach(st.running);
-  } catch { mode = "demo"; $("downloadResult").hidden = true; /* tanpa server (mis. pratinjau statis) unduhan tidak tersedia */ }
+  } catch { mode = "demo"; $("downloadResult").hidden = true; }
   const pill = $("modePill");
   pill.className = "pill " + (mode === "live" ? "mode-live" : "mode-demo");
-  pill.textContent = mode !== "live" ? "● Mode demo" : engine === "langganan" ? "● Langganan" : "● Mode API";
-  pill.title = mode !== "live" ? "Simulasi animasi. Jalankan npm start di laptop (login akun Claude) untuk hasil asli."
+  pill.textContent = mode !== "live" ? "● Demo" : engine === "langganan" ? "● Langganan" : "● Mode API";
+  pill.title = mode !== "live" ? "Simulasi animasi. Jalankan npm start (login akun Claude) untuk hasil asli."
     : engine === "langganan" ? "Tim memakai login akun Claude Anda. Biaya diambil dari kredit Agent SDK bulanan langganan, tanpa tagihan tambahan."
     : "Tim memakai ANTHROPIC_API_KEY berbayar.";
   if (mode === "live" && engine === "langganan") {
     $("costPill").title = "Kredit Agent SDK langganan yang terpakai untuk tugas ini (perkiraan, USD).";
-    $("attachBtn").hidden = false; $("knCard").hidden = false; loadKnowledge();
+    $("attachBtn").hidden = false; $("knCard").hidden = false; $("knOff").hidden = true; loadKnowledge();
   }
 }
+function attach(id) {
+  jobId = id;
+  source?.close();
+  source = new EventSource(`/api/tasks/${id}/events`);
+  source.onmessage = (m) => { const ev = JSON.parse(m.data); handle(ev); if (ev.type === "final" || ev.type === "error") { source.close(); source = null; } };
+  source.onerror = () => { if (source && source.readyState === EventSource.CLOSED) source = null; };
+}
+function setRunning(on) {
+  $("send").disabled = on; $("cancel").hidden = !on;
+  $("hint").textContent = on ? "Tim sedang bekerja. Klik Sim untuk melihat progresnya." : "Ctrl + Enter untuk kirim.";
+}
+async function send() {
+  const text = $("task").value.trim();
+  if (!text) { $("task").focus(); $("hint").textContent = "Tulis tugasnya dulu."; return; }
+  if (mode === "live") {
+    $("send").disabled = true;
+    try {
+      const r = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, preset: $("preset").value || undefined, draft: draft.id || undefined }) });
+      if (r.status === 401) { location.href = "/login"; return; }
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error || "Gagal mengirim tugas.");
+      attach(body.id);
+      $("task").value = "";
+      draft.id = null; draft.files = []; renderDraft();
+    } catch (e) { $("send").disabled = false; toast(leader, "Tugas belum terkirim", e.message, "bad"); }
+  } else { demo.start(text); $("task").value = ""; }
+  showTab("chat");
+}
+$("composer").addEventListener("submit", (e) => { e.preventDefault(); send(); });
+$("task").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } });
+$("cancel").addEventListener("click", async () => {
+  if (mode === "live" && jobId) { try { await fetch(`/api/tasks/${jobId}/cancel`, { method: "POST" }); } catch {} }
+  else demo.cancel();
+});
+try { const saved = localStorage.getItem("kantor-pga-preset"); if (saved !== null && [...$("preset").options].some((o) => o.value === saved)) $("preset").value = saved; } catch {}
+$("preset").addEventListener("change", () => { try { localStorage.setItem("kantor-pga-preset", $("preset").value); } catch {} });
+$("chips").innerHTML = EXAMPLES.map(([label], i) => `<button class="chip" type="button" data-i="${i}">${esc(label)}</button>`).join("");
+$("chips").querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => { $("task").value = EXAMPLES[Number(b.dataset.i)][1]; $("task").focus(); }));
 
 /* ---------- Lampiran file untuk tugas (mode langganan) ---------- */
 const draft = { id: null, files: [] };
@@ -1287,9 +1763,10 @@ function renderKnowledge(k) {
   $("knCount").textContent = total ? `${total} file` : "";
   const name = (id) => id === "umum" ? "🏢 Umum (semua)" : (() => { const s = sims.find((x) => x.id === id); return s ? `${s.icon} ${s.sim} · ${s.title}` : id; })();
   $("knList").innerHTML = (entries.length
-    ? entries.map(([id, files]) => `<div class="kn-row" title="${esc(files.join("\n"))}"><b>${esc(name(id))}</b><small>${files.length} file</small></div>`).join("")
-    : `<p class="log-empty">Belum ada. Unggah paket ZIP pengetahuan.</p>`)
-    + (k.berkas ? `<div class="kn-row"><b>🗂️ Berkas pendukung</b><small>${k.berkas} file</small></div>` : "");
+    ? entries.map(([id, files]) => `<div title="${esc(files.join("\n"))}"><b>${esc(name(id))}</b><small>${files.length} file</small></div>`).join("")
+    : `<p class="chat-empty">Belum ada. Unggah paket ZIP pengetahuan.</p>`)
+    + (k.skills ? `<div><b>🧰 Skill pribadi</b><small>${k.skills} skill</small></div>` : "")
+    + (k.berkas ? `<div><b>🗂️ Berkas pendukung</b><small>${k.berkas} file</small></div>` : "");
 }
 async function loadKnowledge() {
   try { const r = await fetch("/api/pengetahuan"); if (r.ok) renderKnowledge(await r.json()); } catch {}
@@ -1304,52 +1781,18 @@ $("knInput").addEventListener("change", async (e) => {
     const body = await r.json();
     if (!r.ok) throw new Error(body.error || "Gagal mengunggah.");
     renderKnowledge(body);
+    if (Array.isArray(body.skillList)) { SKILLS = body.skillList; renderSkills(); }
     $("knHint").textContent = `✅ ${body.entries} entri dipasang. Terpakai mulai tugas berikutnya.`;
   } catch (err) { $("knHint").textContent = `⚠️ ${err.message}`; }
 });
-function attach(id) {
-  jobId = id;
-  source?.close();
-  source = new EventSource(`/api/tasks/${id}/events`);
-  source.onmessage = (m) => { const ev = JSON.parse(m.data); handle(ev); if (ev.type === "final" || ev.type === "error") { source.close(); source = null; } };
-  source.onerror = () => { if (source && source.readyState === EventSource.CLOSED) { source = null; } };
-}
-function setRunning(on) {
-  $("send").disabled = on; $("cancel").hidden = !on;
-  $("hint").textContent = on ? "Tim sedang bekerja. Klik Sim untuk melihat progresnya." : "Ctrl + Enter untuk kirim.";
-}
-async function send() {
-  const text = $("task").value.trim();
-  if (!text) { $("task").focus(); $("hint").textContent = "Tulis tugasnya dulu."; return; }
-  if (mode === "live") {
-    $("send").disabled = true;
-    try {
-      const r = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, preset: $("preset").value || undefined, draft: draft.id || undefined }) });
-      if (r.status === 401) { location.href = "/login"; return; }
-      const body = await r.json();
-      if (!r.ok) throw new Error(body.error || "Gagal mengirim tugas.");
-      attach(body.id);
-      $("task").value = "";
-      draft.id = null; draft.files = []; renderDraft();
-    } catch (e) { $("send").disabled = false; toast(leader, "Tugas belum terkirim", e.message, "bad"); }
-  } else { demo.start(text); $("task").value = ""; }
-}
-$("composer").addEventListener("submit", (e) => { e.preventDefault(); send(); });
-$("task").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } });
-$("cancel").addEventListener("click", async () => {
-  if (mode === "live" && jobId) { try { await fetch(`/api/tasks/${jobId}/cancel`, { method: "POST" }); } catch {} }
-  else demo.cancel();
-});
-try { const saved = localStorage.getItem("kantor-pga-preset"); if (saved !== null) $("preset").value = saved; } catch {}
-$("preset").addEventListener("change", () => { try { localStorage.setItem("kantor-pga-preset", $("preset").value); } catch {} });
-$("chips").innerHTML = EXAMPLES.map(([label], i) => `<button class="chip" type="button" data-i="${i}">${esc(label)}</button>`).join("");
-$("chips").querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => { $("task").value = EXAMPLES[Number(b.dataset.i)][1]; $("task").focus(); }));
 
 function tickClock() {
   const d = new Date();
   $("clock").textContent = d.toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "short" }) + " · " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 }
 tickClock(); setInterval(tickClock, 15000);
-buildTeam(); refreshPanel(true); detectMode();
-setTimeout(() => leader.say("👋", "Sul sul, Rahula!", 4000), 600);
+buildTeam(); renderSkills(); refreshPanel(); detectMode();
+setTimeout(() => { leader.say("👋", "Sul sul, Rahula!", 4000); post(leader, "Selamat datang di kantor, Rahula! Kirim tugas di kotak bawah, atau jalan-jalan dulu: klik lantai untuk berjalan. 👋"); }, 700);
 </script>
+</body>
+</html>

@@ -1,8 +1,10 @@
 # 🏢 Kantor PGA — tim agent Claude untuk Rahula (PGA PGD)
 
 Satu **Pemimpin** (Bima) + **8 agent spesialis** dari dokumen *Paket Agent Claude — Rahula (PGA PGD)*,
-lengkap dengan visualisasi kantor isometrik bergaya **The Sims**: plumbob di atas kepala, balon pikiran,
-Sim yang berjalan mengantar berkas, dan bar kebutuhan (Energi, Fokus, Sosial, Semangat).
+lengkap dengan kantor isometrik hidup ala *Claude Office* × **The Sims**: jendela kaca dengan skyline kota
+(siang/malam mengikuti jam), pod meja dengan monitor ganda, **Rak Skill**, pantry, lounge, plumbob di atas kepala,
+balon pikiran, dan panel chat ala Slack **#kantor-pga** tempat tim melapor. Anda punya avatar sendiri (Rahula):
+klik lantai untuk berjalan, klik Sim untuk menyapa. Kamera bisa digeser, di-zoom, dan mengikuti Sim.
 
 Anda cukup **mengirim satu tugas ke Bima**. Bima memilih agent yang tepat, mendelegasikan (paralel bila bisa),
 **memeriksa hasil** tiap agent (minta revisi bila perlu), lalu menyerahkan **satu hasil akhir** siap pakai.
@@ -72,15 +74,30 @@ dan dijalankan oleh agent pembuat file saat diperlukan.
 - File hasil muncul sebagai tautan unduhan di jendela **Hasil akhir**.
 - Untuk PDF, server perlu LibreOffice Writer (`sudo apt install libreoffice-writer-nogui`); skrip pemasangan HiveOS menawarkannya.
 
-### Memilih model (Opus atau Sonnet)
+### Memilih model
 
-Di bawah kotak tugas ada pilihan **Model tim** (diingat browser):
+Di bawah kotak tugas ada pilihan **Model** (diingat browser):
 
-| Pilihan | Pemimpin | 8 agent | Pemakaian kredit |
-|---|---|---|---|
-| Bawaan | Sonnet 5.5 | Sonnet 5.5 | Paling hemat (bawaan mode langganan) |
-| Campuran | Opus 5.5 | Sonnet 5.5 | Sedang: pemeriksaan akhir lebih teliti |
-| Opus | Opus 5.5 | Opus 5.5 | Paling boros: untuk dokumen hukum/sanksi penting |
+| Pilihan | Pemimpin | 6 agent | Maya & Andi (ringan) | Pemakaian kredit |
+|---|---|---|---|---|
+| Hemat otomatis (bawaan) | Sonnet 5.5, effort medium | Sonnet 5.5 | Haiku 4.5 | Paling hemat |
+| Sonnet semua | Sonnet 5.5 | Sonnet 5.5 | Sonnet 5.5 | Hemat |
+| Campuran | Opus 5.5 | Sonnet 5.5 | Sonnet 5.5 | Sedang: pemeriksaan akhir lebih teliti |
+| Opus semua | Opus 5.5 | Opus 5.5 | Opus 5.5 | Paling boros: dokumen hukum/sanksi penting |
+
+### Skill dan penghematan token
+
+- **Claude Skills**: `skills/` berisi plugin lokal `kantor` dengan 5 skill (`dokumen-resmi`, `rekap-excel`,
+  `baca-lampiran`, `sop-hiradc`, `riset-sumber`). Agent hanya melihat daftar nama + deskripsinya; isi skill
+  baru dimuat saat dipakai. Di kantor, Sim berjalan ke **Rak Skill** dan mengambil buku saat memakai skill.
+  Skill pribadi: taruh di `pengetahuan/skills/<nama>/SKILL.md` (ikut paket ZIP, tidak ke GitHub).
+- **Pengetahuan sesuai kebutuhan**: hanya ±16.000 karakter per agent yang ditempel ke prompt; file lain
+  muncul sebagai indeks dan dibaca agent dengan Read bila relevan (`KNOWLEDGE_INLINE_CHARS`).
+- **Pemadatan konteks otomatis**: percakapan dipadatkan saat konteks mendekati 100 rb token (`KONTEKS_MAKS_TOKEN`),
+  tampil di chat sebagai 🗜️.
+- **Prompt caching** dari Claude Agent SDK: instruksi dan pengetahuan yang sama dibaca ulang dari cache (±10% harga).
+  Pil ⚡ di atas menampilkan jumlah token dan persentase cache; tab **🧰 Skill** merangkum penghematannya.
+- **Model per beban kerja**: agent ringan memakai Haiku 4.5, Pemimpin memakai effort medium (preset hemat).
 
 Perkiraan kasar: satu tugas dengan 2–3 agent memakai sekitar $0,15–0,75 kredit di Sonnet, kira-kira dua kali lipat di Opus.
 
@@ -91,9 +108,11 @@ Salin `.env.example` menjadi `.env` bila ingin mengubah bawaan:
 | Variabel | Bawaan | Arti |
 |---|---|---|
 | `MAX_TASK_USD` | `3` | Rem pengaman kredit per tugas (USD perkiraan) |
-| `CLAUDE_MODEL` | `claude-sonnet-5-5` | Model bawaan untuk semua |
-| `LEADER_MODEL` / `WORKER_MODEL` | ikut `CLAUDE_MODEL` | Model bawaan khusus Pemimpin / agent |
-| `LEADER_EFFORT` / `WORKER_EFFORT` | `high` / `medium` | Kedalaman berpikir |
+| `CLAUDE_MODEL` | — | Paksa satu model untuk semua (mematikan preset hemat) |
+| `LEADER_MODEL` / `WORKER_MODEL` / `LIGHT_MODEL` | preset hemat | Model khusus Pemimpin / agent / agent ringan |
+| `LEADER_EFFORT` / `WORKER_EFFORT` | `medium` / `medium` | Kedalaman berpikir |
+| `KNOWLEDGE_INLINE_CHARS` | `16000` | Pengetahuan yang ditempel ke prompt per agent |
+| `KONTEKS_MAKS_TOKEN` | `100000` | Batas konteks sebelum dipadatkan otomatis |
 | `CLAUDE_CODE_OAUTH_TOKEN` | — | Alternatif login: hasil `claude setup-token` |
 | `ENGINE` | `langganan` | Isi `api` untuk memakai `ANTHROPIC_API_KEY` berbayar (opsional) |
 | `PORT` / `HOST` | `3000` / `127.0.0.1` | Alamat server |
@@ -154,10 +173,18 @@ Anda ──tugas──▶ Bima (Pemimpin)
 - `server.js`: server HTTP + Server-Sent Events ke browser.
 - `public/index.html`: kantor Sims (canvas isometrik) + panel tim, aktivitas, dan hasil.
 
-### Status plumbob
+### Kantor dan kontrolnya
 
-🟢 siap · 🟡 bekerja · 🔵 berpikir/memeriksa · 🔴 ada masalah. Klik Sim (atau namanya di panel Tim)
-untuk melihat tugas, progres, bar kebutuhan, dan hasil terakhirnya. Tombol ❚❚ ▶ ▶▶ ▶▶▶ mengatur kecepatan animasi.
+- Plumbob: 🟢 siap · 🟡 bekerja · 🔵 berpikir/memeriksa · 🔴 ada masalah.
+- **Seret** untuk menggeser, **gulir/cubit** untuk zoom, tombol ⟲ untuk melihat seluruh kantor, 🎯 agar kamera mengikuti Sim terpilih.
+  Di keyboard: panah/WASD dan +/−.
+- **Klik lantai**: avatar Rahula berjalan ke sana. **Klik Sim**: Rahula menghampiri dan panel kiri atas menampilkan tugas,
+  bar kebutuhan, dan hasil terakhirnya.
+- Saat tugas dikirim, Rahula mengantar berkas ke meja Bima; Bima mengantar tugas ke tiap agent, agent mengantar hasil
+  kembali, dan Bima menyerahkan hasil akhir ke Rahula. Papan kanban di dinding menampilkan tugas aktif per Sim.
+- Saat santai, Sim ngopi di pantry, ngobrol di meja rapat, atau rehat di lounge.
+- 🌗 mengatur pencahayaan (otomatis/siang/malam), ◐ tema terang/gelap, ❚❚ ▶ ▶▶ kecepatan animasi.
+- Panel bertab: 💬 Chat #kantor-pga, 👥 Tim (dengan model tiap agent), 🧰 Skill, 📚 Konteks (pengetahuan), 📁 Hasil.
 
 ### Batasan yang perlu diketahui
 

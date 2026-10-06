@@ -13,17 +13,33 @@ const MAX_WORKER_PAUSES = 6;
 export const MODELS = {
   "claude-opus-5-5": { label: "Opus 5.5", price: { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 } },
   "claude-sonnet-5-5": { label: "Sonnet 5.5", price: { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 } },
+  "claude-haiku-4-5": { label: "Haiku 4.5", price: { input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 } },
 };
-// Pilihan di layar: model untuk Pemimpin dan untuk agent.
+// Agent dengan pekerjaan ringan (draf email, langkah portal): cukup model kecil di mode hemat.
+export const LIGHT_AGENTS = new Set(["email-kalender", "chrome-portal"]);
+// Pilihan di layar: model untuk Pemimpin, agent, dan agent ringan.
 export const PRESETS = {
-  opus: { label: "Opus (paling teliti)", leader: "claude-opus-5-5", worker: "claude-opus-5-5" },
-  campuran: { label: "Campuran: Pemimpin Opus, agent Sonnet", leader: "claude-opus-5-5", worker: "claude-sonnet-5-5" },
-  sonnet: { label: "Sonnet (lebih cepat & hemat)", leader: "claude-sonnet-5-5", worker: "claude-sonnet-5-5" },
+  hemat: { label: "Hemat otomatis: Sonnet + Haiku untuk tugas ringan", leader: "claude-sonnet-5-5", worker: "claude-sonnet-5-5", light: "claude-haiku-4-5", leaderEffort: "medium" },
+  sonnet: { label: "Sonnet (cepat & hemat)", leader: "claude-sonnet-5-5", worker: "claude-sonnet-5-5", light: "claude-sonnet-5-5" },
+  campuran: { label: "Campuran: Pemimpin Opus, agent Sonnet", leader: "claude-opus-5-5", worker: "claude-sonnet-5-5", light: "claude-sonnet-5-5" },
+  opus: { label: "Opus (paling teliti)", leader: "claude-opus-5-5", worker: "claude-opus-5-5", light: "claude-opus-5-5" },
 };
 export function defaultModels() {
-  // Mode langganan memakai Sonnet sebagai bawaan agar kredit Agent SDK bulanan lebih awet.
-  const base = process.env.CLAUDE_MODEL || (process.env.ENGINE === "api" ? "claude-opus-5-5" : "claude-sonnet-5-5");
-  return { leader: process.env.LEADER_MODEL || base, worker: process.env.WORKER_MODEL || base };
+  // Mode langganan memakai preset hemat sebagai bawaan agar kredit Agent SDK bulanan lebih awet.
+  if (process.env.ENGINE === "api") {
+    const base = process.env.CLAUDE_MODEL || "claude-opus-5-5";
+    const worker = process.env.WORKER_MODEL || base;
+    return { leader: process.env.LEADER_MODEL || base, worker, light: worker };
+  }
+  const h = PRESETS.hemat;
+  const base = process.env.CLAUDE_MODEL;
+  const worker = process.env.WORKER_MODEL || base || h.worker;
+  return {
+    leader: process.env.LEADER_MODEL || base || h.leader,
+    worker,
+    light: process.env.LIGHT_MODEL || (base || process.env.WORKER_MODEL ? worker : h.light),
+    leaderEffort: process.env.LEADER_EFFORT || (base || process.env.LEADER_MODEL ? undefined : h.leaderEffort),
+  };
 }
 
 // Lampiran untuk setiap agent saat bekerja di bawah Pemimpin.
@@ -31,6 +47,16 @@ const WORKER_APPENDIX = `
 
 MODE TIM
 Anda menerima tugas dari Pemimpin tim, bukan langsung dari Rahula, dan tidak bisa bertanya balik. Bila data kurang, jangan berhenti: kerjakan sejauh mungkin dengan asumsi wajar yang ditandai [ASUMSI] atau [ISI: ...], lalu tulis daftar "Pertanyaan untuk Rahula" di akhir. Serahkan hasil kerja final lengkap (bukan rencana).`;
+
+const addTokens = (t, u) => {
+  if (!u) return t;
+  t.input += u.input_tokens ?? 0;
+  t.output += u.output_tokens ?? 0;
+  t.cacheRead += u.cache_read_input_tokens ?? 0;
+  t.cacheWrite += u.cache_creation_input_tokens ?? 0;
+  return t;
+};
+const newTokens = () => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
 
 function costOf(usage, model) {
   if (!usage) return 0;
@@ -111,6 +137,7 @@ async function runWorker(agent, instruksi, ctx) {
   let chars = 0;
   let lastEmit = 0;
   let cost = 0;
+  const tokens = newTokens();
   let message;
 
   for (let i = 0; i <= MAX_WORKER_PAUSES; i++) {
@@ -138,16 +165,17 @@ async function runWorker(agent, instruksi, ctx) {
       },
     });
     cost += costOf(message.usage, model);
+    addTokens(tokens, message.usage);
     if (message.stop_reason !== "pause_turn") break;
     messages.push({ role: "assistant", content: message.content });
   }
 
   if (message.stop_reason === "refusal") {
-    return { ok: false, output: "Agent menolak tugas ini (refusal) dan model cadangan juga menolak.", cost };
+    return { ok: false, output: "Agent menolak tugas ini (refusal) dan model cadangan juga menolak.", cost, tokens };
   }
   const output = textOf(message);
   const truncated = message.stop_reason === "max_tokens" ? "\n\n[Catatan: keluaran terpotong karena batas panjang.]" : "";
-  return { ok: output.length > 0, output: (output || "(agent tidak menghasilkan teks)") + truncated, cost };
+  return { ok: output.length > 0, output: (output || "(agent tidak menghasilkan teks)") + truncated, cost, tokens };
 }
 
 /**
@@ -166,8 +194,14 @@ export async function runTask(task, emit, { agents, leader, signal, models = def
   let callSeq = 0;
   let jsonRetries = 0;
 
-  const addCost = (c) => {
+  const tokens = newTokens();
+  const addCost = (c, usageOrTokens) => {
     totalCost += c;
+    if (usageOrTokens) {
+      if ("input" in usageOrTokens) for (const k of Object.keys(tokens)) tokens[k] += usageOrTokens[k];
+      else addTokens(tokens, usageOrTokens);
+      emit({ type: "tokens", ...tokens });
+    }
     emit({ type: "cost", usd: Number(totalCost.toFixed(4)) });
   };
 
@@ -196,7 +230,7 @@ export async function runTask(task, emit, { agents, leader, signal, models = def
       emit({ type: "leader_status", status: "thinking", text: "Mengulang instruksi delegasi…" });
       continue;
     }
-    addCost(costOf(message.usage, models.leader));
+    addCost(costOf(message.usage, models.leader), message.usage);
 
     if (message.stop_reason === "refusal") {
       throw new Error("Pemimpin menolak tugas ini (refusal), termasuk di model cadangan.");
@@ -239,7 +273,7 @@ export async function runTask(task, emit, { agents, leader, signal, models = def
         });
         try {
           const r = await runWorker(agent, tu.input.instruksi, { emit, callId, signal, model: models.worker });
-          addCost(r.cost);
+          addCost(r.cost, r.tokens);
           workLog.push({ agent: agent.id, sim: agent.sim, title: agent.title, instruksi: tu.input.instruksi, output: r.output });
           emit({ type: "worker_done", callId, agent: agent.id, ok: r.ok, output: r.output });
           return { type: "tool_result", tool_use_id: tu.id, content: r.output, ...(r.ok ? {} : { is_error: true }) };

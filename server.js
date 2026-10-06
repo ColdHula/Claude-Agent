@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadAgents } from "./src/agents.js";
 import { runTask, MODELS, PRESETS, defaultModels } from "./src/orchestrator.js";
-import { runTaskSdk } from "./src/orchestrator-sdk.js";
+import { runTaskSdk, findSkills } from "./src/orchestrator-sdk.js";
 import { makeAuth } from "./src/auth.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -35,7 +35,7 @@ if (process.env.APP_PASSWORD && process.env.APP_PASSWORD.length < 12) {
 }
 const guard = makeAuth(process.env.APP_PASSWORD);
 
-const team = await loadAgents();
+const team = await loadAgents({ lazy: ENGINE !== "api" });
 const jobs = new Map(); // id -> { events, listeners, done, controller }
 let running = null;
 
@@ -91,6 +91,7 @@ async function listFiles(dir, skip = new Set()) {
 async function knowledgeSummary() {
   const folders = {};
   let berkas = 0;
+  let skills = 0;
   async function walk(dir, rel) {
     let items = [];
     try { items = await fs.readdir(dir, { withFileTypes: true }); } catch { return; }
@@ -99,6 +100,7 @@ async function knowledgeSummary() {
       const r = rel ? `${rel}/${d.name}` : d.name;
       if (d.isDirectory()) await walk(path.join(dir, d.name), r);
       else if (r.startsWith("berkas/")) berkas++;
+      else if (r.startsWith("skills/")) { if (d.name === "SKILL.md") skills++; }
       else if (/\.(md|txt)$/i.test(d.name) && d.name.toLowerCase() !== "readme.md") {
         const top = r.includes("/") ? r.split("/")[0] : "(akar)";
         (folders[top] ||= []).push(d.name);
@@ -106,7 +108,7 @@ async function knowledgeSummary() {
     }
   }
   await walk(PENGETAHUAN, "");
-  return { folders, berkas };
+  return { folders, berkas, skills };
 }
 
 function json(res, status, body) {
@@ -140,8 +142,11 @@ async function saveResult(task, result) {
 
 // Pilihan preset dari layar; bila kosong pakai pengaturan .env.
 function resolveModels(preset) {
-  const m = PRESETS[preset] ? { leader: PRESETS[preset].leader, worker: PRESETS[preset].worker } : defaultModels();
-  for (const id of [m.leader, m.worker]) if (!MODELS[id]) throw new Error(`Model tidak dikenal: ${id}. Pilih salah satu: ${Object.keys(MODELS).join(", ")}.`);
+  const p = PRESETS[preset];
+  const m = p ? { leader: p.leader, worker: p.worker, light: p.light, leaderEffort: p.leaderEffort } : defaultModels();
+  // Mesin API memakai adaptive thinking + effort yang belum didukung Haiku; agent ringan ikut model agent.
+  if (ENGINE === "api") m.light = m.worker;
+  for (const id of [m.leader, m.worker, m.light]) if (!MODELS[id]) throw new Error(`Model tidak dikenal: ${id}. Pilih salah satu: ${Object.keys(MODELS).join(", ")}.`);
   return m;
 }
 
@@ -156,7 +161,7 @@ function startJob(task, models, draft) {
     job.events.push(e);
     for (const res of job.listeners) res.write(`data: ${JSON.stringify(e)}\n\n`);
   };
-  emit({ type: "task", id, text: task, models: { leader: MODELS[models.leader].label, worker: MODELS[models.worker].label } });
+  emit({ type: "task", id, text: task, models: { leader: MODELS[models.leader].label, worker: MODELS[models.worker].label, light: MODELS[models.light].label } });
   // Muat ulang instruksi + pengetahuan di setiap tugas, agar file baru di pengetahuan/ langsung terpakai.
   (async () => {
     await fs.mkdir(path.join(workDir, "masukan"), { recursive: true });
@@ -169,11 +174,12 @@ function startJob(task, models, draft) {
   })()
     .then(async (inputs) => {
       if (inputs.length) emit({ type: "leader_say", text: `📎 Lampiran: ${inputs.join(", ")}` });
-      return { inputs, fresh: await loadAgents() };
+      return { inputs, fresh: await loadAgents({ lazy: ENGINE !== "api" }) };
     })
     .then(({ inputs, fresh }) => {
       if (fresh.knowledge.files.length) {
-        emit({ type: "leader_say", text: `📚 Pengetahuan dimuat: ${fresh.knowledge.files.join(", ")} (${fresh.knowledge.chars.toLocaleString("id-ID")} karakter${fresh.knowledge.truncated ? ", sebagian dipotong" : ""}).` });
+        const k = fresh.knowledge;
+        emit({ type: "leader_say", text: `📚 Pengetahuan: ${k.files.length} file (${k.chars.toLocaleString("id-ID")} karakter)${k.lazy ? `; mode hemat: rata-rata ${k.inlineChars.toLocaleString("id-ID")} karakter per agent ditempel, sisanya dibaca bila perlu` : ""}${k.truncated ? ", sebagian dipotong" : ""}.` });
       }
       return run(task, emit, { ...fresh, models, signal: job.controller.signal, workDir, inputs });
     })
@@ -205,6 +211,7 @@ const server = http.createServer(async (req, res) => {
         running,
         leader: { id: team.leader.id, sim: team.leader.sim, title: team.leader.title },
         agents: team.agents.map(({ id, sim, title, icon, web, description }) => ({ id, sim, title, icon, web, description })),
+        ...(ENGINE === "langganan" ? { skills: (await findSkills()).details } : {}),
       });
     }
     if (url.pathname === "/api/tasks" && req.method === "POST") {
@@ -262,7 +269,7 @@ const server = http.createServer(async (req, res) => {
         const strip = entries.every((e) => e === "pengetahuan/" || e.startsWith("pengetahuan/"));
         await fs.mkdir(PENGETAHUAN, { recursive: true });
         await run$("unzip", ["-o", "-q", tmp, "-d", strip ? here : PENGETAHUAN], { maxBuffer: 50e6 });
-        return json(res, 200, { ok: true, entries: entries.length, ...(await knowledgeSummary()) });
+        return json(res, 200, { ok: true, entries: entries.length, ...(await knowledgeSummary()), skillList: (await findSkills()).details });
       } catch (err) {
         return json(res, 400, { error: err.code === "ENOENT" ? "Perintah unzip belum terpasang di server (sudo apt install unzip)." : String(err.message || err) });
       } finally {
@@ -315,7 +322,7 @@ server.listen(PORT, HOST, () => {
   else if (ENGINE === "langganan") console.log("  ✅ Mode LIVE (langganan) — memakai login akun Claude + kredit Agent SDK bulanan. Tanpa API key.");
   else console.log("  ✅ Mode LIVE (API) — memakai ANTHROPIC_API_KEY berbayar.");
   const dm = defaultModels();
-  if (LIVE) console.log(`  🧠 Model bawaan: Pemimpin ${dm.leader}, agent ${dm.worker} (bisa diganti di layar)`);
+  if (LIVE) console.log(`  🧠 Model bawaan: Pemimpin ${dm.leader}, agent ${dm.worker}, agent ringan ${dm.light} (bisa diganti di layar)`);
   const k = team.knowledge;
   console.log(k.files.length ? `  📚 Pengetahuan: ${k.files.length} file (${k.chars.toLocaleString("id-ID")} karakter)${k.truncated ? " — melebihi batas, sebagian dipotong" : ""}` : "  📚 Pengetahuan: belum ada (taruh file .md/.txt di folder pengetahuan/)");
   console.log(`  👥 ${team.leader.sim} (Pemimpin) + ${team.agents.map((a) => a.sim).join(", ")}\n`);
