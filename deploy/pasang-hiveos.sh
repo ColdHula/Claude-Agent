@@ -30,6 +30,8 @@ ok()   { printf '  \033[1;32m✓\033[0m %s\n' "$*"; }
 warn() { printf '  \033[1;33m!\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[1;31m✗ %s\033[0m\n\n' "$*"; exit 1; }
 ask()  { local q="$1" def="${2:-}" a; read -r -p "  $q " a </dev/tty || true; printf '%s' "${a:-$def}"; }
+# Input tersembunyi (kata sandi/token): tidak tampil di layar.
+ask_secret() { local a; read -r -s -p "  $1 " a </dev/tty || true; echo >/dev/tty; printf '%s' "$a"; }
 
 [ "$(id -u)" -eq 0 ] || die "Jalankan dengan sudo: ... | sudo bash"
 id "$APP_USER" >/dev/null 2>&1 || die "Pengguna '$APP_USER' tidak ada. Jalankan ulang dengan APP_USER=<nama> di depan perintah."
@@ -162,15 +164,22 @@ else
     TOKEN="$(ask 'Tempel token sk-ant-oat01-... (kosongkan untuk mode demo):')"
     TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
   fi
-  PASS="$(ask 'Kata sandi aplikasi (min. 12 karakter, kosongkan untuk dibuatkan):')"
-  if [ -z "$PASS" ]; then PASS="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-16)"; GENERATED=1; fi
+  while :; do
+    PASS="$(ask_secret 'Kata sandi aplikasi (min. 12 karakter, tidak tampil saat diketik; kosongkan untuk dibuatkan):')"
+    if [ -z "$PASS" ]; then PASS="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-16)"; GENERATED=1; break; fi
+    if [ "${#PASS}" -lt 12 ]; then warn "Terlalu pendek (${#PASS} karakter). Minimal 12, coba lagi."; continue; fi
+    case "$PASS" in *"'"*) warn "Jangan pakai tanda petik satu ('), coba lagi."; continue ;; esac
+    [ "$(ask_secret 'Ketik ulang kata sandi:')" = "$PASS" ] && break
+    warn "Tidak sama, coba lagi."
+  done
   [ "${#PASS}" -ge 12 ] || die "Kata sandi minimal 12 karakter."
   umask 077
   {
     echo "# Dibuat oleh pasang-hiveos.sh pada $(date '+%Y-%m-%d %H:%M')"
     echo "PORT=$PORT"
     echo "HOST=127.0.0.1"
-    echo "APP_PASSWORD=$PASS"
+    # Dikutip agar karakter seperti # tidak dianggap komentar oleh Node.
+    echo "APP_PASSWORD='$PASS'"
     echo "MAX_TASK_USD=3"
     [ -n "$TOKEN" ] && echo "CLAUDE_CODE_OAUTH_TOKEN=$TOKEN" || echo "DEMO=1"
   } >"$ENV_FILE"
