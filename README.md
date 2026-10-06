@@ -21,6 +21,8 @@ Anda cukup **mengirim satu tugas ke Bima**. Bima memilih agent yang tepat, mende
 | 💰 Budi | Cari Cuan | Peluang sampingan dengan skenario untung-rugi | ✅ |
 | 🔎 Laras | Riset | Riset bersumber primer | ✅ |
 
+**Cara memberi tugas & lampiran per jenis tugas:** [public/cara-pakai.md](public/cara-pakai.md) (juga tombol **📖 Cara Pakai** di aplikasi).
+
 ## Menjalankan dengan langganan Claude (tanpa biaya tambahan)
 
 Aplikasi ini memakai **login akun Claude Anda** lewat Claude Agent SDK. Pemakaiannya diambil dari
