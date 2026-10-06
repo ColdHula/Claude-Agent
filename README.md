@@ -87,10 +87,14 @@ Di bawah kotak tugas ada pilihan **Model** (diingat browser):
 
 ### Skill dan penghematan token
 
-- **Claude Skills**: `skills/` berisi plugin lokal `kantor` dengan 5 skill (`dokumen-resmi`, `rekap-excel`,
-  `baca-lampiran`, `sop-hiradc`, `riset-sumber`). Agent hanya melihat daftar nama + deskripsinya; isi skill
+- **Claude Skills**: `skills/` berisi plugin lokal `kantor` dengan 10 skill:
+  `hukum-pengadilan` (**Skill COURT**: PHI, mediasi Disnaker, somasi, gugatan, laporan polisi), `dokumen-resmi`,
+  `periksa-dokumen`, `rekap-excel`, `baca-lampiran`, `sop-hiradc`, `riset-sumber`, `rencana-kerja`,
+  `memori-kantor`, dan `pembuat-skill`. Agent hanya melihat daftar nama + deskripsinya; isi skill
   baru dimuat saat dipakai. Di kantor, Sim berjalan ke **Rak Skill** dan mengambil buku saat memakai skill.
   Skill pribadi: taruh di `pengetahuan/skills/<nama>/SKILL.md` (ikut paket ZIP, tidak ke GitHub).
+- **Memori kantor**: bila hasil akhir Bima berisi bagian "## Catatan untuk Diingat", poin-poinnya otomatis disimpan ke
+  `pengetahuan/umum/99-memori-kantor.md` dan dipakai di tugas berikutnya (nomor surat terakhir, keputusan, status kasus).
 - **Pengetahuan sesuai kebutuhan**: hanya ±16.000 karakter per agent yang ditempel ke prompt; file lain
   muncul sebagai indeks dan dibaca agent dengan Read bila relevan (`KNOWLEDGE_INLINE_CHARS`).
 - **Pemadatan konteks otomatis**: percakapan dipadatkan saat konteks mendekati 100 rb token (`KONTEKS_MAKS_TOKEN`),

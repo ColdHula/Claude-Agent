@@ -471,8 +471,13 @@ let SKILLS = [
   { name: "kantor:baca-lampiran", description: "Membaca PDF/DOCX/XLSX/foto seperlunya agar hemat token." },
   { name: "kantor:sop-hiradc", description: "Kerangka SOP + tabel HIRADC + evaluasi vendor (EVAS)." },
   { name: "kantor:riset-sumber", description: "Riset sumber primer dengan batas pencarian dan daftar yang belum pasti." },
+  { name: "kantor:hukum-pengadilan", description: "Skill COURT: PHI, mediasi Disnaker, somasi, gugatan, laporan polisi — kronologi, matriks bukti, tenggat, draf dokumen perkara." },
+  { name: "kantor:periksa-dokumen", description: "Cek mutu sebelum diserahkan: nama, NIK, tanggal-hari, nomor, nominal-terbilang, render." },
+  { name: "kantor:rencana-kerja", description: "Rencana singkat sebelum tugas panjang/berisiko agar tidak salah arah dan hemat token." },
+  { name: "kantor:memori-kantor", description: "Memakai dan mengusulkan catatan fakta tetap antar tugas (memori kantor)." },
+  { name: "kantor:pembuat-skill", description: "Mengubah pekerjaan berulang menjadi skill baru (SKILL.md)." },
 ];
-const AGENT_SKILL = { "surat-ba": "kantor:dokumen-resmi", "data-rekap": "kantor:rekap-excel", "sop-k3-vendor": "kantor:sop-hiradc", "riset": "kantor:riset-sumber", "kepatuhan-perizinan": "kantor:riset-sumber", "email-kalender": "kantor:baca-lampiran" };
+const AGENT_SKILL = { "surat-ba": "kantor:dokumen-resmi", "data-rekap": "kantor:rekap-excel", "sop-k3-vendor": "kantor:sop-hiradc", "riset": "kantor:riset-sumber", "kepatuhan-perizinan": "kantor:hukum-pengadilan", "email-kalender": "kantor:baca-lampiran" };
 const EXAMPLES = [
   ["BA kehilangan Bekasi", "Buat BA kehilangan 2 karton produk di gudang cabang Bekasi, ditemukan saat stock opname 30 September 2026."],
   ["Izin habis < Jan 2027", "Dari file rekap, izin cabang mana yang habis sebelum Januari 2027? Susun rencana perpanjangannya."],

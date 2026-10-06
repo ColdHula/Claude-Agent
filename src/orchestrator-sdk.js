@@ -81,7 +81,10 @@ HEMAT TOKEN
 const LEADER_APPENDIX = `
 
 ALAT DELEGASI DI MODE INI
-Alat delegasi bernama Agent. Isi subagent_type dengan id agent (mis. "surat-ba"), description dengan ringkasan tugas maksimal 8 kata, dan prompt dengan instruksi lengkap. Panggil beberapa Agent dalam satu giliran untuk tugas yang saling lepas. Jangan memakai alat lain selain Agent. Jawaban akhir Anda (teks setelah semua delegasi selesai) adalah hasil akhir untuk Rahula.`;
+Alat delegasi bernama Agent. Isi subagent_type dengan id agent (mis. "surat-ba"), description dengan ringkasan tugas maksimal 8 kata, dan prompt dengan instruksi lengkap. Panggil beberapa Agent dalam satu giliran untuk tugas yang saling lepas. Jangan memakai alat lain selain Agent. Jawaban akhir Anda (teks setelah semua delegasi selesai) adalah hasil akhir untuk Rahula.
+
+MEMORI KANTOR
+Bila tugas ini menghasilkan fakta tetap yang berguna untuk tugas berikutnya (keputusan Rahula, nomor surat terakhir yang terpakai, preferensi format, kontak instansi, status/tenggat kasus), tutup hasil akhir dengan bagian "## Catatan untuk Diingat" berisi maksimal 5 poin singkat yang sudah pasti. Sistem menyimpannya otomatis ke pengetahuan/umum/99-memori-kantor.md. Pertimbangkan "Usulan catatan untuk diingat" dari agent. Tanpa fakta baru, jangan tulis bagian ini.`;
 
 function textFromToolResult(content) {
   if (typeof content === "string") return content;

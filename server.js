@@ -118,6 +118,23 @@ async function knowledgeSummary() {
   return { folders, berkas, skills };
 }
 
+// Memori kantor: bagian "## Catatan untuk Diingat" dari hasil akhir Bima disimpan ke pengetahuan/umum/,
+// sehingga tugas berikutnya ikut tahu. Dibatasi agar tidak membengkak (entri terlama dibuang).
+const MEMORY_FILE = path.join(PENGETAHUAN, "umum", "99-memori-kantor.md");
+const MEMORY_MAX = 8000;
+async function rememberNotes(task, final) {
+  const m = String(final).match(/^##\s*Catatan untuk Diingat\s*\n([\s\S]*?)(?=^##\s|(?![\s\S]))/im);
+  const notes = m && m[1].split("\n").filter((l) => /^\s*[-*]\s+\S/.test(l)).slice(0, 5).map((l) => l.trim());
+  if (!notes || !notes.length) return;
+  const head = "# Memori kantor\nCatatan fakta tetap dari tugas sebelumnya (ditulis otomatis dari hasil akhir Bima). Terbaru di bawah.\n";
+  let old = await fs.readFile(MEMORY_FILE, "utf8").catch(() => head);
+  const entry = `\n## ${new Date().toISOString().slice(0, 10)} — ${task.replace(/\s+/g, " ").slice(0, 80)}\n${notes.join("\n")}\n`;
+  let body = old.replace(head, "") + entry;
+  while (body.length > MEMORY_MAX && body.indexOf("\n## ", 1) > 0) body = body.slice(body.indexOf("\n## ", 1));
+  await fs.mkdir(path.dirname(MEMORY_FILE), { recursive: true });
+  await fs.writeFile(MEMORY_FILE, head + body);
+}
+
 function json(res, status, body) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(body));
@@ -193,6 +210,7 @@ function startJob(task, models, draft) {
     })
     .then(async (result) => {
       const file = await saveResult(task, result).catch(() => null);
+      await rememberNotes(task, result.final).catch(() => {});
       const files = (await listFiles(workDir)).map((f) => ({ ...f, url: `/hasil/tugas-${id}/${encodeURIComponent(f.name)}` }));
       emit({ type: "final", output: result.final, file, files, workLog: result.workLog, usd: Number(result.cost.toFixed(4)) });
     })
