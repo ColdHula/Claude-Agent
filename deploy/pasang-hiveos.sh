@@ -66,7 +66,7 @@ ok "git $(git --version | awk '{print $3}')"
 # Alat dokumen untuk agent yang membuat file (Sari, Rina, Joko): unzip, PDF, gambar, Excel.
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq || true
-apt-get install -y -qq unzip poppler-utils imagemagick python3 python3-pip python3-openpyxl >/dev/null || warn "Sebagian alat dokumen gagal dipasang."
+apt-get install -y -qq unzip poppler-utils imagemagick python3 python3-pip python3-openpyxl qrencode >/dev/null || warn "Sebagian alat dokumen gagal dipasang."
 python3 -m pip install -q pypdf pymupdf python-docx 2>/dev/null \
   || python3 -m pip install -q --break-system-packages pypdf pymupdf python-docx 2>/dev/null \
   || warn "Pustaka Python pypdf/pymupdf/python-docx belum terpasang."
@@ -105,6 +105,42 @@ fi
 ok "Komponen terpasang dan bisa dimuat"
 as_user mkdir -p "$APP_DIR/hasil" "$APP_DIR/pengetahuan/umum"
 
+# Jalankan "claude setup-token" sambil merekam keluarannya: tautan login ditampilkan sebagai kode QR
+# (Hive Shell sulit untuk menyalin teks) dan token sk-ant-oat01-... diambil otomatis dari rekaman.
+URL_CHARS='A-Za-z0-9%&=?/._:~+-'
+strip_ansi() { sed 's/\x1b\[[0-9;?]*[A-Za-z]//g; s/\x1b\][^\x07\x1b]*\(\x07\|\x1b\\\)//g' | tr -d '\r'; }
+get_token() {
+  local log watcher
+  log="$(mktemp)"
+  (
+    for _ in $(seq 600); do
+      u="$(strip_ansi <"$log" | grep -aoE "https://claude\.(com|ai)/[$URL_CHARS]*authorize[$URL_CHARS]*" | awk 'NR==1' || true)"
+      if [ -n "$u" ]; then
+        sleep 1
+        {
+          echo
+          if command -v qrencode >/dev/null; then
+            echo "  ➜ Pindai kode QR ini dengan kamera HP:"
+            qrencode -t ANSIUTF8 -m 1 "$u"
+          else
+            echo "  ➜ Tautan login (satu baris):"; echo "$u"
+          fi
+          echo "  ➜ Setelah Authorize, salin kode dari halaman Claude lalu tempel di bawah dan tekan Enter."
+        } >/dev/tty
+        break
+      fi
+      sleep 1
+    done
+  ) &
+  watcher=$!
+  SETUP_CMD="${SETUP_CMD:-sudo -H -u $APP_USER env PATH=$NODE_DIR:/usr/local/bin:/usr/bin:/bin npx -y @anthropic-ai/claude-code setup-token}"
+  script -qfec "stty cols 1000 2>/dev/null; $SETUP_CMD" "$log" </dev/tty >/dev/tty 2>&1 \
+    || warn "Pembuatan token belum berhasil. Anda tetap bisa menempel token yang dibuat di perangkat lain."
+  kill "$watcher" 2>/dev/null || true
+  TOKEN="$(strip_ansi <"$log" | grep -aoE 'sk-ant-oat01-[A-Za-z0-9_-]{20,}' | awk 'END{print}' || true)"
+  rm -f "$log"
+}
+
 say "4/5 Pengaturan (.env)"
 ENV_FILE="$APP_DIR/.env"
 if [ -f "$ENV_FILE" ]; then
@@ -113,15 +149,19 @@ else
   echo "  Token langganan Claude (sk-ant-oat01-...) menghubungkan aplikasi ke akun Claude Pro/Max Anda."
   TOKEN=""
   if [ "$(ask 'Buat token sekarang di rig ini? [Y/n]' Y)" != "n" ]; then
-    echo "  ➜ Sebentar lagi muncul tautan. Buka tautan itu di HP/Chromebook, login akun Claude,"
-    echo "    klik Authorize, salin kode yang muncul, lalu tempel di sini dan tekan Enter."
-    echo "  ➜ Setelah selesai, terminal menampilkan token panjang diawali sk-ant-oat01-. Salin token itu."
-    as_user npx -y @anthropic-ai/claude-code setup-token </dev/tty >/dev/tty 2>&1 || warn "Pembuatan token gagal. Anda tetap bisa menempel token yang dibuat di perangkat lain."
+    echo "  ➜ Sebentar lagi muncul KODE QR. Pindai dengan kamera HP (tidak perlu menyalin tautan),"
+    echo "    login akun Claude, klik Authorize, salin kode yang muncul, tempel di sini, lalu Enter."
+    echo "  ➜ Token diambil otomatis setelah selesai; Anda tidak perlu menyalinnya."
+    get_token
   else
     echo "  Di Chromebook (Linux aktif) atau laptop dengan Node.js, jalankan:  npx -y @anthropic-ai/claude-code setup-token"
   fi
-  TOKEN="$(ask 'Tempel token sk-ant-oat01-... (kosongkan untuk mode demo):')"
-  TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
+  if [ -n "$TOKEN" ]; then
+    ok "Token tertangkap otomatis (${TOKEN:0:18}…)"
+  else
+    TOKEN="$(ask 'Tempel token sk-ant-oat01-... (kosongkan untuk mode demo):')"
+    TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
+  fi
   PASS="$(ask 'Kata sandi aplikasi (min. 12 karakter, kosongkan untuk dibuatkan):')"
   if [ -z "$PASS" ]; then PASS="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-16)"; GENERATED=1; fi
   [ "${#PASS}" -ge 12 ] || die "Kata sandi minimal 12 karakter."

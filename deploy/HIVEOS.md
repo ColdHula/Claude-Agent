@@ -65,15 +65,16 @@ Skrip berjalan 5 langkah dan beberapa kali bertanya. Jawab seperti ini:
 |---|---|
 | *Pasang LibreOffice Writer agar hasil surat/BA juga jadi PDF?* | Tekan **Enter** (Ya). |
 | *Buat token sekarang di rig ini? [Y/n]* | Tekan **Enter** (Ya). Lihat penjelasan di bawah. |
-| *Tempel token sk-ant-oat01-...* | Tempel token yang baru dibuat, Enter. |
+| *Tempel token sk-ant-oat01-...* | Hanya muncul bila token tidak tertangkap otomatis: tempel token, Enter. |
 | *Kata sandi aplikasi* | Ketik kata sandi minimal 12 karakter, atau kosongkan agar dibuatkan. **Catat kata sandinya.** |
 | *Pasang Tailscale?* | Tekan **Enter** (Ya). |
 
 **Membuat token Claude (langkah paling penting):**
-1. Setelah menjawab Ya, terminal menampilkan tautan panjang `https://claude.ai/oauth/...`.
-2. Salin tautan itu dan buka di HP/Chromebook. Login dengan akun Claude Pro/Max → klik **Authorize**.
-3. Halaman menampilkan **kode**. Salin kode itu, tempel di terminal, Enter.
-4. Terminal menampilkan **token** panjang diawali `sk-ant-oat01-`. Salin seluruhnya, lalu tempel saat ditanya.
+1. Setelah menjawab Ya, terminal menampilkan **kode QR**. Pindai dengan kamera HP (tidak perlu menyalin tautan).
+2. Di HP: login dengan akun Claude Pro/Max → klik **Authorize**.
+3. Halaman menampilkan **kode**. Salin kode itu di HP, lalu tempel di Hive Shell pada baris `Paste code here if prompted >` dan tekan Enter.
+   (Menempel ke Hive Shell bisa dilakukan walau menyalin dari Hive Shell sulit.)
+4. Token `sk-ant-oat01-...` **diambil otomatis**; muncul `✓ Token tertangkap otomatis`. Tidak perlu disalin.
    Token ini setara kata sandi akun Claude: jangan dibagikan ke siapa pun.
 
 **Login Tailscale di rig:** terminal menampilkan tautan `https://login.tailscale.com/a/...`. Buka di HP,
