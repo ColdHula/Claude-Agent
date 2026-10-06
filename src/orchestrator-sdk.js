@@ -111,6 +111,18 @@ function friendlyError(raw) {
   return msg || "Terjadi galat yang tidak diketahui.";
 }
 
+// Folder HOME khusus agent dengan profil shell minimal.
+const AGENT_HOME = path.join(APP_ROOT, ".rumah-agent");
+async function prepareAgentHome() {
+  await fs.mkdir(AGENT_HOME, { recursive: true });
+  const rc = "# Profil minimal untuk alat Bash agent Kantor PGA (sengaja kosong)\nexport LANG=C.UTF-8\n";
+  for (const f of [".bashrc", ".profile", ".bash_profile"]) {
+    const file = path.join(AGENT_HOME, f);
+    if (!(await fs.stat(file).catch(() => null))) await fs.writeFile(file, rc);
+  }
+  return AGENT_HOME;
+}
+
 /**
  * Sama seperti runTask di orchestrator.js, tetapi lewat Agent SDK + login langganan.
  * @param {string} task
@@ -151,8 +163,20 @@ export async function runTaskSdk(task, emit, { agents, leader, signal, models = 
 
   // Pastikan memakai login langganan, bukan API key berbayar yang kebetulan ada di environment.
   // Subagent dijalankan di depan (bukan latar belakang) agar hasilnya kembali langsung ke Pemimpin.
+  const agentHome = await prepareAgentHome();
   const env = {
     ...process.env,
+    // Rumah terpisah untuk Claude Code: shell agent tidak membaca ~/.profile pengguna rig
+    // (di HiveOS profil itu menjalankan perintah seperti motd yang membuat alat Bash macet).
+    HOME: agentHome,
+    SHELL: "/bin/bash",
+    CLAUDE_CODE_SHELL: "/bin/bash",
+    BASH_ENV: undefined,
+    ENV: undefined,
+    // Konversi LibreOffice/rekap besar bisa lebih dari 2 menit.
+    BASH_DEFAULT_TIMEOUT_MS: process.env.BASH_DEFAULT_TIMEOUT_MS || "300000",
+    BASH_MAX_TIMEOUT_MS: process.env.BASH_MAX_TIMEOUT_MS || "900000",
+    PATH: [path.join(APP_ROOT, "node_modules", ".bin"), process.env.PATH || "/usr/local/bin:/usr/bin:/bin"].join(path.delimiter),
     ANTHROPIC_API_KEY: undefined,
     ANTHROPIC_AUTH_TOKEN: undefined,
     CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1",
