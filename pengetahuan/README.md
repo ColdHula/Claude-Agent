@@ -13,3 +13,5 @@ ID agent: `surat-ba`, `kepatuhan-perizinan`, `data-rekap`, `sop-k3-vendor`, `ema
 
 - Hanya README ini yang ikut ke GitHub; file lain tetap di komputer/rig Anda.
 - Batas ±120.000 karakter per agent. Taruh hal yang dipakai semua agent di `umum/`, sisanya di folder agent.
+- `berkas/` (template, toolkit, dokumen sumber) tidak dimuat ke prompt; agent pembuat file membacanya saat perlu.
+- Bisa diunggah sekaligus sebagai ZIP lewat kartu **Pengetahuan kantor** di aplikasi.

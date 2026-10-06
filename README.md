@@ -59,6 +59,18 @@ Setiap hasil akhir disimpan ke `hasil/<tanggal>_<tugas>.md` di laptop Anda (fold
 Taruh file `.md` atau `.txt` di folder `pengetahuan/`: `umum/` untuk semua, `<id-agent>/` khusus satu agent
 (mis. `surat-ba/`), `pemimpin/` khusus Bima. Dibaca otomatis di setiap tugas, tanpa restart (lihat `pengetahuan/README.md`). Folder ini **tidak ikut ke GitHub**, jadi aman untuk data internal. Batas total ±120.000 karakter.
 Saat tugas dimulai, log aktivitas menampilkan "📚 Pengetahuan dimuat: …".
+Di rig/server, paket pengetahuan bisa diunggah sebagai **ZIP** lewat kartu **Pengetahuan kantor** di panel kanan.
+Subfolder `pengetahuan/berkas/` berisi template, toolkit, dan dokumen sumber: tidak dimuat ke prompt, tetapi dibaca
+dan dijalankan oleh agent pembuat file saat diperlukan.
+
+### Lampiran dan hasil berupa file (mode langganan)
+
+- Tombol **📎 Lampirkan file** di bawah kotak tugas: unggah CSV/XLSX/PDF/DOCX/foto (maks. 60 MB per file).
+  File disimpan di `hasil/tugas-<id>/masukan/` dan dibaca tim.
+- **Sari (Surat & BA), Rina (Data & Rekap), dan Joko (SOP, K3 & Vendor)** bisa membuat file: DOCX + PDF untuk surat/BA,
+  XLSX untuk rekap. Mereka hanya menulis di folder tugas itu; `pengetahuan/berkas/` hanya dibaca.
+- File hasil muncul sebagai tautan unduhan di jendela **Hasil akhir**.
+- Untuk PDF, server perlu LibreOffice Writer (`sudo apt install libreoffice-writer-nogui`); skrip pemasangan HiveOS menawarkannya.
 
 ### Memilih model (Opus atau Sonnet)
 
@@ -152,5 +164,5 @@ untuk melihat tugas, progres, bar kebutuhan, dan hasil terakhirnya. Tombol ❚�
 - **Email & Kalender** tidak terhubung ke Gmail/Thunderbird. Tempel isi email di tugas.
 - **Chrome & Portal** tidak mengendalikan browser. Ia menyusun langkah yang Anda jalankan sendiri
   (atau tempel ke Claude in Chrome). Patuhi kebijakan IT Mayora soal alat AI.
-- **Data & Rekap** belum bisa menerima unggahan file lewat UI. Tempel isi CSV di tugas (atau pakai Claude Code/Cowork untuk file besar).
+- Lampiran dan file hasil hanya tersedia di mode langganan (bawaan), bukan `ENGINE=api`.
 - Samarkan data pribadi (NIK, rekening) bila tidak perlu, sesuai bagian Keamanan di dokumen paket agent.

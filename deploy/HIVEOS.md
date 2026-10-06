@@ -54,7 +54,15 @@ aktifkan **MagicDNS** dan **HTTPS Certificates**, lalu di rig jalankan `sudo tai
 | Restart aplikasi | `sudo systemctl restart kantor-pga` |
 | Memperbarui ke versi terbaru | jalankan lagi perintah pemasangan di atas |
 | Mengganti token / kata sandi | `nano /home/user/kantor-pga/.env`, simpan, lalu restart |
-| Menambah pengetahuan | taruh file `.md` di `/home/user/kantor-pga/pengetahuan/` |
+| Menambah pengetahuan | di aplikasi: kartu **Pengetahuan kantor** → **⬆ Unggah paket ZIP** (atau salin file ke `/home/user/kantor-pga/pengetahuan/`) |
+
+## Memasukkan konteks ADM PGD (sekali)
+
+1. Buka aplikasi dari HP/Chromebook, masuk dengan kata sandi.
+2. Di panel kanan, kartu **Pengetahuan kantor** → **⬆ Unggah paket ZIP** → pilih `pengetahuan-kantor-pga.zip`.
+3. Kartu menampilkan jumlah file per Sim. Tugas berikutnya langsung memakai konteks itu.
+
+Paket ZIP ini berisi data internal PGD (nama karyawan, kasus, template). Simpan hanya di perangkat Anda dan rig, jangan diunggah ke GitHub.
 
 ## Catatan keamanan
 

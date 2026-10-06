@@ -130,6 +130,18 @@ button { cursor: pointer; }
 .btn-ghost { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 13px; }
 .btn-ghost:hover { background: var(--panel-2); }
 .hint { font-size: 12.5px; color: var(--ink-soft); }
+[hidden] { display: none !important; }
+.attach-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.att { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 6px 3px 10px; font-size: 12.5px; font-weight: 700; max-width: 100%; }
+.att span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+.att button { border: 0; background: transparent; color: var(--bad); font-weight: 800; padding: 0 4px; }
+.files { display: grid; gap: 6px; margin: 4px 0 14px; }
+.files a { display: flex; justify-content: space-between; gap: 10px; align-items: center; text-decoration: none; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; font-weight: 700; font-size: 13.5px; }
+.files a:hover { border-color: var(--sims-blue-2); }
+.files small { color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
+.kn-list { font-size: 13px; display: grid; gap: 4px; margin-bottom: 10px; }
+.kn-list div { display: flex; justify-content: space-between; gap: 8px; }
+.kn-list b { font-weight: 800; }
 .model-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: var(--ink-soft); }
 #preset { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 12px; font-weight: 700; font-size: 13px; color: var(--ink); max-width: 100%; }
 
@@ -277,7 +289,11 @@ details.work summary { cursor: pointer; font-weight: 800; }
               <option value="sonnet">Sonnet (lebih cepat &amp; hemat)</option>
             </select>
           </label>
+          <label class="btn-ghost" id="attachBtn" for="attachInput" hidden style="cursor:pointer">📎 Lampirkan file</label>
+          <input id="attachInput" type="file" multiple hidden>
           <span class="hint" id="hint">Ctrl + Enter untuk kirim.</span>
+        </div>
+        <div class="attach-row" id="attachList" hidden>
         </div>
       </form>
     </div>
@@ -302,6 +318,14 @@ details.work summary { cursor: pointer; font-weight: 800; }
       <section class="card" aria-labelledby="logTitle">
         <h3 id="logTitle">Aktivitas kantor</h3>
         <div class="log" id="log"><p class="log-empty">Belum ada aktivitas. Kirim tugas pertama Anda.</p></div>
+      </section>
+
+      <section class="card" aria-labelledby="knTitle" id="knCard" hidden>
+        <h3 id="knTitle">Pengetahuan kantor <span class="count" id="knCount"></span></h3>
+        <div class="kn-list" id="knList"><p class="log-empty">Memuat…</p></div>
+        <label class="btn-ghost" for="knInput" style="cursor:pointer;display:inline-block">⬆ Unggah paket ZIP</label>
+        <input id="knInput" type="file" accept=".zip" hidden>
+        <p class="hint" id="knHint" style="margin:8px 0 0">ZIP berisi folder pengetahuan (umum/, &lt;agent&gt;/, berkas/). File lama dengan nama sama ditimpa.</p>
       </section>
 
       <section class="card" aria-labelledby="histTitle">
@@ -1024,7 +1048,7 @@ function handle(ev) {
       setTimeout(() => { leader.status = "idle"; }, 6000);
       if (typeof ev.usd === "number") setCost(ev.usd);
       const title = (ev.output.match(/^#\s+(.+)$/m) || [, "Hasil akhir"])[1];
-      lastFinal = { title, output: ev.output, workLog: ev.workLog || [], task: activeTask, file: ev.file, usd: cost, at: new Date() };
+      lastFinal = { title, output: ev.output, workLog: ev.workLog || [], task: activeTask, file: ev.file, files: ev.files || [], usd: cost, at: new Date() };
       history.unshift(lastFinal); renderHistory();
       toast(leader, "Hasil akhir siap", title, "good");
       log(`🎉 <b>Hasil akhir siap</b>: ${esc(title)}${ev.file ? ` · tersimpan di <code>hasil/${esc(ev.file)}</code>` : ""}`);
@@ -1100,6 +1124,7 @@ function md(src) {
 }
 
 let openDoc = null;
+const fmtSize = (n) => n > 1e6 ? (n / 1e6).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round(n / 1e3)) + " KB";
 function docText(r) {
   const work = (r.workLog || []).map((w) => `### ${w.sim} — ${w.title}\n\n${w.output}`).join("\n\n---\n\n");
   return `${r.task ? `> Tugas: ${r.task}\n\n` : ""}${r.output}${work ? `\n\n---\n\n## Lampiran: hasil kerja tiap agent\n\n${work}` : ""}\n`;
@@ -1107,7 +1132,10 @@ function docText(r) {
 function openResult(r) {
   openDoc = r;
   $("resultTitle").textContent = r.title || "Hasil akhir";
-  $("resultBody").innerHTML = md(r.output);
+  $("resultBody").innerHTML = (r.files && r.files.length
+    ? `<h3 style="font:600 16px var(--font-display);margin:0 0 6px">File hasil</h3><div class="files">` +
+      r.files.map((f) => `<a href="${esc(f.url)}" download><span>📄 ${esc(f.name)}</span><small>${fmtSize(f.size)}</small></a>`).join("") + `</div>`
+    : "") + md(r.output);
   $("resultWork").innerHTML = (r.workLog || []).length
     ? `<hr style="border:0;border-top:2px dashed var(--line);margin:20px 0"><h3 style="font:600 16px var(--font-display);margin:0 0 6px">Hasil kerja tiap agent (sebelum digabung)</h3>` +
       r.workLog.map((w) => `<details class="work"><summary>${esc(w.sim)} — ${esc(w.title)}</summary><div class="md">${md(w.output)}</div></details>`).join("")
@@ -1218,8 +1246,67 @@ async function detectMode() {
   pill.title = mode !== "live" ? "Simulasi animasi. Jalankan npm start di laptop (login akun Claude) untuk hasil asli."
     : engine === "langganan" ? "Tim memakai login akun Claude Anda. Biaya diambil dari kredit Agent SDK bulanan langganan, tanpa tagihan tambahan."
     : "Tim memakai ANTHROPIC_API_KEY berbayar.";
-  if (mode === "live" && engine === "langganan") $("costPill").title = "Kredit Agent SDK langganan yang terpakai untuk tugas ini (perkiraan, USD).";
+  if (mode === "live" && engine === "langganan") {
+    $("costPill").title = "Kredit Agent SDK langganan yang terpakai untuk tugas ini (perkiraan, USD).";
+    $("attachBtn").hidden = false; $("knCard").hidden = false; loadKnowledge();
+  }
 }
+
+/* ---------- Lampiran file untuk tugas (mode langganan) ---------- */
+const draft = { id: null, files: [] };
+function renderDraft() {
+  const box = $("attachList");
+  box.hidden = !draft.files.length;
+  box.innerHTML = draft.files.map((f) => `<span class="att" title="${esc(f.name)}"><span>📎 ${esc(f.name)} · ${fmtSize(f.size)}</span><button type="button" data-n="${esc(f.name)}" aria-label="Hapus ${esc(f.name)}">✕</button></span>`).join("");
+  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      const r = await fetch(`/api/lampiran?draft=${draft.id}&nama=${encodeURIComponent(b.dataset.n)}`, { method: "DELETE" });
+      const body = await r.json(); if (r.ok) { draft.files = body.files; renderDraft(); }
+    } catch {}
+  }));
+}
+$("attachInput").addEventListener("change", async (e) => {
+  const list = [...e.target.files]; e.target.value = "";
+  for (const f of list) {
+    $("hint").textContent = `Mengunggah ${f.name}…`;
+    try {
+      const r = await fetch(`/api/lampiran?nama=${encodeURIComponent(f.name)}${draft.id ? `&draft=${draft.id}` : ""}`, { method: "POST", body: f });
+      if (r.status === 401) { location.href = "/login"; return; }
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error || "Gagal mengunggah.");
+      draft.id = body.draft; draft.files = body.files; renderDraft();
+    } catch (err) { toast(leader, "Lampiran gagal", `${f.name}: ${err.message}`, "bad"); }
+  }
+  $("hint").textContent = draft.files.length ? `${draft.files.length} lampiran ikut terkirim bersama tugas.` : "Ctrl + Enter untuk kirim.";
+});
+
+/* ---------- Pengetahuan kantor ---------- */
+function renderKnowledge(k) {
+  const entries = Object.entries(k.folders || {}).sort(([a], [b]) => a.localeCompare(b));
+  const total = entries.reduce((n, [, f]) => n + f.length, 0);
+  $("knCount").textContent = total ? `${total} file` : "";
+  const name = (id) => id === "umum" ? "🏢 Umum (semua)" : (() => { const s = sims.find((x) => x.id === id); return s ? `${s.icon} ${s.sim} · ${s.title}` : id; })();
+  $("knList").innerHTML = (entries.length
+    ? entries.map(([id, files]) => `<div class="kn-row" title="${esc(files.join("\n"))}"><b>${esc(name(id))}</b><small>${files.length} file</small></div>`).join("")
+    : `<p class="log-empty">Belum ada. Unggah paket ZIP pengetahuan.</p>`)
+    + (k.berkas ? `<div class="kn-row"><b>🗂️ Berkas pendukung</b><small>${k.berkas} file</small></div>` : "");
+}
+async function loadKnowledge() {
+  try { const r = await fetch("/api/pengetahuan"); if (r.ok) renderKnowledge(await r.json()); } catch {}
+}
+$("knInput").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  $("knHint").textContent = `Mengunggah ${f.name} (${fmtSize(f.size)})…`;
+  try {
+    const r = await fetch("/api/pengetahuan", { method: "POST", body: f });
+    if (r.status === 401) { location.href = "/login"; return; }
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.error || "Gagal mengunggah.");
+    renderKnowledge(body);
+    $("knHint").textContent = `✅ ${body.entries} entri dipasang. Terpakai mulai tugas berikutnya.`;
+  } catch (err) { $("knHint").textContent = `⚠️ ${err.message}`; }
+});
 function attach(id) {
   jobId = id;
   source?.close();
@@ -1237,12 +1324,13 @@ async function send() {
   if (mode === "live") {
     $("send").disabled = true;
     try {
-      const r = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, preset: $("preset").value || undefined }) });
+      const r = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, preset: $("preset").value || undefined, draft: draft.id || undefined }) });
       if (r.status === 401) { location.href = "/login"; return; }
       const body = await r.json();
       if (!r.ok) throw new Error(body.error || "Gagal mengirim tugas.");
       attach(body.id);
       $("task").value = "";
+      draft.id = null; draft.files = []; renderDraft();
     } catch (e) { $("send").disabled = false; toast(leader, "Tugas belum terkirim", e.message, "bad"); }
   } else { demo.start(text); $("task").value = ""; }
 }

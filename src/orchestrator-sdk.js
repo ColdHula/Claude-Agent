@@ -3,6 +3,8 @@
 // yang sudah termasuk dalam langganan — bukan dari API key berbayar.
 // Event yang dikirim ke UI sama persis dengan src/orchestrator.js.
 import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { defaultModels } from "./orchestrator.js";
 
@@ -10,6 +12,24 @@ const LEADER_EFFORT = process.env.LEADER_EFFORT || "high";
 const WORKER_EFFORT = process.env.WORKER_EFFORT || "medium";
 // Rem pengaman per tugas (USD, perkiraan): tugas berhenti bila pemakaian mencapai angka ini.
 const MAX_TASK_USD = Number(process.env.MAX_TASK_USD || 3);
+
+const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// Agent yang boleh membaca/menulis file dan menjalankan skrip (generator DOCX/PDF, olah Excel/PDF).
+export const FILE_AGENTS = new Set(["surat-ba", "data-rekap", "sop-k3-vendor"]);
+const FILE_TOOLS = ["Bash", "Read", "Write", "Edit", "Glob", "Grep"];
+
+function fileAppendix(workDir, inputs) {
+  const rel = path.relative(APP_ROOT, workDir);
+  return `
+
+RUANG KERJA FILE
+- Folder kerja Anda (direktori saat ini = folder aplikasi): tulis SEMUA file hasil ke \`${rel}/\` (buat bila belum ada). Jangan menulis di tempat lain.
+- Lampiran dari Rahula untuk tugas ini: ${inputs.length ? inputs.map((f) => `\`${rel}/masukan/${f}\``).join(", ") : "tidak ada"}.
+- Berkas rujukan (template, generator, contoh dokumen jadi, sumber): \`pengetahuan/berkas/\` — HANYA DIBACA, jangan diubah. Untuk memakai generator, salin spec/kasus ke folder kerja atau pakai jalur absolut sesuai petunjuk di pengetahuan Anda.
+- Alat tersedia: node (paket docx sudah ada lewat NODE_PATH), python3 (openpyxl, pypdf, fitz bila terpasang), soffice (DOCX→PDF), pdftoppm/pdftotext, ImageMagick.
+- Dokumen formal: hasilkan DOCX + PDF, render ke gambar dan periksa sebelum selesai. Excel: hanya COUNTIF/COUNTIFS.
+- Di akhir jawaban, tulis daftar "File hasil:" berisi nama file yang Anda buat di folder kerja.`;
+}
 
 const WORKER_APPENDIX = `
 
@@ -52,7 +72,8 @@ function friendlyError(raw) {
  * @param {(event: object) => void} emit
  * @param {{agents: any[], leader: any, signal?: AbortSignal, models?: {leader: string, worker: string}}} team
  */
-export async function runTaskSdk(task, emit, { agents, leader, signal, models = defaultModels() }) {
+export async function runTaskSdk(task, emit, { agents, leader, signal, models = defaultModels(), workDir, inputs = [] }) {
+  const workRel = workDir ? path.relative(APP_ROOT, workDir) : null;
   const ids = new Set(agents.map((a) => a.id));
   const byId = Object.fromEntries(agents.map((a) => [a.id, a]));
 
@@ -61,8 +82,12 @@ export async function runTaskSdk(task, emit, { agents, leader, signal, models = 
       a.id,
       {
         description: a.description,
-        prompt: a.system + WORKER_APPENDIX,
-        tools: a.web ? ["WebSearch", "WebFetch"] : [],
+        prompt:
+          FILE_AGENTS.has(a.id) && workDir
+            ? a.system + WORKER_APPENDIX.replace("Jangan membaca atau menulis file.", "") + fileAppendix(workDir, inputs)
+            : a.system + WORKER_APPENDIX,
+        tools: [...(a.web ? ["WebSearch", "WebFetch"] : []), ...(FILE_AGENTS.has(a.id) && workDir ? FILE_TOOLS : [])],
+        maxTurns: FILE_AGENTS.has(a.id) ? 60 : 20,
         model: models.worker,
         effort: WORKER_EFFORT,
       },
@@ -79,6 +104,37 @@ export async function runTaskSdk(task, emit, { agents, leader, signal, models = 
     ANTHROPIC_API_KEY: undefined,
     ANTHROPIC_AUTH_TOKEN: undefined,
     CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1",
+    // Generator dokumen memakai require("docx") dari node_modules aplikasi.
+    NODE_PATH: [path.join(APP_ROOT, "node_modules"), process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
+  };
+
+  const leaderFiles = workDir
+    ? `
+
+FILE
+- Lampiran dari Rahula: ${inputs.length ? inputs.map((f) => `${workRel}/masukan/${f}`).join(", ") : "tidak ada"}. Sebutkan lampiran yang relevan di instruksi delegasi.
+- Agent yang bisa membaca/menulis file dan menjalankan generator: ${[...FILE_AGENTS].join(", ")}. Hasil file mereka tersimpan di ${workRel}/ dan otomatis muncul sebagai tautan unduhan untuk Rahula; di hasil akhir cukup sebutkan nama filenya.`
+    : "";
+
+  // Pagar file: Pemimpin hanya mendelegasikan; agent menulis hanya di folder tugas dan
+  // membaca hanya di folder aplikasi (tanpa .env). Bash tidak bisa dipagari sepenuhnya,
+  // jadi aturannya juga ditegaskan di instruksi agent.
+  const inside = (p, dir) => {
+    const r = path.relative(dir, path.resolve(APP_ROOT, String(p || ".")));
+    return r === "" || (!r.startsWith("..") && !path.isAbsolute(r));
+  };
+  const deny = (reason) => ({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
+  const fileGuard = async (input) => {
+    const name = input.tool_name;
+    if (!FILE_TOOLS.includes(name)) return {};
+    if (!input.agent_id) return deny("Pemimpin tidak memakai alat file. Delegasikan ke agent.");
+    const t = input.tool_input || {};
+    if (["Write", "Edit"].includes(name) && !inside(t.file_path, workDir)) return deny(`Tulis file hanya di ${workRel}/.`);
+    if (["Read", "Glob", "Grep"].includes(name)) {
+      const target = t.file_path || t.path || APP_ROOT;
+      if (!inside(target, APP_ROOT) || path.basename(String(target)) === ".env") return deny("Baca file hanya di dalam folder aplikasi (tanpa .env).");
+    }
+    return {};
   };
 
   const q = query({
@@ -86,10 +142,12 @@ export async function runTaskSdk(task, emit, { agents, leader, signal, models = 
     options: {
       model: models.leader,
       effort: LEADER_EFFORT,
-      systemPrompt: leader.system + LEADER_APPENDIX,
+      systemPrompt: leader.system + LEADER_APPENDIX + leaderFiles,
       agents: agentDefs,
-      tools: ["Agent", "WebSearch", "WebFetch"],
-      allowedTools: ["Agent", "WebSearch", "WebFetch"],
+      tools: ["Agent", "WebSearch", "WebFetch", ...(workDir ? FILE_TOOLS : [])],
+      allowedTools: ["Agent", "WebSearch", "WebFetch", ...(workDir ? FILE_TOOLS : [])],
+      cwd: APP_ROOT,
+      ...(workDir ? { hooks: { PreToolUse: [{ hooks: [fileGuard] }] } } : {}),
       permissionMode: "dontAsk",
       settingSources: [],
       persistSession: false,

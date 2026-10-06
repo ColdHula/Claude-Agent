@@ -1,6 +1,9 @@
 // Server kecil tanpa framework: menyajikan public/, menerima tugas,
 // dan mengalirkan event kerja tim ke browser lewat Server-Sent Events.
 import http from "node:http";
+import { createWriteStream } from "node:fs";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,7 +39,75 @@ const team = await loadAgents();
 const jobs = new Map(); // id -> { events, listeners, done, controller }
 let running = null;
 
-const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png" };
+const MIME = {
+  ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml",
+  ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".pdf": "application/pdf", ".md": "text/markdown; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8", ".csv": "text/csv; charset=utf-8", ".json": "application/json", ".zip": "application/zip",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+};
+const run$ = promisify(execFile);
+const HASIL = path.join(here, "hasil");
+const PENGETAHUAN = path.join(here, "pengetahuan");
+const safeName = (n) => String(n || "").normalize("NFC").replace(/[^\w.\- ()]+/g, "_").replace(/^\.+/, "").slice(0, 120);
+
+// Simpan badan permintaan mentah ke file (untuk unggahan), dengan batas ukuran.
+async function saveRaw(req, dest, limitBytes) {
+  await fs.mkdir(path.dirname(dest), { recursive: true });
+  let size = 0;
+  await new Promise((resolve, reject) => {
+    const out = createWriteStream(dest);
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > limitBytes) {
+        req.destroy();
+        out.destroy();
+        reject(new Error(`File terlalu besar (maks ${Math.round(limitBytes / 1e6)} MB).`));
+      }
+    });
+    req.pipe(out);
+    out.on("finish", resolve);
+    out.on("error", reject);
+    req.on("error", reject);
+  });
+  return size;
+}
+
+async function listFiles(dir, skip = new Set()) {
+  try {
+    const names = await fs.readdir(dir, { withFileTypes: true });
+    const out = [];
+    for (const d of names) {
+      if (!d.isFile() || skip.has(d.name)) continue;
+      const st = await fs.stat(path.join(dir, d.name));
+      out.push({ name: d.name, size: st.size });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+}
+
+async function knowledgeSummary() {
+  const folders = {};
+  let berkas = 0;
+  async function walk(dir, rel) {
+    let items = [];
+    try { items = await fs.readdir(dir, { withFileTypes: true }); } catch { return; }
+    for (const d of items) {
+      if (d.name === "node_modules") continue;
+      const r = rel ? `${rel}/${d.name}` : d.name;
+      if (d.isDirectory()) await walk(path.join(dir, d.name), r);
+      else if (r.startsWith("berkas/")) berkas++;
+      else if (/\.(md|txt)$/i.test(d.name) && d.name.toLowerCase() !== "readme.md") {
+        const top = r.includes("/") ? r.split("/")[0] : "(akar)";
+        (folders[top] ||= []).push(d.name);
+      }
+    }
+  }
+  await walk(PENGETAHUAN, "");
+  return { folders, berkas };
+}
 
 function json(res, status, body) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
@@ -74,8 +145,9 @@ function resolveModels(preset) {
   return m;
 }
 
-function startJob(task, models) {
+function startJob(task, models, draft) {
   const id = Date.now().toString(36);
+  const workDir = path.join(HASIL, `tugas-${id}`);
   const job = { events: [], listeners: new Set(), done: false, controller: new AbortController() };
   jobs.set(id, job);
   running = id;
@@ -86,16 +158,29 @@ function startJob(task, models) {
   };
   emit({ type: "task", id, text: task, models: { leader: MODELS[models.leader].label, worker: MODELS[models.worker].label } });
   // Muat ulang instruksi + pengetahuan di setiap tugas, agar file baru di pengetahuan/ langsung terpakai.
-  loadAgents()
-    .then((fresh) => {
+  (async () => {
+    await fs.mkdir(path.join(workDir, "masukan"), { recursive: true });
+    if (draft) {
+      const from = path.join(HASIL, "_draf", draft);
+      for (const f of await listFiles(from)) await fs.rename(path.join(from, f.name), path.join(workDir, "masukan", f.name));
+      await fs.rm(from, { recursive: true, force: true });
+    }
+    return (await listFiles(path.join(workDir, "masukan"))).map((f) => f.name);
+  })()
+    .then(async (inputs) => {
+      if (inputs.length) emit({ type: "leader_say", text: `📎 Lampiran: ${inputs.join(", ")}` });
+      return { inputs, fresh: await loadAgents() };
+    })
+    .then(({ inputs, fresh }) => {
       if (fresh.knowledge.files.length) {
         emit({ type: "leader_say", text: `📚 Pengetahuan dimuat: ${fresh.knowledge.files.join(", ")} (${fresh.knowledge.chars.toLocaleString("id-ID")} karakter${fresh.knowledge.truncated ? ", sebagian dipotong" : ""}).` });
       }
-      return run(task, emit, { ...fresh, models, signal: job.controller.signal });
+      return run(task, emit, { ...fresh, models, signal: job.controller.signal, workDir, inputs });
     })
     .then(async (result) => {
       const file = await saveResult(task, result).catch(() => null);
-      emit({ type: "final", output: result.final, file, workLog: result.workLog, usd: Number(result.cost.toFixed(4)) });
+      const files = (await listFiles(workDir)).map((f) => ({ ...f, url: `/hasil/tugas-${id}/${encodeURIComponent(f.name)}` }));
+      emit({ type: "final", output: result.final, file, files, workLog: result.workLog, usd: Number(result.cost.toFixed(4)) });
     })
     .catch((err) => emit({ type: "error", message: job.controller.signal.aborted ? "Tugas dibatalkan." : String(err?.message || err) }))
     .finally(() => {
@@ -125,11 +210,12 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/tasks" && req.method === "POST") {
       if (!LIVE) return json(res, 400, { error: "Server dalam mode demo (DEMO=1, atau ENGINE=api tanpa ANTHROPIC_API_KEY)." });
       if (running) return json(res, 409, { error: "Tim masih mengerjakan tugas lain.", id: running });
-      const { text, preset } = await readBody(req);
+      const { text, preset, draft } = await readBody(req);
+      if (draft && ENGINE === "api") return json(res, 400, { error: "Lampiran file hanya didukung di mode langganan." });
       if (typeof text !== "string" || !text.trim()) return json(res, 400, { error: "Tugas kosong." });
       let models;
       try { models = resolveModels(preset); } catch (err) { return json(res, 400, { error: err.message }); }
-      return json(res, 200, { id: startJob(text.trim(), models) });
+      return json(res, 200, { id: startJob(text.trim(), models, draft && /^[a-z0-9]+$/.test(draft) ? draft : null) });
     }
     const evMatch = url.pathname.match(/^\/api\/tasks\/([a-z0-9]+)\/(events|cancel)$/);
     if (evMatch) {
@@ -145,6 +231,55 @@ const server = http.createServer(async (req, res) => {
       job.listeners.add(res);
       req.on("close", () => job.listeners.delete(res));
       return;
+    }
+    if (url.pathname === "/api/lampiran" && req.method === "POST") {
+      const draft = /^[a-z0-9]+$/.test(url.searchParams.get("draft") || "") ? url.searchParams.get("draft") : Date.now().toString(36);
+      const nama = safeName(url.searchParams.get("nama"));
+      if (!nama) return json(res, 400, { error: "Nama file kosong." });
+      await saveRaw(req, path.join(HASIL, "_draf", draft, nama), 60e6);
+      return json(res, 200, { draft, files: await listFiles(path.join(HASIL, "_draf", draft)) });
+    }
+    if (url.pathname === "/api/lampiran" && req.method === "DELETE") {
+      const draft = url.searchParams.get("draft") || "";
+      const nama = safeName(url.searchParams.get("nama"));
+      if (!/^[a-z0-9]+$/.test(draft) || !nama) return json(res, 400, { error: "Permintaan tidak valid." });
+      await fs.rm(path.join(HASIL, "_draf", draft, nama), { force: true });
+      return json(res, 200, { draft, files: await listFiles(path.join(HASIL, "_draf", draft)) });
+    }
+    if (url.pathname === "/api/pengetahuan" && req.method === "GET") {
+      return json(res, 200, await knowledgeSummary());
+    }
+    if (url.pathname === "/api/pengetahuan" && req.method === "POST") {
+      if (running) return json(res, 409, { error: "Tunggu tugas yang sedang berjalan selesai dulu." });
+      const tmp = path.join(HASIL, "_draf", `pengetahuan-${Date.now()}.zip`);
+      try {
+        await saveRaw(req, tmp, 400e6);
+        const { stdout } = await run$("unzip", ["-Z1", tmp], { maxBuffer: 50e6 });
+        const entries = stdout.split("\n").filter(Boolean);
+        if (!entries.length) throw new Error("ZIP kosong.");
+        if (entries.some((e) => e.startsWith("/") || e.split("/").includes(".."))) throw new Error("ZIP berisi jalur yang tidak aman.");
+        // ZIP boleh berisi folder "pengetahuan/" di akarnya atau langsung isinya.
+        const strip = entries.every((e) => e === "pengetahuan/" || e.startsWith("pengetahuan/"));
+        await fs.mkdir(PENGETAHUAN, { recursive: true });
+        await run$("unzip", ["-o", "-q", tmp, "-d", strip ? here : PENGETAHUAN], { maxBuffer: 50e6 });
+        return json(res, 200, { ok: true, entries: entries.length, ...(await knowledgeSummary()) });
+      } catch (err) {
+        return json(res, 400, { error: err.code === "ENOENT" ? "Perintah unzip belum terpasang di server (sudo apt install unzip)." : String(err.message || err) });
+      } finally {
+        await fs.rm(tmp, { force: true });
+      }
+    }
+    const fileMatch = url.pathname.match(/^\/hasil\/(tugas-[a-z0-9]+)\/([^/]+)$/);
+    if (fileMatch) {
+      const name = decodeURIComponent(fileMatch[2]);
+      const target = path.join(HASIL, fileMatch[1], name);
+      if (path.dirname(target) !== path.join(HASIL, fileMatch[1])) return json(res, 403, { error: "forbidden" });
+      const body = await fs.readFile(target);
+      res.writeHead(200, {
+        "content-type": MIME[path.extname(name).toLowerCase()] || "application/octet-stream",
+        "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
+      });
+      return res.end(body);
     }
     if (url.pathname === "/api/results") {
       const files = (await fs.readdir(path.join(here, "hasil"))).filter((f) => f.endsWith(".md")).sort().reverse();

@@ -5,7 +5,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-hiveos.sh | sudo bash
 #
 # Yang dilakukan:
-#   1. Memeriksa sistem (arsitektur, versi glibc) dan memasang Node.js 22 + git bila perlu.
+#   1. Memeriksa sistem (arsitektur, versi glibc) dan memasang Node.js 22, git, dan alat dokumen.
 #   2. Mengunduh/memperbarui aplikasi ke /home/user/kantor-pga.
 #   3. Membuat .env (token langganan Claude + kata sandi aplikasi) bila belum ada.
 #   4. Membuat layanan systemd "kantor-pga" (otomatis jalan saat rig menyala, prioritas di bawah miner).
@@ -60,6 +60,22 @@ else
 fi
 command -v git >/dev/null || { apt-get install -y -qq git >/dev/null; }
 ok "git $(git --version | awk '{print $3}')"
+# Alat dokumen untuk agent yang membuat file (Sari, Rina, Joko): unzip, PDF, gambar, Excel.
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq || true
+apt-get install -y -qq unzip poppler-utils imagemagick python3 python3-pip python3-openpyxl >/dev/null || warn "Sebagian alat dokumen gagal dipasang."
+python3 -m pip install -q pypdf pymupdf python-docx 2>/dev/null \
+  || python3 -m pip install -q --break-system-packages pypdf pymupdf python-docx 2>/dev/null \
+  || warn "Pustaka Python pypdf/pymupdf/python-docx belum terpasang."
+ok "Alat dokumen (unzip, poppler, imagemagick, openpyxl)"
+if command -v soffice >/dev/null; then
+  ok "LibreOffice sudah ada (DOCX → PDF)"
+elif [ "$(ask 'Pasang LibreOffice Writer agar hasil surat/BA juga jadi PDF? (±400 MB) [Y/n]' Y)" != "n" ]; then
+  apt-get install -y -qq --no-install-recommends libreoffice-writer-nogui >/dev/null 2>&1 \
+    || apt-get install -y -qq --no-install-recommends libreoffice-writer >/dev/null \
+    || warn "LibreOffice gagal dipasang; hasil tetap berupa DOCX."
+  if command -v soffice >/dev/null; then ok "LibreOffice terpasang"; fi
+fi
 NODE_BIN="$(command -v node)"
 NODE_DIR="$(dirname "$NODE_BIN")"
 # Jalankan sebagai pengguna aplikasi, dengan Node yang sama dan pengaturan proxy (bila ada).
@@ -138,7 +154,12 @@ systemctl daemon-reload
 systemctl enable -q kantor-pga
 systemctl restart kantor-pga
 sleep 3
-systemctl is-active -q kantor-pga && ok "Layanan kantor-pga berjalan" || { journalctl -u kantor-pga -n 20 --no-pager; die "Layanan gagal berjalan (lihat log di atas)."; }
+if systemctl is-active -q kantor-pga; then
+  ok "Layanan kantor-pga berjalan"
+else
+  journalctl -u kantor-pga -n 20 --no-pager
+  die "Layanan gagal berjalan (lihat log di atas)."
+fi
 
 URL=""
 if [ "$(ask 'Pasang Tailscale agar bisa dibuka dari HP/laptop di mana saja? [Y/n]' Y)" != "n" ]; then
@@ -161,5 +182,5 @@ echo "   • Di rig ini      : http://127.0.0.1:$PORT"
 [ -n "$URL" ] && echo "   • Dari HP/laptop  : $URL   (pasang aplikasi Tailscale dan login di perangkat itu)"
 echo "   • Log             : sudo journalctl -u kantor-pga -f"
 echo "   • Perbarui        : jalankan perintah pemasangan yang sama lagi"
-echo "   • Pengetahuan     : taruh file .md di $APP_DIR/pengetahuan/ (lihat README di folder itu)"
+echo "   • Pengetahuan     : unggah paket ZIP lewat kartu \"Pengetahuan kantor\" di aplikasi"
 echo
