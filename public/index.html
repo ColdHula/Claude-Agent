@@ -479,14 +479,16 @@ let SKILLS = [
 ];
 const AGENT_SKILL = { "surat-ba": "kantor:dokumen-resmi", "data-rekap": "kantor:rekap-excel", "sop-k3-vendor": "kantor:sop-hiradc", "riset": "kantor:riset-sumber", "kepatuhan-perizinan": "kantor:hukum-pengadilan", "email-kalender": "kantor:baca-lampiran" };
 const EXAMPLES = [
-  ["BA kehilangan Bekasi", "Buat BA kehilangan 2 karton produk di gudang cabang Bekasi, ditemukan saat stock opname 30 September 2026."],
-  ["Izin habis < Jan 2027", "Dari file rekap, izin cabang mana yang habis sebelum Januari 2027? Susun rencana perpanjangannya."],
-  ["Rekap keterlambatan", "Ini CSV fingerprint September. Buat rekap pelanggaran keterlambatan per departemen, pisahkan DKI dan Banten."],
-  ["SOP tumpahan MMEA", "Buat SOP penanganan tumpahan produk MMEA di gudang, termasuk tabel bahaya dan pengendaliannya."],
-  ["Triase inbox", "Ini 6 email terakhir saya. Kelompokkan dan buatkan draf balasan untuk yang SEGERA."],
-  ["Portal absensi", "Susun langkah membuka laporan absensi cabang Kalideres bulan September di portal, jangan ubah apa pun."],
-  ["5 peluang cuan", "Dengan 8 jam/minggu dan modal Rp5 juta, beri 5 peluang dan pilih satu untuk diuji bulan ini."],
-  ["Riset regulasi K3", "Riset kewajiban K3 gudang distribusi terbaru dan apa yang harus disiapkan PGA sebelum pengawas datang."],
+  ["Izin & kasus cabang", "Buat tracker izin, kasus, dan issue semua cabang PGD, urutkan dari tenggat terdekat dan tandai yang ≤ 30 hari."],
+  ["Rekap absensi outsourcing", "Ini absensi helper & driver outsourcing bulan September. Rekonsiliasi dengan fingerprint, hitung lembur, dan tandai selisihnya."],
+  ["Onboarding karyawan baru", "Siapkan checklist onboarding karyawan baru: induction, perkenalan ke cabang, dokumen, aset yang diserahkan, dan jadwalnya."],
+  ["Offboarding karyawan", "Siapkan checklist karyawan keluar: serah terima aset (BAST), dokumen, perhitungan hak, dan paklaring."],
+  ["BA kasbon utilitas", "Buat BA Pengajuan Advance Kasbon untuk listrik, air, dan telepon bulan Oktober 2026."],
+  ["APAR & pest control", "Buat jadwal dan checklist inspeksi APAR serta pest control untuk kantor dan gudang, termasuk kebutuhan chemical."],
+  ["Verifikasi rumah sales", "Buat BA Klarifikasi Verifikasi rumah sales baru dengan status Valid/Fiktif dan daftar bukti foto yang perlu diambil."],
+  ["Kasus sales (COURT)", "Sales menunggak setoran dan sulit dihubungi. Susun kronologi, matriks bukti, opsi penyelesaian, dan draf somasi I."],
+  ["MOR IRGA bulanan", "Susun kerangka laporan MOR IRGA bulan September: absensi, lembur, GA & utilitas, aset, K3, izin, dan kasus."],
+  ["Printer & wifi error", "Printer kantor tidak bisa mencetak dan wifi sering putus. Beri langkah troubleshooting dan kapan eskalasi ke IT."],
 ];
 const SIMLISH = ["Sul sul!", "Dag dag!", "Vadish!", "Fredishay!", "Sh'boo!", "Nooboo!", "Litzergam!", "Woohoo!"];
 
@@ -1607,10 +1609,10 @@ $("downloadResult").addEventListener("click", () => {
 const DEMO_RULES = [
   ["surat-ba", /\b(ba|berita acara|surat|memo|sk|klarifikasi|peringatan|kehilangan)\b/i],
   ["kepatuhan-perizinan", /izin|perizinan|mmea|skmb|regulasi|kasus|hukum|kepatuhan|permen/i],
-  ["data-rekap", /rekap|csv|excel|absensi|kpi|fingerprint|data\b/i],
-  ["sop-k3-vendor", /\bsop\b|k3|vendor|evas|bahaya|tumpahan/i],
+  ["data-rekap", /rekap|csv|excel|absensi|kpi|fingerprint|lembur|mor\b|data\b/i],
+  ["sop-k3-vendor", /\bsop\b|k3|vendor|evas|bahaya|tumpahan|apar|pest|chemical|aset|bangunan|onboarding|offboarding/i],
   ["email-kalender", /email|inbox|kalender|agenda|balas/i],
-  ["chrome-portal", /portal|chrome|browser|\boss\b|sipp/i],
+  ["chrome-portal", /portal|chrome|browser|\boss\b|sipp|printer|wifi|komputer/i],
   ["cari-cuan", /cuan|penghasilan|sampingan|mining|trading|modal|peluang/i],
   ["riset", /riset|research|pasar|bandingkan|cari tahu|kewajiban/i],
 ];
