@@ -78,12 +78,12 @@ dan dijalankan oleh agent pembuat file saat diperlukan.
 
 Di bawah kotak tugas ada pilihan **Model** (diingat browser):
 
-| Pilihan | Pemimpin | 6 agent | Maya & Andi (ringan) | Pemakaian kredit |
-|---|---|---|---|---|
-| Hemat otomatis (bawaan) | Sonnet 5.5, effort medium | Sonnet 5.5 | Haiku 4.5 | Paling hemat |
-| Sonnet semua | Sonnet 5.5 | Sonnet 5.5 | Sonnet 5.5 | Hemat |
-| Campuran | Opus 5.5 | Sonnet 5.5 | Sonnet 5.5 | Sedang: pemeriksaan akhir lebih teliti |
-| Opus semua | Opus 5.5 | Opus 5.5 | Opus 5.5 | Paling boros: dokumen hukum/sanksi penting |
+| Pilihan | Pemimpin | 8 agent | Pemakaian kredit |
+|---|---|---|---|
+| Hemat (bawaan) | Sonnet 5.5, berpikir sedang | Sonnet 5.5 | Paling hemat |
+| Sonnet, Bima lebih dalam | Sonnet 5.5, berpikir dalam | Sonnet 5.5 | Hemat |
+| Campuran | Opus 5.5 | Sonnet 5.5 | Sedang: pemeriksaan akhir lebih teliti |
+| Opus semua | Opus 5.5 | Opus 5.5 | Paling boros: dokumen hukum/sanksi penting |
 
 ### Skill dan penghematan token
 
@@ -97,7 +97,7 @@ Di bawah kotak tugas ada pilihan **Model** (diingat browser):
   tampil di chat sebagai 🗜️.
 - **Prompt caching** dari Claude Agent SDK: instruksi dan pengetahuan yang sama dibaca ulang dari cache (±10% harga).
   Pil ⚡ di atas menampilkan jumlah token dan persentase cache; tab **🧰 Skill** merangkum penghematannya.
-- **Model per beban kerja**: agent ringan memakai Haiku 4.5, Pemimpin memakai effort medium (preset hemat).
+- **Pemimpin berpikir secukupnya**: preset hemat memakai effort medium untuk Bima; semua agent tetap Sonnet 5.5.
 
 Perkiraan kasar: satu tugas dengan 2–3 agent memakai sekitar $0,15–0,75 kredit di Sonnet, kira-kira dua kali lipat di Opus.
 
@@ -119,8 +119,10 @@ Salin `.env.example` menjadi `.env` bila ingin mengubah bawaan:
 
 ## Pasang di rig HiveOS (bisa dibuka dari HP/laptop mana saja)
 
-Lihat [deploy/HIVEOS.md](deploy/HIVEOS.md): satu perintah memasang aplikasi sebagai layanan yang selalu menyala,
-plus akses aman lewat Tailscale dan kata sandi (`APP_PASSWORD`).
+Ikuti tutorial langkah demi langkah di [deploy/HIVEOS.md](deploy/HIVEOS.md): satu perintah memasang aplikasi sebagai
+layanan yang selalu menyala, akses aman lewat Tailscale + kata sandi (`APP_PASSWORD`), dan **pembaruan otomatis**:
+rig mengecek GitHub tiap 5 menit, menarik perubahan baru (ditunda bila tim sedang bekerja), dan halaman di HP memuat ulang sendiri.
+Aplikasi punya logo dan manifest, jadi bisa dipasang di layar utama HP seperti aplikasi biasa.
 
 ## Pakai langsung di Claude Code (juga tanpa biaya tambahan)
 

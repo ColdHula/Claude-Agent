@@ -30,6 +30,8 @@ export function makeAuth(password) {
     res.writeHead(status, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
     res.end(`<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Masuk · Kantor PGA</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0e1424">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@600;800&display=swap">
 <style>
 :root{--sky:#cfe9f7;--ink:#17324d;--blue:#1769c9;--green:#3fc948;--bad:#e2453c}
@@ -54,7 +56,11 @@ ${message ? `<p class="err">${message}</p>` : ""}
   }
 
   // Mengembalikan true bila permintaan sudah ditangani (login/logout/ditolak).
+  // Ikon dan manifest boleh diambil tanpa login (dipakai bookmark / "Tambahkan ke Layar Utama").
+  const PUBLIC = /^\/(icon\.svg|manifest\.webmanifest|favicon\.ico|icons\/[\w.-]+\.png)$/;
+
   return async function guard(req, res, url) {
+    if (PUBLIC.test(url.pathname)) return false;
     if (url.pathname === "/logout") {
       res.writeHead(302, { "set-cookie": `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`, location: "/login" });
       res.end();

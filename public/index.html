@@ -6,6 +6,14 @@
 <title>Kantor PGA</title>
 <meta name="description" content="Kantor virtual isometrik tim agent Claude PGA PGD: Pemimpin Bima dan 8 agent bekerja, rehat ngopi, dan memakai skill secara langsung.">
 <meta name="theme-color" content="#0e1424">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kantor PGA">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -352,8 +360,8 @@ details.work summary { cursor: pointer; font-weight: 800; }
           <label class="model-pick" for="preset">Model
             <select id="preset">
               <option value="">Bawaan (.env)</option>
-              <option value="hemat">Hemat otomatis: Sonnet + Haiku</option>
-              <option value="sonnet">Sonnet semua</option>
+              <option value="hemat">Hemat: Sonnet, Bima berpikir sedang</option>
+              <option value="sonnet">Sonnet, Bima berpikir lebih dalam</option>
               <option value="campuran">Campuran: Bima Opus, agent Sonnet</option>
               <option value="opus">Opus semua (paling teliti)</option>
             </select>
@@ -405,7 +413,7 @@ details.work summary { cursor: pointer; font-weight: 800; }
           </div>
           <h3>Skill tim <span class="count" id="skillCount"></span></h3>
           <div class="skills" id="skills"></div>
-          <p class="note">Skill dimuat hanya saat dipakai, pengetahuan besar dibaca sesuai kebutuhan, agent ringan (Maya, Andi) memakai Haiku, dan percakapan panjang dipadatkan otomatis. Tambah skill pribadi di <code>pengetahuan/skills/&lt;nama&gt;/SKILL.md</code>.</p>
+          <p class="note">Skill dimuat hanya saat dipakai, pengetahuan besar dibaca sesuai kebutuhan, Bima berpikir secukupnya, dan percakapan panjang dipadatkan otomatis. Tambah skill pribadi di <code>pengetahuan/skills/&lt;nama&gt;/SKILL.md</code>.</p>
         </div>
 
         <div class="tabpanel" role="tabpanel" id="p-kn" aria-labelledby="tab-kn" hidden>
@@ -1254,7 +1262,7 @@ $("themeBtn").addEventListener("click", () => {
    PANEL
    ===================================================================== */
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-let modelLabels = { worker: "Sonnet 5.5", light: "Haiku 4.5", leader: "Sonnet 5.5" };
+let modelLabels = { worker: "Sonnet 5.5", light: "Sonnet 5.5", leader: "Sonnet 5.5" };
 function buildTeam() {
   $("team").innerHTML = sims.map((s) => `
     <button class="member" type="button" data-id="${s.id}">
@@ -1619,7 +1627,7 @@ const demo = {
     let t = simClock;
     const at = (dt, ev) => { t += dt; this.queue.push({ at: t, ev }); };
     this.queue = []; this.running = true;
-    const P = { "": ["Sonnet 5.5", "Sonnet 5.5", "Haiku 4.5"], hemat: ["Sonnet 5.5", "Sonnet 5.5", "Haiku 4.5"], opus: ["Opus 5.5", "Opus 5.5", "Opus 5.5"], campuran: ["Opus 5.5", "Sonnet 5.5", "Sonnet 5.5"], sonnet: ["Sonnet 5.5", "Sonnet 5.5", "Sonnet 5.5"] }[$("preset").value] || ["Sonnet 5.5", "Sonnet 5.5", "Haiku 4.5"];
+    const P = { "": ["Sonnet 5.5", "Sonnet 5.5", "Sonnet 5.5"], hemat: ["Sonnet 5.5", "Sonnet 5.5", "Sonnet 5.5"], opus: ["Opus 5.5", "Opus 5.5", "Opus 5.5"], campuran: ["Opus 5.5", "Sonnet 5.5", "Sonnet 5.5"], sonnet: ["Sonnet 5.5", "Sonnet 5.5", "Sonnet 5.5"] }[$("preset").value] || ["Sonnet 5.5", "Sonnet 5.5", "Sonnet 5.5"];
     at(0, { type: "task", text, models: { leader: P[0], worker: P[1], light: P[2] } });
     at(2.2, { type: "leader_say", text: "📚 Pengetahuan: 16 file; mode hemat: sebagian ditempel, sisanya dibaca agent bila perlu." });
     at(1.4, { type: "leader_thinking", text: `Tugas ini paling cocok untuk ${picked.map((id) => byId[id].sim).join(" dan ")}. Saya bagi paralel lalu periksa hasilnya.` });
@@ -1659,7 +1667,7 @@ const demo = {
 /* =====================================================================
    KONEKSI KE SERVER (mode live)
    ===================================================================== */
-let mode = "demo", engine = "api", source = null, jobId = null;
+let mode = "demo", engine = "api", source = null, jobId = null, appVersion = null;
 async function detectMode() {
   try {
     const ctl = new AbortController(); setTimeout(() => ctl.abort(), 2500);
@@ -1668,6 +1676,7 @@ async function detectMode() {
     if (!r.ok) throw 0;
     const st = await r.json();
     mode = st.mode === "live" ? "live" : "demo";
+    appVersion = st.version || null;
     engine = st.engine || "api";
     if (st.defaultModels) {
       const short = (id) => id.replace(/^claude-/, "").replace(/-(\d+)-(\d+)$/, " $1.$2").replace(/^./, (c) => c.toUpperCase());
@@ -1689,6 +1698,20 @@ async function detectMode() {
     $("attachBtn").hidden = false; $("knCard").hidden = false; $("knOff").hidden = true; loadKnowledge();
   }
 }
+// Pembaruan otomatis: rig menarik versi baru dari GitHub; browser memuat ulang saat tim sedang tidak bekerja.
+async function checkVersion() {
+  if (mode !== "live" || !appVersion) return;
+  try {
+    const r = await fetch("/api/status", { cache: "no-store" });
+    if (!r.ok) return;
+    const st = await r.json();
+    if (st.version && st.version !== appVersion && !activeTask && !st.running && !$("result").open) {
+      toast(leader, "Kantor diperbarui", `Versi baru ${st.version} terpasang. Memuat ulang…`, "good");
+      setTimeout(() => location.reload(), 2500);
+    }
+  } catch {}
+}
+setInterval(checkVersion, 60_000);
 function attach(id) {
   jobId = id;
   source?.close();

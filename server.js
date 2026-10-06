@@ -43,10 +43,17 @@ const MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml",
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".pdf": "application/pdf", ".md": "text/markdown; charset=utf-8",
   ".txt": "text/plain; charset=utf-8", ".csv": "text/csv; charset=utf-8", ".json": "application/json", ".zip": "application/zip",
+  ".webmanifest": "application/manifest+json", ".ico": "image/x-icon",
   ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 };
 const run$ = promisify(execFile);
+// Versi aplikasi (commit git) untuk pembaruan otomatis: browser memuat ulang bila versi berubah.
+const VERSION = await run$("git", ["rev-parse", "--short", "HEAD"], { cwd: here }).then((r) => r.stdout.trim(), () => "lokal");
+// Penanda tugas berjalan, dibaca deploy/perbarui.sh agar tidak me-restart di tengah tugas.
+const BUSY_FLAG = path.join(here, "hasil", ".tugas-berjalan");
+const setBusy = (on) => (on ? fs.writeFile(BUSY_FLAG, String(Date.now())) : fs.rm(BUSY_FLAG, { force: true })).catch(() => {});
+await setBusy(false);
 const HASIL = path.join(here, "hasil");
 const PENGETAHUAN = path.join(here, "pengetahuan");
 const safeName = (n) => String(n || "").normalize("NFC").replace(/[^\w.\- ()]+/g, "_").replace(/^\.+/, "").slice(0, 120);
@@ -156,6 +163,7 @@ function startJob(task, models, draft) {
   const job = { events: [], listeners: new Set(), done: false, controller: new AbortController() };
   jobs.set(id, job);
   running = id;
+  setBusy(true);
   const emit = (event) => {
     const e = { ...event, t: Date.now() };
     job.events.push(e);
@@ -192,6 +200,7 @@ function startJob(task, models, draft) {
     .finally(() => {
       job.done = true;
       running = null;
+      setBusy(false);
       for (const res of job.listeners) res.end();
       job.listeners.clear();
     });
@@ -205,6 +214,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/status") {
       return json(res, 200, {
         mode: LIVE ? "live" : "demo",
+        version: VERSION,
         engine: ENGINE,
         defaultModels: defaultModels(),
         presets: Object.fromEntries(Object.entries(PRESETS).map(([k, v]) => [k, v.label])),
@@ -304,10 +314,15 @@ const server = http.createServer(async (req, res) => {
     if (!file.startsWith(path.join(here, "public"))) return json(res, 403, { error: "forbidden" });
     let body = await fs.readFile(file);
     // index.html ditulis tanpa kerangka dokumen (agar sama dengan versi Artifact); bungkus di sini.
-    if (rel === "index.html") {
+    if (rel === "index.html" && !/^\s*<!doctype/i.test(String(body))) {
       body = `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body>${body}</body></html>`;
     }
-    res.writeHead(200, { "content-type": MIME[path.extname(file)] || "application/octet-stream" });
+    const ext = path.extname(file);
+    res.writeHead(200, {
+      "content-type": MIME[ext] || "application/octet-stream",
+      // index.html selalu dicek ulang agar versi baru langsung terpakai; ikon boleh di-cache.
+      "cache-control": ext === ".html" ? "no-cache" : "public, max-age=86400",
+    });
     res.end(body);
   } catch (err) {
     if (err.code === "ENOENT") return json(res, 404, { error: "Tidak ditemukan." });
@@ -316,7 +331,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`\n  🏢 Kantor PGA buka di http://${HOST}:${PORT}`);
+  console.log(`\n  🏢 Kantor PGA (versi ${VERSION}) buka di http://${HOST}:${PORT}`);
   console.log(guard ? "  🔒 Kata sandi aktif (APP_PASSWORD)." : "  🔓 Tanpa kata sandi (hanya bisa dibuka dari komputer ini).");
   if (!LIVE) console.log("  🎭 Mode DEMO — animasi saja, tanpa memanggil Claude.");
   else if (ENGINE === "langganan") console.log("  ✅ Mode LIVE (langganan) — memakai login akun Claude + kredit Agent SDK bulanan. Tanpa API key.");

@@ -8,7 +8,8 @@
 #   1. Memeriksa sistem (arsitektur, versi glibc) dan memasang Node.js 22, git, dan alat dokumen.
 #   2. Mengunduh/memperbarui aplikasi ke /home/user/kantor-pga.
 #   3. Membuat .env (token langganan Claude + kata sandi aplikasi) bila belum ada.
-#   4. Membuat layanan systemd "kantor-pga" (otomatis jalan saat rig menyala, prioritas di bawah miner).
+#   4. Membuat layanan systemd "kantor-pga" (otomatis jalan saat rig menyala, prioritas di bawah miner)
+#      dan timer "kantor-pga-perbarui" (cek GitHub tiap 5 menit, perbarui otomatis bila ada perubahan).
 #   5. (Opsional) Memasang Tailscale agar bisa dibuka aman dari HP/Chromebook di mana saja.
 # Aman dijalankan ulang untuk memperbarui aplikasi.
 set -euo pipefail
@@ -107,10 +108,18 @@ ENV_FILE="$APP_DIR/.env"
 if [ -f "$ENV_FILE" ]; then
   ok ".env sudah ada, tidak diubah (hapus file itu bila ingin mengisi ulang)"
 else
-  echo "  Token langganan Claude: di Chromebook/laptop jalankan"
-  echo "      npx -y @anthropic-ai/claude-code setup-token"
-  echo "  login dengan akun Claude Pro/Max, lalu salin token yang diawali sk-ant-oat01-..."
-  TOKEN="$(ask 'Tempel token (kosongkan untuk mode demo):')"
+  echo "  Token langganan Claude (sk-ant-oat01-...) menghubungkan aplikasi ke akun Claude Pro/Max Anda."
+  TOKEN=""
+  if [ "$(ask 'Buat token sekarang di rig ini? [Y/n]' Y)" != "n" ]; then
+    echo "  ➜ Sebentar lagi muncul tautan. Buka tautan itu di HP/Chromebook, login akun Claude,"
+    echo "    klik Authorize, salin kode yang muncul, lalu tempel di sini dan tekan Enter."
+    echo "  ➜ Setelah selesai, terminal menampilkan token panjang diawali sk-ant-oat01-. Salin token itu."
+    as_user npx -y @anthropic-ai/claude-code setup-token </dev/tty >/dev/tty 2>&1 || warn "Pembuatan token gagal. Anda tetap bisa menempel token yang dibuat di perangkat lain."
+  else
+    echo "  Di Chromebook (Linux aktif) atau laptop dengan Node.js, jalankan:  npx -y @anthropic-ai/claude-code setup-token"
+  fi
+  TOKEN="$(ask 'Tempel token sk-ant-oat01-... (kosongkan untuk mode demo):')"
+  TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
   PASS="$(ask 'Kata sandi aplikasi (min. 12 karakter, kosongkan untuk dibuatkan):')"
   if [ -z "$PASS" ]; then PASS="$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)"; GENERATED=1; fi
   [ "${#PASS}" -ge 12 ] || die "Kata sandi minimal 12 karakter."
@@ -161,6 +170,40 @@ else
   die "Layanan gagal berjalan (lihat log di atas)."
 fi
 
+# Pembaruan otomatis dari GitHub (matikan dengan AUTO_UPDATE=0 di depan perintah pemasangan).
+if [ "${AUTO_UPDATE:-1}" = "1" ]; then
+  chmod +x "$APP_DIR/deploy/perbarui.sh"
+  cat >/etc/systemd/system/kantor-pga-perbarui.service <<UNIT
+[Unit]
+Description=Perbarui Kantor PGA dari GitHub
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=APP_DIR=$APP_DIR APP_USER=$APP_USER BRANCH=$BRANCH PATH=$NODE_DIR:/usr/local/bin:/usr/bin:/bin
+ExecStart=/bin/bash $APP_DIR/deploy/perbarui.sh
+Nice=15
+UNIT
+  cat >/etc/systemd/system/kantor-pga-perbarui.timer <<UNIT
+[Unit]
+Description=Cek pembaruan Kantor PGA tiap 5 menit
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target
+UNIT
+  systemctl daemon-reload
+  systemctl enable -q --now kantor-pga-perbarui.timer
+  ok "Pembaruan otomatis aktif (cek GitHub tiap 5 menit)"
+else
+  systemctl disable -q --now kantor-pga-perbarui.timer 2>/dev/null || true
+  warn "Pembaruan otomatis dimatikan (AUTO_UPDATE=0)"
+fi
+
 URL=""
 if [ "$(ask 'Pasang Tailscale agar bisa dibuka dari HP/laptop di mana saja? [Y/n]' Y)" != "n" ]; then
   command -v tailscale >/dev/null || curl -fsSL https://tailscale.com/install.sh | sh >/dev/null
@@ -181,6 +224,6 @@ printf '\n\033[1;32m✅ Kantor PGA terpasang.\033[0m\n'
 echo "   • Di rig ini      : http://127.0.0.1:$PORT"
 [ -n "$URL" ] && echo "   • Dari HP/laptop  : $URL   (pasang aplikasi Tailscale dan login di perangkat itu)"
 echo "   • Log             : sudo journalctl -u kantor-pga -f"
-echo "   • Perbarui        : jalankan perintah pemasangan yang sama lagi"
+echo "   • Perbarui        : otomatis tiap 5 menit (log: sudo journalctl -u kantor-pga-perbarui)"
 echo "   • Pengetahuan     : unggah paket ZIP lewat kartu \"Pengetahuan kantor\" di aplikasi"
 echo

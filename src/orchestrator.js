@@ -15,12 +15,13 @@ export const MODELS = {
   "claude-sonnet-5-5": { label: "Sonnet 5.5", price: { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 } },
   "claude-haiku-4-5": { label: "Haiku 4.5", price: { input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 } },
 };
-// Agent dengan pekerjaan ringan (draf email, langkah portal): cukup model kecil di mode hemat.
+// Agent dengan pekerjaan ringan (draf email, langkah portal). Modelnya bisa diganti lewat LIGHT_MODEL;
+// bawaan sama dengan agent lain (Sonnet).
 export const LIGHT_AGENTS = new Set(["email-kalender", "chrome-portal"]);
 // Pilihan di layar: model untuk Pemimpin, agent, dan agent ringan.
 export const PRESETS = {
-  hemat: { label: "Hemat otomatis: Sonnet + Haiku untuk tugas ringan", leader: "claude-sonnet-5-5", worker: "claude-sonnet-5-5", light: "claude-haiku-4-5", leaderEffort: "medium" },
-  sonnet: { label: "Sonnet (cepat & hemat)", leader: "claude-sonnet-5-5", worker: "claude-sonnet-5-5", light: "claude-sonnet-5-5" },
+  hemat: { label: "Hemat: Sonnet semua, Bima berpikir sedang", leader: "claude-sonnet-5-5", worker: "claude-sonnet-5-5", light: "claude-sonnet-5-5", leaderEffort: "medium" },
+  sonnet: { label: "Sonnet, Bima berpikir lebih dalam", leader: "claude-sonnet-5-5", worker: "claude-sonnet-5-5", light: "claude-sonnet-5-5" },
   campuran: { label: "Campuran: Pemimpin Opus, agent Sonnet", leader: "claude-opus-5-5", worker: "claude-sonnet-5-5", light: "claude-sonnet-5-5" },
   opus: { label: "Opus (paling teliti)", leader: "claude-opus-5-5", worker: "claude-opus-5-5", light: "claude-opus-5-5" },
 };
