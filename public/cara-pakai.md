@@ -22,6 +22,10 @@ Pantau prosesnya di tab **💬 Chat**. Klik Sim mana pun untuk melihat tugas dan
 4. Klik **Kirim ke Bima** (atau Ctrl + Enter).
 5. Tunggu hasil akhir terbuka otomatis → unduh file di bagian **File hasil**. Semua hasil tersimpan di tab **📁 Hasil**.
 
+**Beberapa tugas sekaligus:** tidak perlu menunggu. Kirim tugas berikutnya kapan saja; bawaannya 3 tugas dikerjakan bersamaan, sisanya antre otomatis. Daftar **Tugas berjalan** di bawah kotak tugas menampilkan status tiap tugas (berjalan/antre/selesai), tombol **Batal**, dan **Buka** hasil. Pesan di chat diberi label `#1`, `#2`, dst. sesuai tugasnya.
+
+**Lampiran cepat:** seret & lepas file ke halaman (boleh banyak sekaligus), atau tempel screenshot dengan **Ctrl+V** di kotak tugas. Paket ZIP pengetahuan: buka tab **📚 Konteks**, lalu seret ZIP ke sana.
+
 ## 3. Rumus menulis tugas (APA – UNTUK APA – DATA – KEPUTUSAN – BENTUK)
 
 ```
@@ -83,4 +87,4 @@ BENTUK   : DOCX + PDF siap tanda tangan
 
 - Pemakaian diambil dari kredit Agent SDK langganan Claude; pil **§** menunjukkan pemakaian tugas saat ini, pil **⚡** jumlah token.
 - Ada rem pengaman per tugas (bawaan $3). Tugas berat (rekap besar + banyak dokumen) sebaiknya dipecah.
-- Satu tugas berjalan pada satu waktu; tugas berikutnya bisa dikirim setelah hasil akhir keluar.
+- Bawaan 3 tugas berjalan bersamaan (atur `MAX_TUGAS_PARALEL` di `.env`), maksimal 10 antre. Tiap tugas punya rem pengaman sendiri; makin banyak tugas paralel, makin cepat kredit terpakai.

@@ -171,6 +171,22 @@ button { cursor: pointer; }
 .model-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: var(--ink-soft); }
 #preset { border: 1px solid var(--line); background: var(--panel-2); border-radius: 999px; padding: 7px 12px; font-weight: 700; font-size: 13px; max-width: 100%; }
 .attach-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.jobs { display: grid; gap: 6px; }
+.jobs h3 { font: 800 11px var(--font-body); letter-spacing: .6px; text-transform: uppercase; color: var(--ink-faint); margin: 2px 0 0; }
+.job { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 8px; align-items: center; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 6px 8px 6px 10px; font-size: 13px; }
+.job .no { font: 700 12px var(--font-mono); color: var(--accent); }
+.job .tx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job .st { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 2px 8px; margin-right: 6px; }
+.job .st.berjalan { background: color-mix(in srgb, var(--warn) 22%, transparent); }
+.job .st.antri { background: var(--panel-3); color: var(--ink-soft); }
+.job .st.selesai { background: color-mix(in srgb, var(--plumbob) 20%, transparent); }
+.job .st.gagal, .job .st.batal { background: color-mix(in srgb, var(--bad) 18%, transparent); }
+.job button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 3px 10px; font-weight: 800; font-size: 12px; }
+.msg .meta .jobtag { font: 700 10.5px var(--font-mono); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 6px; padding: 0 5px; }
+#dropOverlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(8, 12, 30, .62); backdrop-filter: blur(3px); pointer-events: none; }
+#dropOverlay div { border: 3px dashed #f0a37f; border-radius: 26px; padding: 34px 40px; color: #fff; text-align: center; font: 600 22px var(--font-display); background: rgba(217,119,87,.18); max-width: min(560px, calc(100vw - 32px)); }
+#dropOverlay small { display: block; font: 700 13px var(--font-body); color: #f4d7c9; margin-top: 6px; }
+.dropzone { border: 2px dashed var(--line); border-radius: 14px; padding: 12px; text-align: center; color: var(--ink-soft); font-size: 12.5px; font-weight: 700; margin-bottom: 10px; }
 .att { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 6px 3px 10px; font-size: 12.5px; font-weight: 700; max-width: 100%; }
 .att span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
 .att button { border: 0; background: transparent; color: var(--bad); font-weight: 800; padding: 0 4px; }
@@ -188,7 +204,7 @@ button { cursor: pointer; }
 .task-box { background: var(--panel-2); border-radius: 12px; padding: 9px 11px; font-size: 13px; }
 .task-box + .task-box { margin-top: 8px; }
 .task-box .lbl { font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--ink-faint); }
-.task-box p { margin: 2px 0 0; overflow-wrap: anywhere; }
+.task-box p { margin: 2px 0 0; overflow-wrap: anywhere; white-space: pre-line; }
 .preview { max-height: 96px; overflow: auto; white-space: pre-wrap; font-size: 12.5px; margin-top: 3px; overflow-wrap: anywhere; }
 .detail-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .status { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 2px 8px; white-space: nowrap; display: inline-flex; gap: 4px; align-items: center; font-family: var(--font-body); }
@@ -367,12 +383,13 @@ details.work summary { cursor: pointer; font-weight: 800; }
               <option value="opus">Opus semua (paling teliti)</option>
             </select>
           </label>
-          <label class="btn-ghost" id="attachBtn" for="attachInput" hidden style="cursor:pointer">📎 Lampirkan file</label>
+          <label class="btn-ghost" id="attachBtn" for="attachInput" hidden style="cursor:pointer" title="Atau seret & lepas file ke halaman, atau tempel screenshot (Ctrl+V) di kotak tugas">📎 Lampirkan file</label>
           <input id="attachInput" type="file" multiple hidden>
           <button class="btn-ghost" id="guideBtn" type="button" title="Cara kerja, cara memberi tugas, dan lampiran per jenis tugas">📖 Cara Pakai</button>
           <span class="hint" id="hint">Ctrl + Enter untuk kirim.</span>
         </div>
         <div class="attach-row" id="attachList" hidden></div>
+        <div class="jobs" id="jobs" hidden></div>
       </form>
     </div>
 
@@ -424,6 +441,7 @@ details.work summary { cursor: pointer; font-weight: 800; }
             <div class="kn-list" id="knList"><p class="chat-empty">Memuat…</p></div>
             <label class="btn-ghost" for="knInput" style="cursor:pointer;display:inline-block">⬆ Unggah paket ZIP</label>
             <input id="knInput" type="file" accept=".zip" hidden>
+            <p class="dropzone" id="knDrop">atau seret & lepas file ZIP ke sini</p>
             <p class="note" id="knHint">ZIP berisi folder pengetahuan (umum/, &lt;agent&gt;/, skills/, berkas/). File lama dengan nama sama ditimpa.</p>
           </div>
           <p class="note" id="knOff">Tersedia saat aplikasi berjalan di server dengan mode langganan.</p>
@@ -436,6 +454,8 @@ details.work summary { cursor: pointer; font-weight: 800; }
     </aside>
   </div>
 </div>
+
+<div id="dropOverlay" hidden><div id="dropText">📎 Lepas file di sini<small>untuk dilampirkan ke tugas berikutnya</small></div></div>
 
 <dialog id="result" aria-labelledby="resultTitle">
   <div class="modal-head">
@@ -840,7 +860,7 @@ function whiteboard(a, b, h0, h1) {
   for (const gx of [a + (b - a) / 3, a + 2 * (b - a) / 3]) { const p1 = P(gx, h0 + 4), p2 = P(gx, h1 - 4); ctx.strokeStyle = "#e1e5ea"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
   // sticky note: tugas aktif (kolom 1), agent bekerja (kolom 2), selesai (kolom 3)
   const cols = [[], [], []];
-  if (activeTask) cols[0].push("#ffd84d");
+  for (const j of runningJobs()) cols[0].push(j.status === "antri" ? "#c9d1dc" : "#ffd84d");
   for (const w of workers) { if (w.status === "working") cols[1].push(w.look.shirt); else if ((w.status === "done" || w.output) && w.task) cols[2].push(w.look.shirt); }
   cols.forEach((list, ci) => list.slice(0, 8).forEach((c, i) => {
     const gx = a + (b - a) * ci / 3 + .12 + (i % 2) * .38, h = h1 - 22 - Math.floor(i / 2) * 15;
@@ -1300,7 +1320,8 @@ function refreshPanel() {
   $("detailName").innerHTML = `${esc(s.sim)} ${s.isPlayer ? "" : `<span class="status st-${s.status}">${STATUS_ICON[s.status]} ${STATUS_TEXT[s.status]}</span>`}`;
   $("detailRole").textContent = s.isPlayer ? "Anda. Klik lantai untuk berjalan, klik Sim untuk menyapa." : s.isLeader ? `Pemimpin · delegasi & cek akhir · ${modelLabels.leader}` : `${s.title}${s.web ? " · cari di web" : ""}${s.files ? " · membuat file" : ""} · ${s.light ? modelLabels.light : modelLabels.worker}`;
   $("needs").innerHTML = Object.entries(s.needs).map(([k, v]) => `<div class="need">${NEED_LABEL[k]}<div class="bar"><div class="fill" style="width:${v.toFixed(0)}%;background:${needColor(v)}"></div></div></div>`).join("");
-  $("detailTask").textContent = s.isPlayer ? (activeTask || "Belum mengirim tugas.") : s.task ? s.task : (s.isLeader ? (activeTask || "Menunggu tugas dari Rahula.") : "Belum ada tugas.");
+  const rj = runningJobs().map((j) => `#${j.no} ${j.status === "antri" ? "(antre) " : ""}${j.text}`).join("\n");
+  $("detailTask").textContent = s.isPlayer ? (rj || "Belum mengirim tugas.") : s.task ? s.task : (s.isLeader ? (rj || "Menunggu tugas dari Rahula.") : "Belum ada tugas.");
   const out = s.isLeader || s.isPlayer ? (lastFinal && lastFinal.output) : s.output;
   $("detailOutput").textContent = out ? out.slice(0, 900) : (s.status === "working" ? `Sedang menulis… ${s.chars.toLocaleString("id-ID")} karakter` : "—");
   $("openOutput").disabled = !out;
@@ -1342,12 +1363,14 @@ function post(who, text, opts = {}) {
   const sys = who === "sys", w = sys ? null : who;
   const id = sys ? "sys" : w.id;
   const el = document.createElement("div");
-  el.className = "msg" + (opts.muted ? " muted" : "") + (sys ? " sys" : "") + (lastPoster === id && !opts.fresh ? " cont" : "");
+  const posterKey = id + "|" + (opts.jobTag ?? curTag);
+  el.className = "msg" + (opts.muted ? " muted" : "") + (sys ? " sys" : "") + (lastPoster === posterKey && !opts.fresh ? " cont" : "");
   const av = sys ? `<span class="av" style="background:#5b6680">⚙</span>` : `<span class="av" style="background:${w.look.shirt}">${w.icon}</span>`;
   const name = sys ? "Sistem kantor" : w.sim, tag = sys ? "" : w.isPlayer ? "Anda" : w.isLeader ? "Pemimpin" : w.title;
-  el.innerHTML = `${av}<div><div class="meta"><b style="color:${sys ? "inherit" : `color-mix(in srgb, ${w.look.shirt} 62%, var(--ink))`}">${esc(name)}</b><span class="tag">${esc(tag)}</span><small>${time}</small></div><div class="body">${opts.html ? text : esc(text).replace(/@(\w+)/g, '<span class="mention">@$1</span>')}</div></div>`;
+  const jt = opts.jobTag ?? curTag;
+  el.innerHTML = `${av}<div><div class="meta"><b style="color:${sys ? "inherit" : `color-mix(in srgb, ${w.look.shirt} 62%, var(--ink))`}">${esc(name)}</b><span class="tag">${esc(tag)}</span>${jt ? `<span class="jobtag">${esc(jt)}</span>` : ""}<small>${time}</small></div><div class="body">${opts.html ? text : esc(text).replace(/@(\w+)/g, '<span class="mention">@$1</span>')}</div></div>`;
   box.append(el);
-  lastPoster = id;
+  lastPoster = posterKey;
   while (box.children.length > 220) box.firstChild.remove();
   const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 140;
   if (nearBottom || opts.fresh) box.scrollTop = box.scrollHeight;
@@ -1389,17 +1412,62 @@ function setTokens(t) {
 /* =====================================================================
    KOREOGRAFI — event kerja → animasi + chat
    ===================================================================== */
-let activeTask = null, lastFinal = null, cost = 0;
+let lastFinal = null, cost = 0, curTag = "";
 const history = [];
-function setCost(usd) { cost = usd; $("cost").textContent = usd.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 }); }
+// Beberapa tugas bisa berjalan bersamaan: status disimpan per tugas.
+const jobsUI = new Map(); // id -> { id, no, text, status, usd, tokens }
+const runningJobs = () => [...jobsUI.values()].filter((j) => j.status === "berjalan" || j.status === "antri");
+const sumJobs = (f) => [...jobsUI.values()].reduce((n, j) => n + (f(j) || 0), 0);
+function setCost() {
+  cost = sumJobs((j) => j.usd);
+  $("cost").textContent = cost.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+}
+function refreshTokens() {
+  const t = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+  for (const j of jobsUI.values()) if (j.tokens) for (const k in t) t[k] += j.tokens[k] || 0;
+  setTokens(t);
+}
+const STATUS_JOB = { antri: "antre", berjalan: "berjalan", selesai: "selesai", gagal: "gagal", batal: "dibatalkan" };
+function renderJobs() {
+  const list = [...jobsUI.values()].sort((a, b) => b.no - a.no);
+  const live = list.filter((j) => j.status === "berjalan" || j.status === "antri");
+  const done = list.filter((j) => !(j.status === "berjalan" || j.status === "antri")).slice(0, 3);
+  const row = (j) => `<div class="job" data-id="${esc(j.id)}"><span class="no">#${j.no}</span><span class="tx" title="${esc(j.text)}"><span class="st ${j.status}">${STATUS_JOB[j.status]}${j.status === "antri" && j.position ? ` ke-${j.position}` : ""}</span>${esc(j.text)}</span>${
+    j.status === "berjalan" || j.status === "antri" ? `<button type="button" data-act="cancel">Batal</button>` : j.result ? `<button type="button" data-act="open">Buka</button>` : ""}</div>`;
+  const box = $("jobs");
+  box.hidden = !list.length;
+  box.innerHTML = (live.length ? `<h3>Tugas berjalan (${live.length})</h3>${live.map(row).join("")}` : "") + (done.length ? `<h3>Baru selesai</h3>${done.map(row).join("")}` : "");
+  box.querySelectorAll(".job button").forEach((b) => b.addEventListener("click", () => {
+    const id = b.closest(".job").dataset.id, j = jobsUI.get(id);
+    if (b.dataset.act === "open" && j.result) openResult(j.result);
+    else if (b.dataset.act === "cancel") cancelJob(id);
+  }));
+  const n = live.length, q = live.filter((j) => j.status === "antri").length;
+  $("hint").textContent = n ? `Tim mengerjakan ${n - q} tugas${q ? ` · ${q} antre` : ""}. Anda tetap bisa mengirim tugas lain.` : "Ctrl + Enter untuk kirim.";
+}
+async function cancelJob(id) {
+  if (mode === "live") { try { await fetch(`/api/tasks/${id}/cancel`, { method: "POST" }); } catch {} }
+  else demo.cancel(id);
+}
 const firstWords = (s, n) => (s || "").replace(/[#*_`>]/g, "").trim().split(/\s+/).slice(0, n).join(" ");
 const shortModel = (m) => String(m || "").replace(/^claude-/, "");
 
 function handle(ev) {
+  const jid = ev.job || ev.id || "lokal";
+  let J = jobsUI.get(jid);
+  if (!J) { J = { id: jid, no: ev.no || jobsUI.size + 1, text: ev.text || "", status: "berjalan" }; jobsUI.set(jid, J); }
+  curTag = `#${J.no}`;
+  try { handleJob(ev, J); } finally { curTag = ""; }
+  renderJobs();
+  refreshPanel();
+}
+function handleJob(ev, J) {
+  const key = `${J.id}:${ev.callId || ""}`;
   switch (ev.type) {
     case "task": {
-      activeTask = ev.text; setCost(0); setTokens({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
-      for (const w of workers) { w.task = null; w.output = null; w.chars = 0; if (w.status !== "idle") w.status = "idle"; }
+      J.text = ev.text; J.status = ev.queued ? "antri" : "berjalan";
+      // Agent yang sedang mengerjakan tugas lain tidak dikosongkan.
+      for (const w of workers) if (!w.calls?.size) { w.task = null; w.output = null; w.chars = 0; if (w.status !== "idle") w.status = "idle"; }
       if (ev.models) { modelLabels = { leader: ev.models.leader, worker: ev.models.worker, light: ev.models.light || ev.models.worker }; renderModels(); }
       // Rahula mengantar tugas ke meja Bima
       const spot = besideSeat(leader, player.tile);
@@ -1409,16 +1477,18 @@ function handle(ev) {
       leader.status = "thinking";
       post(player, ev.text, { fresh: true });
       if (ev.models) post("sys", `Model: Bima ${ev.models.leader} · agent ${ev.models.worker}${ev.models.light && ev.models.light !== ev.models.worker ? ` · agent ringan ${ev.models.light}` : ""}`, { muted: true });
-      toast(leader, "Tugas diterima", "Bima sedang membaca tugas Anda.");
-      setRunning(true);
+      toast(leader, `Tugas #${J.no} diterima`, ev.queued ? "Masuk antrean, dimulai begitu ada tugas yang selesai." : "Bima sedang membaca tugas Anda.");
       break;
     }
+    case "queued": J.status = "antri"; J.position = ev.position; post("sys", `⏳ Tugas #${J.no} menunggu di antrean ke-${ev.position}.`, { muted: true }); break;
+    case "dequeued": J.status = "berjalan"; J.position = 0; leader.status = "thinking"; leader.say("📥", `Tugas #${J.no} mulai!`, 2400); post("sys", `▶ Tugas #${J.no} mulai dikerjakan.`, { muted: true }); break;
     case "leader_status": if (ev.status === "thinking") { leader.status = "thinking"; leader.say("💭", ev.text || "Hmm…"); } break;
     case "leader_thinking": leader.status = "thinking"; leader.say("💭", firstWords(ev.text, 4), 3000); post(leader, "💭 " + ev.text.slice(0, 240), { muted: true }); break;
     case "leader_say": post(leader, ev.text.slice(0, 400), { muted: /^📚|^📎/.test(ev.text) }); break;
     case "delegate": {
       const w = byId[ev.agent]; if (!w) break;
-      w.task = ev.summary + (ev.instruksi ? "\n\n" + ev.instruksi : "");
+      (w.calls ||= new Set()).add(key);
+      w.task = `#${J.no} ` + ev.summary + (ev.instruksi ? "\n\n" + ev.instruksi : "");
       w.chars = 0;
       w.interrupt(); w.queue({ walk: w.seat }, { fn: (s) => { s.status = "working"; s.needs.fokus = Math.min(100, s.needs.fokus + 10); } });
       w.status = "working";
@@ -1461,7 +1531,11 @@ function handle(ev) {
     }
     case "worker_done": {
       const w = byId[ev.agent]; if (!w) break;
-      w.output = ev.output; w.status = ev.ok ? "done" : "error";
+      w.calls?.delete(key);
+      w.output = ev.output;
+      const stillBusy = w.calls?.size > 0;
+      w.status = stillBusy ? "working" : ev.ok ? "done" : "error";
+      if (stillBusy) { w.say(ev.ok ? "✅" : "❗", `#${J.no} selesai`, 2000); post(w, `${ev.ok ? "✅ selesai" : "❗ terkendala"} · ${(ev.output || "").length.toLocaleString("id-ID")} karakter (masih mengerjakan tugas lain)`); break; }
       const spot = besideSeat(leader, w.seat);
       w.queue(
         { fn: (s) => { s.carrying = ev.ok; s.say(ev.ok ? "✅" : "❗", ev.ok ? "Selesai!" : "Ada kendala", 2000); } },
@@ -1476,8 +1550,8 @@ function handle(ev) {
       break;
     }
     case "review": leader.status = "reviewing"; leader.say("🔎", "Memeriksa hasil…", 4000); post(leader, `🔎 memeriksa ${ev.count} hasil kerja`, { muted: true }); break;
-    case "cost": setCost(ev.usd); break;
-    case "tokens": setTokens(ev); break;
+    case "cost": J.usd = ev.usd; setCost(); break;
+    case "tokens": J.tokens = ev; refreshTokens(); break;
     case "compact": {
       compacts++; renderSkills();
       leader.say("🗜️", "Merapikan catatan…", 3200);
@@ -1486,29 +1560,35 @@ function handle(ev) {
       break;
     }
     case "final": {
-      leader.status = "done"; leader.say("🎉", "Selesai! Sul sul!", 4000);
+      J.status = "selesai";
+      const others = runningJobs().length;
+      leader.status = others ? "thinking" : "done"; leader.say("🎉", `#${J.no} selesai!`, 4000);
       for (const s of people) { s.jump = 2.2; if (s.status === "done") s.needs.senang = Math.min(100, s.needs.senang + 20); }
-      setTimeout(() => { leader.status = "idle"; }, 6000);
-      if (typeof ev.usd === "number") setCost(ev.usd);
+      setTimeout(() => { if (!runningJobs().length) leader.status = "idle"; }, 6000);
+      if (typeof ev.usd === "number") { J.usd = ev.usd; setCost(); }
       const title = (ev.output.match(/^#\s+(.+)$/m) || [, "Hasil akhir"])[1];
-      lastFinal = { title, output: ev.output, workLog: ev.workLog || [], task: activeTask, file: ev.file, files: ev.files || [], usd: cost, at: new Date() };
+      lastFinal = { title: `#${J.no} ${title}`, output: ev.output, workLog: ev.workLog || [], task: J.text, file: ev.file, files: ev.files || [], usd: J.usd || 0, at: new Date() };
+      J.result = lastFinal;
       history.unshift(lastFinal); renderHistory();
       if (lastFinal.files.length) printing = 3;
       // Bima mengantar hasil ke Rahula
       const spot = besideSeat(player, leader.seat);
       leader.queue({ fn: (s) => { s.carrying = true; } }, { walk: spot }, { fn: (s) => { s.carrying = false; s.say("🎁", "Ini hasilnya!", 2600); player.say("🙏", "Mantap!", 2400); } }, { wait: 1.2 }, { walk: leader.seat });
       toast(leader, "Hasil akhir siap", title, "good");
-      const el = post(leader, `🎉 <b>Hasil akhir siap</b>: ${esc(title)}${lastFinal.files.length ? ` · ${lastFinal.files.length} file` : ""}<br><button class="btn-ghost" type="button">Buka hasil</button>`, { html: true });
-      el.querySelector("button").addEventListener("click", () => openResult(history.find((h) => h.title === title) || lastFinal));
-      setRunning(false); activeTask = null;
-      setTimeout(() => openResult(lastFinal), 1800);
+      const res = lastFinal;
+      const el = post(leader, `🎉 <b>Hasil akhir siap</b>: ${esc(title)}${res.files.length ? ` · ${res.files.length} file` : ""}<br><button class="btn-ghost" type="button">Buka hasil</button>`, { html: true });
+      el.querySelector("button").addEventListener("click", () => openResult(res));
+      // Jangan menimpa hasil lain yang sedang dibaca.
+      setTimeout(() => { if (!$("result").open) openResult(res); }, 1800);
       break;
     }
     case "error": {
-      leader.status = "error"; leader.say("❗", "Ada masalah", 5000);
-      toast(leader, "Tugas terhenti", ev.message, "bad");
+      J.status = /dibatalkan/i.test(ev.message || "") ? "batal" : "gagal";
+      for (const w of workers) if (w.calls) { for (const k of [...w.calls]) if (k.startsWith(J.id + ":")) w.calls.delete(k); if (!w.calls.size && w.status === "working") w.status = "idle"; }
+      if (!runningJobs().length) leader.status = "error";
+      leader.say("❗", `#${J.no} terhenti`, 5000);
+      toast(leader, `Tugas #${J.no} terhenti`, ev.message, "bad");
       post("sys", `❗ ${ev.message}`);
-      setRunning(false); activeTask = null;
       setTimeout(() => { if (leader.status === "error") leader.status = "idle"; }, 8000);
       break;
     }
@@ -1630,13 +1710,15 @@ const DEMO_OUT = {
   "riset": "**Jawaban inti (contoh demo):** sumber primer perlu diverifikasi di JDIH/peraturan.go.id.\n\n**Yang masih belum pasti:** isi pasal per pasal.\n\n_(Contoh mode demo.)_",
 };
 const demo = {
-  queue: [], running: false,
+  queue: [], running: false, n: 0,
   start(text) {
     const picked = DEMO_RULES.filter(([, re]) => re.test(text)).map(([id]) => id).slice(0, 3);
     if (!picked.length) picked.push("riset", "surat-ba");
     let t = simClock;
-    const at = (dt, ev) => { t += dt; this.queue.push({ at: t, ev }); };
-    this.queue = []; this.running = true;
+    const jobId = "demo" + (++this.n), no = this.n;
+    const push = (o) => { o.ev = { ...o.ev, job: jobId, no }; this.queue.push(o); };
+    const at = (dt, ev) => { t += dt; push({ at: t, ev }); };
+    this.running = true;
     const P = { "": ["Sonnet 5.5", "Sonnet 5.5", "Sonnet 5.5"], hemat: ["Sonnet 5.5", "Sonnet 5.5", "Sonnet 5.5"], opus: ["Opus 5.5", "Opus 5.5", "Opus 5.5"], campuran: ["Opus 5.5", "Sonnet 5.5", "Sonnet 5.5"], sonnet: ["Sonnet 5.5", "Sonnet 5.5", "Sonnet 5.5"] }[$("preset").value] || ["Sonnet 5.5", "Sonnet 5.5", "Sonnet 5.5"];
     at(0, { type: "task", text, models: { leader: P[0], worker: P[1], light: P[2] } });
     at(2.2, { type: "leader_say", text: "📚 Pengetahuan: 16 file; mode hemat: sebagian ditempel, sisanya dibaca agent bila perlu." });
@@ -1644,40 +1726,45 @@ const demo = {
     at(1.2, { type: "leader_say", text: `Saya delegasikan ke ${picked.map((id) => byId[id].sim).join(", ")} secara paralel.` });
     const base = t, done = [];
     let tok = { input: 2400, output: 300, cacheRead: 0, cacheWrite: 9800 };
-    this.queue.push({ at: base - 1, ev: { type: "tokens", ...tok } });
+    push({ at: base - 1, ev: { type: "tokens", ...tok } });
     picked.forEach((id, i) => {
       const w = byId[id];
-      this.queue.push({ at: base + i * .3, ev: { type: "delegate", callId: "d" + i, agent: id, summary: w.title + ": " + text.slice(0, 40) + (text.length > 40 ? "…" : ""), instruksi: "(mode demo) " + text } });
+      push({ at: base + i * .3, ev: { type: "delegate", callId: "d" + i, agent: id, summary: w.title + ": " + text.slice(0, 40) + (text.length > 40 ? "…" : ""), instruksi: "(mode demo) " + text } });
       const dur = 12 + Math.random() * 7;
-      for (let k = 1; k < dur / 1.2; k++) this.queue.push({ at: base + 3 + k * 1.2, ev: { type: "worker_progress", callId: "d" + i, agent: id, chars: Math.round(k * 160 + Math.random() * 80) } });
-      if (AGENT_SKILL[id]) this.queue.push({ at: base + 4.5 + i * .6, ev: { type: "worker_skill", callId: "d" + i, agent: id, skill: AGENT_SKILL[id] } });
-      this.queue.push({ at: base + 6 + i, ev: { type: "worker_tool", callId: "d" + i, agent: id, tool: "Read", target: `pengetahuan/${id}/01-catatan.md` } });
-      if (w.files) this.queue.push({ at: base + dur, ev: { type: "worker_tool", callId: "d" + i, agent: id, tool: "Write", target: `hasil/tugas-demo/${w.title.split(/[ ,&]/)[0]}_draf.docx` } });
-      if (w.web) this.queue.push({ at: base + 8 + i, ev: { type: "worker_search", callId: "d" + i, agent: id, query: text.split(/\s+/).slice(0, 4).join(" ") } });
+      for (let k = 1; k < dur / 1.2; k++) push({ at: base + 3 + k * 1.2, ev: { type: "worker_progress", callId: "d" + i, agent: id, chars: Math.round(k * 160 + Math.random() * 80) } });
+      if (AGENT_SKILL[id]) push({ at: base + 4.5 + i * .6, ev: { type: "worker_skill", callId: "d" + i, agent: id, skill: AGENT_SKILL[id] } });
+      push({ at: base + 6 + i, ev: { type: "worker_tool", callId: "d" + i, agent: id, tool: "Read", target: `pengetahuan/${id}/01-catatan.md` } });
+      if (w.files) push({ at: base + dur, ev: { type: "worker_tool", callId: "d" + i, agent: id, tool: "Write", target: `hasil/tugas-demo/${w.title.split(/[ ,&]/)[0]}_draf.docx` } });
+      if (w.web) push({ at: base + 8 + i, ev: { type: "worker_search", callId: "d" + i, agent: id, query: text.split(/\s+/).slice(0, 4).join(" ") } });
       const end = base + 3 + dur; done.push(end);
-      this.queue.push({ at: end, ev: { type: "worker_done", callId: "d" + i, agent: id, ok: true, output: DEMO_OUT[id] } });
+      push({ at: end, ev: { type: "worker_done", callId: "d" + i, agent: id, ok: true, output: DEMO_OUT[id] } });
     });
-    for (let k = 1; k <= 8; k++) { tok = { input: tok.input + 900, output: tok.output + 650, cacheRead: tok.cacheRead + 11000, cacheWrite: tok.cacheWrite + 400 }; this.queue.push({ at: base + k * 2.4, ev: { type: "tokens", ...tok } }); }
+    for (let k = 1; k <= 8; k++) { tok = { input: tok.input + 900, output: tok.output + 650, cacheRead: tok.cacheRead + 11000, cacheWrite: tok.cacheWrite + 400 }; push({ at: base + k * 2.4, ev: { type: "tokens", ...tok } }); }
     const allDone = Math.max(...done) + 4;
-    if (picked.length >= 3) this.queue.push({ at: allDone - 1, ev: { type: "compact", trigger: "auto", before: 104000, after: 18000 } });
-    this.queue.push({ at: allDone, ev: { type: "review", count: picked.length } });
+    if (picked.length >= 3) push({ at: allDone - 1, ev: { type: "compact", trigger: "auto", before: 104000, after: 18000 } });
+    push({ at: allDone, ev: { type: "review", count: picked.length } });
     const workLog = picked.map((id) => ({ agent: id, sim: byId[id].sim, title: byId[id].title, instruksi: text, output: DEMO_OUT[id] }));
     const final = `# Hasil (contoh mode demo)\n**Ringkasan:** Ini simulasi. Di mode live, Bima menggabungkan hasil ${picked.map((id) => byId[id].sim).join(", ")} menjadi dokumen siap pakai untuk tugas: _${text.slice(0, 140)}_\n\n## Hasil\n${workLog.map((w) => `### Dari ${w.sim} (${w.title})\n${w.output}`).join("\n\n")}\n\n## Hasil Pemeriksaan Pemimpin\n- [x] Tugas terjawab oleh agent yang tepat\n- [x] Data yang belum pasti ditandai [ISI: …]\n- [ ] Fakta & angka asli (perlu mode live)\n\n## Perlu Dilengkapi / Diputuskan Rahula\n- Untuk hasil asli: jalankan \`npm start\` (login akun Claude) atau buka aplikasi di rig.\n\n## Kontribusi Tim\n${workLog.map((w) => `- ${w.sim} — ${w.title}`).join("\n")}`;
-    this.queue.push({ at: allDone + 3, ev: { type: "tokens", ...tok, output: tok.output + 1400 } });
-    this.queue.push({ at: allDone + 4, ev: { type: "final", output: final, workLog, usd: 0 } });
+    push({ at: allDone + 3, ev: { type: "tokens", ...tok, output: tok.output + 1400 } });
+    push({ at: allDone + 4, ev: { type: "final", output: final, workLog, usd: 0 } });
     this.queue.sort((a, b) => a.at - b.at);
   },
   tick(clock) {
     while (this.queue.length && this.queue[0].at <= clock) handle(this.queue.shift().ev);
     if (this.running && !this.queue.length) this.running = false;
   },
-  cancel() { this.queue = []; this.running = false; handle({ type: "error", message: "Tugas dibatalkan." }); },
+  cancel(jobId) {
+    const no = jobsUI.get(jobId)?.no;
+    this.queue = this.queue.filter((q) => q.ev.job !== jobId);
+    handle({ type: "error", job: jobId, no, message: "Tugas dibatalkan." });
+  },
 };
 
 /* =====================================================================
    KONEKSI KE SERVER (mode live)
    ===================================================================== */
-let mode = "demo", engine = "api", source = null, jobId = null, appVersion = null;
+let mode = "demo", engine = "api", appVersion = null;
+const sources = new Map(); // id tugas -> EventSource
 async function detectMode() {
   try {
     const ctl = new AbortController(); setTimeout(() => ctl.abort(), 2500);
@@ -1695,7 +1782,7 @@ async function detectMode() {
       modelLabels = { leader: short(dm.leader), worker: short(dm.worker), light: short(dm.light || dm.worker) }; renderModels();
     }
     if (Array.isArray(st.skills)) { SKILLS = st.skills; renderSkills(); }
-    if (mode === "live" && st.running) attach(st.running);
+    if (mode === "live") for (const id of [...(st.active || (st.running ? [st.running] : [])), ...(st.queued || [])]) attach(id);
   } catch { mode = "demo"; $("downloadResult").hidden = true; }
   const pill = $("modePill");
   pill.className = "pill " + (mode === "live" ? "mode-live" : "mode-demo");
@@ -1715,7 +1802,7 @@ async function checkVersion() {
     const r = await fetch("/api/status", { cache: "no-store" });
     if (!r.ok) return;
     const st = await r.json();
-    if (st.version && st.version !== appVersion && !activeTask && !st.running && !$("result").open) {
+    if (st.version && st.version !== appVersion && !runningJobs().length && !(st.active || []).length && !$("result").open) {
       toast(leader, "Kantor diperbarui", `Versi baru ${st.version} terpasang. Memuat ulang…`, "good");
       setTimeout(() => location.reload(), 2500);
     }
@@ -1723,15 +1810,11 @@ async function checkVersion() {
 }
 setInterval(checkVersion, 60_000);
 function attach(id) {
-  jobId = id;
-  source?.close();
-  source = new EventSource(`/api/tasks/${id}/events`);
-  source.onmessage = (m) => { const ev = JSON.parse(m.data); handle(ev); if (ev.type === "final" || ev.type === "error") { source.close(); source = null; } };
-  source.onerror = () => { if (source && source.readyState === EventSource.CLOSED) source = null; };
-}
-function setRunning(on) {
-  $("send").disabled = on; $("cancel").hidden = !on;
-  $("hint").textContent = on ? "Tim sedang bekerja. Klik Sim untuk melihat progresnya." : "Ctrl + Enter untuk kirim.";
+  if (sources.has(id)) return;
+  const src = new EventSource(`/api/tasks/${id}/events`);
+  sources.set(id, src);
+  src.onmessage = (m) => { const ev = JSON.parse(m.data); handle({ job: id, ...ev }); if (ev.type === "final" || ev.type === "error") { src.close(); sources.delete(id); } };
+  src.onerror = () => { if (src.readyState === EventSource.CLOSED) sources.delete(id); };
 }
 async function send() {
   const text = $("task").value.trim();
@@ -1746,16 +1829,14 @@ async function send() {
       attach(body.id);
       $("task").value = "";
       draft.id = null; draft.files = []; renderDraft();
-    } catch (e) { $("send").disabled = false; toast(leader, "Tugas belum terkirim", e.message, "bad"); }
+    } catch (e) { toast(leader, "Tugas belum terkirim", e.message, "bad"); }
+    finally { $("send").disabled = false; }
   } else { demo.start(text); $("task").value = ""; }
   showTab("chat");
 }
 $("composer").addEventListener("submit", (e) => { e.preventDefault(); send(); });
 $("task").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } });
-$("cancel").addEventListener("click", async () => {
-  if (mode === "live" && jobId) { try { await fetch(`/api/tasks/${jobId}/cancel`, { method: "POST" }); } catch {} }
-  else demo.cancel();
-});
+
 try { const saved = localStorage.getItem("kantor-pga-preset"); if (saved !== null && [...$("preset").options].some((o) => o.value === saved)) $("preset").value = saved; } catch {}
 $("preset").addEventListener("change", () => { try { localStorage.setItem("kantor-pga-preset", $("preset").value); } catch {} });
 $("chips").innerHTML = EXAMPLES.map(([label], i) => `<button class="chip" type="button" data-i="${i}">${esc(label)}</button>`).join("");
@@ -1785,8 +1866,9 @@ function renderDraft() {
     } catch {}
   }));
 }
-$("attachInput").addEventListener("change", async (e) => {
-  const list = [...e.target.files]; e.target.value = "";
+$("attachInput").addEventListener("change", (e) => { const list = [...e.target.files]; e.target.value = ""; uploadAttachments(list); });
+async function uploadAttachments(list) {
+  if (!(mode === "live" && engine === "langganan")) { toast(leader, "Lampiran belum tersedia", "Lampiran file butuh server Kantor PGA (mode langganan).", "bad"); return; }
   for (const f of list) {
     $("hint").textContent = `Mengunggah ${f.name}…`;
     try {
@@ -1797,7 +1879,38 @@ $("attachInput").addEventListener("change", async (e) => {
       draft.id = body.draft; draft.files = body.files; renderDraft();
     } catch (err) { toast(leader, "Lampiran gagal", `${f.name}: ${err.message}`, "bad"); }
   }
-  $("hint").textContent = draft.files.length ? `${draft.files.length} lampiran ikut terkirim bersama tugas.` : "Ctrl + Enter untuk kirim.";
+  $("hint").textContent = draft.files.length ? `${draft.files.length} lampiran ikut terkirim bersama tugas berikutnya.` : "Ctrl + Enter untuk kirim.";
+}
+// Tempel screenshot/file langsung di kotak tugas (Ctrl+V).
+$("task").addEventListener("paste", (e) => {
+  const files = [...(e.clipboardData?.files || [])];
+  if (!files.length) return;
+  e.preventDefault();
+  const stamp = new Date().toISOString().slice(11, 19).replace(/:/g, "");
+  uploadAttachments(files.map((f, i) => f.name && f.name !== "image.png" ? f : new File([f], `tempel_${stamp}${i ? "_" + i : ""}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`, { type: f.type })));
+});
+// Seret & lepas: di mana saja = lampiran tugas; di tab Konteks (atau area ZIP) = paket pengetahuan.
+let dragDepth = 0;
+const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
+const toKnowledge = (e) => currentTab === "kn" || (e.target instanceof Element && e.target.closest("#p-kn"));
+addEventListener("dragenter", (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth++;
+  $("dropText").innerHTML = toKnowledge(e) ? "📚 Lepas paket ZIP pengetahuan<small>isi folder pengetahuan diperbarui (file sama ditimpa)</small>" : "📎 Lepas file di sini<small>untuk dilampirkan ke tugas berikutnya · boleh banyak sekaligus</small>";
+  $("dropOverlay").hidden = false;
+});
+addEventListener("dragover", (e) => { if (hasFiles(e)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } });
+addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) $("dropOverlay").hidden = true; });
+addEventListener("drop", (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth = 0; $("dropOverlay").hidden = true;
+  const files = [...e.dataTransfer.files];
+  if (!files.length) return;
+  if (toKnowledge(e)) {
+    const zip = files.find((f) => /\.zip$/i.test(f.name));
+    if (!zip) { toast(leader, "Bukan file ZIP", "Paket pengetahuan harus berupa .zip.", "bad"); return; }
+    showTab("kn"); uploadKnowledge(zip);
+  } else uploadAttachments(files);
 });
 
 /* ---------- Pengetahuan kantor ---------- */
@@ -1815,9 +1928,9 @@ function renderKnowledge(k) {
 async function loadKnowledge() {
   try { const r = await fetch("/api/pengetahuan"); if (r.ok) renderKnowledge(await r.json()); } catch {}
 }
-$("knInput").addEventListener("change", async (e) => {
-  const f = e.target.files[0]; e.target.value = "";
-  if (!f) return;
+$("knInput").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) uploadKnowledge(f); });
+async function uploadKnowledge(f) {
+  if (!(mode === "live" && engine === "langganan")) { toast(leader, "Belum tersedia", "Unggah pengetahuan butuh server Kantor PGA (mode langganan).", "bad"); return; }
   $("knHint").textContent = `Mengunggah ${f.name} (${fmtSize(f.size)})…`;
   try {
     const r = await fetch("/api/pengetahuan", { method: "POST", body: f });
@@ -1828,7 +1941,7 @@ $("knInput").addEventListener("change", async (e) => {
     if (Array.isArray(body.skillList)) { SKILLS = body.skillList; renderSkills(); }
     $("knHint").textContent = `✅ ${body.entries} entri dipasang. Terpakai mulai tugas berikutnya.`;
   } catch (err) { $("knHint").textContent = `⚠️ ${err.message}`; }
-});
+}
 
 function tickClock() {
   const d = new Date();

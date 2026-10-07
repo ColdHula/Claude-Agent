@@ -114,6 +114,7 @@ Salin `.env.example` menjadi `.env` bila ingin mengubah bawaan:
 | Variabel | Bawaan | Arti |
 |---|---|---|
 | `MAX_TASK_USD` | `3` | Rem pengaman kredit per tugas (USD perkiraan) |
+| `MAX_TUGAS_PARALEL` | `3` | Tugas yang dikerjakan bersamaan; sisanya antre |
 | `CLAUDE_MODEL` | — | Paksa satu model untuk semua (mematikan preset hemat) |
 | `LEADER_MODEL` / `WORKER_MODEL` / `LIGHT_MODEL` | preset hemat | Model khusus Pemimpin / agent / agent ringan |
 | `LEADER_EFFORT` / `WORKER_EFFORT` | `medium` / `medium` | Kedalaman berpikir |

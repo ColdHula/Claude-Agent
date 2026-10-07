@@ -37,7 +37,13 @@ const guard = makeAuth(process.env.APP_PASSWORD);
 
 const team = await loadAgents({ lazy: ENGINE !== "api" });
 const jobs = new Map(); // id -> { events, listeners, done, controller }
-let running = null;
+// Beberapa tugas boleh berjalan bersamaan; sisanya antre (FIFO).
+const MAX_PARALLEL = Math.max(1, Number(process.env.MAX_TUGAS_PARALEL || 3));
+const MAX_QUEUE = 10;
+const active = new Set(); // id tugas yang sedang berjalan
+const queue = []; // [{ id, begin }]
+let seq = 0;
+const jobList = () => [...jobs].slice(-30).map(([id, j]) => ({ id, no: j.no, text: j.text.slice(0, 160), status: j.status, at: j.at }));
 
 const MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml",
@@ -153,9 +159,9 @@ function slug(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "tugas";
 }
 
-async function saveResult(task, result) {
+async function saveResult(task, result, id = "") {
   const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
-  const file = `${stamp}_${slug(task)}.md`;
+  const file = `${stamp}_${slug(task)}${id ? `_${id}` : ""}.md`;
   const appendix = result.workLog
     .map((w) => `### ${w.sim} — ${w.title}\n\n**Instruksi dari Pemimpin:**\n\n${w.instruksi}\n\n**Hasil:**\n\n${w.output}`)
     .join("\n\n---\n\n");
@@ -175,18 +181,45 @@ function resolveModels(preset) {
 }
 
 function startJob(task, models, draft) {
-  const id = Date.now().toString(36);
+  const no = ++seq;
+  const id = Date.now().toString(36) + no.toString(36);
   const workDir = path.join(HASIL, `tugas-${id}`);
-  const job = { events: [], listeners: new Set(), done: false, controller: new AbortController() };
+  const job = { no, text: task, at: Date.now(), status: "antri", events: [], listeners: new Set(), done: false, controller: new AbortController() };
   jobs.set(id, job);
-  running = id;
-  setBusy(true);
+  // Simpan paling banyak 50 tugas di memori (yang sudah selesai dibuang lebih dulu).
+  for (const [oldId, j] of jobs) { if (jobs.size <= 50) break; if (j.done) jobs.delete(oldId); }
   const emit = (event) => {
-    const e = { ...event, t: Date.now() };
+    const e = { ...event, job: id, no, t: Date.now() };
     job.events.push(e);
     for (const res of job.listeners) res.write(`data: ${JSON.stringify(e)}\n\n`);
   };
-  emit({ type: "task", id, text: task, models: { leader: MODELS[models.leader].label, worker: MODELS[models.worker].label, light: MODELS[models.light].label } });
+  const queued = active.size >= MAX_PARALLEL;
+  emit({ type: "task", id, text: task, queued, models: { leader: MODELS[models.leader].label, worker: MODELS[models.worker].label, light: MODELS[models.light].label } });
+  job.cancelQueued = () => {
+    const i = queue.findIndex((q) => q.id === id);
+    if (i < 0) return false;
+    queue.splice(i, 1);
+    job.done = true; job.status = "batal";
+    emit({ type: "error", message: "Tugas dibatalkan sebelum mulai." });
+    for (const res of job.listeners) res.end();
+    job.listeners.clear();
+    queue.forEach((q, k) => q.notify(k + 1));
+    return true;
+  };
+  const begin = () => {
+    active.add(id);
+    job.status = "berjalan";
+    setBusy(true);
+    if (queued) emit({ type: "dequeued" });
+    run$job();
+  };
+  if (queued) {
+    queue.push({ id, begin, notify: (position) => emit({ type: "queued", position }) });
+    emit({ type: "queued", position: queue.length });
+  } else begin();
+  return id;
+
+  function run$job() {
   // Muat ulang instruksi + pengetahuan di setiap tugas, agar file baru di pengetahuan/ langsung terpakai.
   (async () => {
     await fs.mkdir(path.join(workDir, "masukan"), { recursive: true });
@@ -209,7 +242,7 @@ function startJob(task, models, draft) {
       return run(task, emit, { ...fresh, models, signal: job.controller.signal, workDir, inputs });
     })
     .then(async (result) => {
-      const file = await saveResult(task, result).catch(() => null);
+      const file = await saveResult(task, result, id).catch(() => null);
       await rememberNotes(task, result.final).catch(() => {});
       const files = (await listFiles(workDir)).map((f) => ({ ...f, url: `/hasil/tugas-${id}/${encodeURIComponent(f.name)}` }));
       emit({ type: "final", output: result.final, file, files, workLog: result.workLog, usd: Number(result.cost.toFixed(4)) });
@@ -217,12 +250,15 @@ function startJob(task, models, draft) {
     .catch((err) => emit({ type: "error", message: job.controller.signal.aborted ? "Tugas dibatalkan." : String(err?.message || err) }))
     .finally(() => {
       job.done = true;
-      running = null;
-      setBusy(false);
+      job.status = job.events.some((e) => e.type === "final") ? "selesai" : "gagal";
+      active.delete(id);
+      setBusy(active.size > 0);
       for (const res of job.listeners) res.end();
       job.listeners.clear();
+      const next = queue.shift();
+      if (next) { next.begin(); queue.forEach((q, k) => q.notify(k + 1)); }
     });
-  return id;
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -236,7 +272,11 @@ const server = http.createServer(async (req, res) => {
         engine: ENGINE,
         defaultModels: defaultModels(),
         presets: Object.fromEntries(Object.entries(PRESETS).map(([k, v]) => [k, v.label])),
-        running,
+        running: [...active][0] || null,
+        active: [...active],
+        queued: queue.map((q) => q.id),
+        maxParallel: MAX_PARALLEL,
+        jobs: jobList(),
         leader: { id: team.leader.id, sim: team.leader.sim, title: team.leader.title },
         agents: team.agents.map(({ id, sim, title, icon, web, description }) => ({ id, sim, title, icon, web, description })),
         ...(ENGINE === "langganan" ? { skills: (await findSkills()).details } : {}),
@@ -244,7 +284,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/api/tasks" && req.method === "POST") {
       if (!LIVE) return json(res, 400, { error: "Server dalam mode demo (DEMO=1, atau ENGINE=api tanpa ANTHROPIC_API_KEY)." });
-      if (running) return json(res, 409, { error: "Tim masih mengerjakan tugas lain.", id: running });
+      if (queue.length >= MAX_QUEUE) return json(res, 429, { error: `Antrean penuh (${MAX_QUEUE} tugas). Tunggu sebagian selesai.` });
       const { text, preset, draft } = await readBody(req);
       if (draft && ENGINE === "api") return json(res, 400, { error: "Lampiran file hanya didukung di mode langganan." });
       if (typeof text !== "string" || !text.trim()) return json(res, 400, { error: "Tugas kosong." });
@@ -257,6 +297,7 @@ const server = http.createServer(async (req, res) => {
       const job = jobs.get(evMatch[1]);
       if (!job) return json(res, 404, { error: "Tugas tidak ditemukan." });
       if (evMatch[2] === "cancel") {
+        if (job.cancelQueued && job.cancelQueued()) return json(res, 200, { ok: true });
         job.controller.abort();
         return json(res, 200, { ok: true });
       }
@@ -285,7 +326,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, await knowledgeSummary());
     }
     if (url.pathname === "/api/pengetahuan" && req.method === "POST") {
-      if (running) return json(res, 409, { error: "Tunggu tugas yang sedang berjalan selesai dulu." });
+      if (active.size) return json(res, 409, { error: "Tunggu semua tugas yang sedang berjalan selesai dulu, lalu unggah lagi." });
       const tmp = path.join(HASIL, "_draf", `pengetahuan-${Date.now()}.zip`);
       try {
         await saveRaw(req, tmp, 400e6);
