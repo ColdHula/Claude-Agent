@@ -13,7 +13,8 @@ const MAX_WORKER_PAUSES = 6;
 export const MODELS = {
   "claude-opus-5-5": { label: "Opus 5.5", price: { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 } },
   "claude-sonnet-5-5": { label: "Sonnet 5.5", price: { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 } },
-  "claude-haiku-4-5": { label: "Haiku 4.5", price: { input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 } },
+  // Haiku 5.5 hanya untuk LIGHT_MODEL bila ingin sangat hemat; bawaan tetap Sonnet.
+  "claude-haiku-5-5": { label: "Haiku 5.5", price: { input: 0.1, output: 0.5, cacheWrite: 0.125, cacheRead: 0.01 } },
 };
 // Agent dengan pekerjaan ringan (draf email, langkah portal). Modelnya bisa diganti lewat LIGHT_MODEL;
 // bawaan sama dengan agent lain (Sonnet).

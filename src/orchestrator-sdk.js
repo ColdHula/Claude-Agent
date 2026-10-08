@@ -152,8 +152,7 @@ export async function runTaskSdk(task, emit, { agents, leader, signal, models = 
         ],
         maxTurns: FILE_AGENTS.has(a.id) ? 60 : 20,
         model: modelFor(a.id),
-        // Haiku tidak mendukung pengaturan effort.
-        ...(/haiku/.test(modelFor(a.id)) ? {} : { effort: WORKER_EFFORT }),
+        effort: WORKER_EFFORT,
       },
     ]),
   );
