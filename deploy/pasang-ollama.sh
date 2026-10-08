@@ -10,7 +10,9 @@
 #   RAM_MAX=13G             batas RAM proses Ollama
 set -euo pipefail
 
-MODEL="${MODEL-qwen3-coder:30b}"
+# Bawaan 14B: muat nyaman di RAM 16 GB (CPU-only). Untuk lebih ringan pakai qwen2.5-coder:7b.
+# Qwen3-Coder 30B (±19 GB) TIDAK muat di 16 GB — hanya untuk RAM 32 GB+.
+MODEL="${MODEL-qwen2.5-coder:14b}"
 THREADS="${THREADS:-8}"
 RAM_MAX="${RAM_MAX:-13G}"
 

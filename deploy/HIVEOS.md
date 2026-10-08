@@ -146,16 +146,23 @@ di **CPU saja**, jadi **ketiga GPU tetap 100% untuk mining** — hashrate tidak 
 curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ollama.sh | sudo bash
 ```
 Skrip ini memaksa Ollama memakai CPU (GPU tak tersentuh), memberi prioritas di bawah miner,
-membatasi RAM, mengunci akses ke Tailscale, lalu mengunduh `qwen3-coder:30b`.
-Model lebih ringan: tambahkan `MODEL=qwen2.5-coder:7b` di depan `sudo`.
+membatasi RAM, mengunci akses ke Tailscale, lalu mengunduh model coding.
 
-**Langkah 2 — pasang antarmuka chat "Ngobrol":**
+Model untuk RAM 16 GB (CPU-only):
+| Model | Perintah | Catatan |
+|---|---|---|
+| **Qwen2.5-Coder 14B** (bawaan) | — | Kualitas coding terbaik yang muat nyaman di 16 GB |
+| Qwen2.5-Coder 7B (lebih cepat) | `MODEL=qwen2.5-coder:7b` di depan `sudo` | Lebih ringan & cepat |
+| Qwen3-Coder 30B | — | **TIDAK muat** di 16 GB (butuh ±19 GB / RAM 32 GB+) |
+
+**Langkah 2 — pasang antarmuka "Nexa" (chat + coding):**
 ```
 curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ngobrol.sh | sudo bash
 ```
-Ini memasang chatbot web (seperti chat biasa: riwayat tersimpan, lampiran file, berpassword)
-sebagai layanan, dibuka di `https://<nama-rig>.ts.net:8443` (port terpisah dari Kantor PGA,
-kata sandinya sama).
+Nexa adalah aplikasi web (chat biasa + mode coding, riwayat tersimpan, lampiran file,
+berpassword, bisa dipasang di layar utama HP dengan logonya). Dibuka di
+`https://<nama-rig>.ts.net:8443` (port terpisah dari Kantor PGA, kata sandinya sama).
+Nyalakan tombol **💻 Coding** di pojok atas agar jawaban fokus kode yang benar.
 
 **Cek GPU aman:** saat model menjawab, di tab Hive Shell lain jalankan `nvidia-smi` — tidak boleh
 ada proses `ollama` di daftar GPU, dan utilisasi GPU tetap penuh oleh miner.

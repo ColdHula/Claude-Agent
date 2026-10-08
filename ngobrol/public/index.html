@@ -3,8 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ngobrol · Model Lokal</title>
+<title>Nexa · AI Lokal</title>
 <meta name="theme-color" content="#0b1020">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nexa">
 <style>
 :root{
   --bg:#0b1020; --panel:#121a30; --panel2:#0e1627; --line:#223154;
@@ -35,7 +41,9 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 #main{flex:1;display:flex;flex-direction:column;min-width:0}
 #top{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
 #burger{display:none;font-size:20px;padding:4px 8px}
-#model{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 10px;max-width:280px}
+#model{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 10px;max-width:240px}
+#mode{border:1px solid var(--line);border-radius:10px;padding:8px 12px;color:var(--dim);font-weight:700}
+#mode.on{border-color:var(--accent);color:var(--accent2);background:#141f3e}
 #status{margin-left:auto;font-size:12px;color:var(--dim)}
 #status b{color:var(--ok)}
 #feed{flex:1;overflow:auto;padding:22px 0}
@@ -83,7 +91,7 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 </head>
 <body>
 <aside id="side">
-  <h1>💬 <b>Ngobrol</b> <span>model lokal</span></h1>
+  <h1><img src="/icon.svg" width="22" height="22" alt="" style="vertical-align:-4px;border-radius:6px"> <b>Nexa</b> <span>AI lokal</span></h1>
   <button id="baru">＋ Obrolan baru</button>
   <div id="chats"></div>
   <footer><span id="who">lokal · privat</span></footer>
@@ -93,6 +101,7 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
   <div id="top">
     <button id="burger">☰</button>
     <select id="model" title="Pilih model"></select>
+    <button id="mode" title="Mode coding: jawaban fokus kode yang benar + penjelasan singkat">💻 Coding</button>
     <div id="status"></div>
   </div>
   <div id="feed"><div class="wrap" id="list"></div></div>
@@ -114,6 +123,11 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 const $ = (id) => document.getElementById(id);
 const api = (p, o) => fetch(p, o).then((r) => r.json());
 let chatId = null, messages = [], attached = [], busy = false;
+const SYS_CODE = "Kamu asisten pemrograman yang andal. Tulis kode yang benar dan bisa langsung dijalankan. Selalu bungkus kode dalam blok ``` dengan nama bahasa. Jelaskan singkat dalam Bahasa Indonesia. Bila permintaan ambigu, sebutkan asumsimu. Jangan mengarang nama fungsi atau API; bila ragu, katakan.";
+let codeMode = localStorage.getItem("codeMode") !== "0";
+
+function syncMode(){ $("mode").classList.toggle("on", codeMode); }
+$("mode").onclick = () => { codeMode = !codeMode; localStorage.setItem("codeMode", codeMode ? "1" : "0"); syncMode(); };
 
 // --- Model ---
 async function loadModels(){
@@ -237,10 +251,12 @@ async function send(){
   if (txtEl()) txtEl().classList.add("cursor");
 
   try{
-    // Kirim hanya role+content (tanpa field files) ke model
-    const payload = messages.filter(m=>m.role!=="assistant"||m.content).map(({role,content})=>({role,content}));
+    // Bangun payload: buang system lama & assistant kosong; prepend system coding bila aktif
+    let payload = messages.filter(m => m.role !== "system" && !(m.role==="assistant" && !m.content))
+      .map(({role,content}) => ({role,content}));
+    if (codeMode) payload = [{ role:"system", content:SYS_CODE }, ...payload];
     const res = await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({ model, id:chatId, messages:payload.slice(0,-1).concat([userMsg]) })});
+      body:JSON.stringify({ model, id:chatId, messages:payload })});
     if (!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error||("HTTP "+res.status)); }
     chatId = res.headers.get("x-chat-id") || chatId;
     const reader = res.body.getReader(); const dec=new TextDecoder(); let buf="";
@@ -260,7 +276,7 @@ async function send(){
 $("burger").onclick = ()=> $("side").classList.toggle("open");
 function closeSide(){ $("side").classList.remove("open"); }
 
-loadModels(); loadChats(); render();
+syncMode(); loadModels(); loadChats(); render();
 </script>
 </body>
 </html>
