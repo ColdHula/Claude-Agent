@@ -89,7 +89,7 @@ function open_(){document.getElementById('gate').remove();v.src=v.dataset.src}
 if(!n){open_();return}
 var t=setInterval(function(){n--;s.textContent=n;if(n<=0){clearInterval(t);b.disabled=false;b.textContent='▶ Putar film'}},1000);
 b.onclick=open_})();</script>`;
-  await writeFile(`dist/film/${f.id}.html`, layout(`Nonton ${f.title}${f.year ? ` (${f.year})` : ''} Subtitle & Gratis — ${cfg.siteName}`,
+  await writeFile(`dist/film/${f.id}.html`, layout(`Nonton ${f.title}${f.year ? ` (${f.year})` : ''} Gratis (Domain Publik) — ${cfg.siteName}`,
     f.desc || `Tonton ${f.title}, film domain publik.`, `/film/${encodeURIComponent(f.id)}.html`, body,
     `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`));
 }
