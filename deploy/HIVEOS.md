@@ -132,6 +132,45 @@ Rak Skill, dan laporan di tab **💬 Chat**. Hasil akhir muncul otomatis, lengka
 
 ---
 
+## Bonus: AI lokal gratis di rig (Ollama + Ngobrol)
+
+Selain Kantor PGA (yang memakai Claude), Anda bisa menjalankan model AI **lokal** di rig
+untuk chat dan coding: gratis, tanpa kredit, data tidak keluar dari rig. Modelnya berjalan
+di **CPU saja**, jadi **ketiga GPU tetap 100% untuk mining** — hashrate tidak terganggu.
+
+> Syarat: CPU ber-AVX2 (mis. Core i5-10400F). Pentium Gold tidak bisa. RAM 16 GB cukup
+> untuk model MoE seperti Qwen3-Coder 30B-A3B.
+
+**Langkah 1 — pasang Ollama (CPU-only):**
+```
+curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ollama.sh | sudo bash
+```
+Skrip ini memaksa Ollama memakai CPU (GPU tak tersentuh), memberi prioritas di bawah miner,
+membatasi RAM, mengunci akses ke Tailscale, lalu mengunduh `qwen3-coder:30b`.
+Model lebih ringan: tambahkan `MODEL=qwen2.5-coder:7b` di depan `sudo`.
+
+**Langkah 2 — pasang antarmuka chat "Ngobrol":**
+```
+curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ngobrol.sh | sudo bash
+```
+Ini memasang chatbot web (seperti chat biasa: riwayat tersimpan, lampiran file, berpassword)
+sebagai layanan, dibuka di `https://<nama-rig>.ts.net:8443` (port terpisah dari Kantor PGA,
+kata sandinya sama).
+
+**Cek GPU aman:** saat model menjawab, di tab Hive Shell lain jalankan `nvidia-smi` — tidak boleh
+ada proses `ollama` di daftar GPU, dan utilisasi GPU tetap penuh oleh miner.
+
+Perintah harian:
+| Perlu | Perintah |
+|---|---|
+| Tambah model | `OLLAMA_HOST=127.0.0.1:11434 ollama pull <model>` |
+| Lihat daftar model | `ollama list` |
+| Restart chat | `sudo systemctl restart ngobrol` |
+| Matikan AI lokal | `sudo systemctl disable --now ngobrol ollama` |
+
+> Catatan: kualitas model lokal 7B–30B jauh di bawah Claude untuk tugas rumit. Pakai untuk
+> chat ringan, coding kecil, dan latihan. Untuk dokumen PGA yang ditandatangani, tetap Kantor PGA.
+
 ## Pembaruan otomatis
 
 - Timer `kantor-pga-perbarui` memeriksa GitHub tiap 5 menit. Bila ada commit baru di branch

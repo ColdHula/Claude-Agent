@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ngobrol · Model Lokal</title>
+<meta name="theme-color" content="#0b1020">
+<style>
+:root{
+  --bg:#0b1020; --panel:#121a30; --panel2:#0e1627; --line:#223154;
+  --ink:#e7edfb; --dim:#8da2c8; --accent:#5b8cff; --accent2:#7aa2ff;
+  --user:#1c2a4d; --bot:#13203a; --bad:#ff6b6b; --ok:#46d19e;
+  --font:ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--font);display:flex;overflow:hidden}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+/* Sidebar */
+#side{width:260px;flex:0 0 260px;background:var(--panel2);border-right:1px solid var(--line);display:flex;flex-direction:column;transition:margin .25s}
+#side h1{font-size:16px;margin:0;padding:16px 16px 8px;display:flex;align-items:center;gap:8px}
+#side h1 b{font-weight:800}#side h1 span{font-weight:400;color:var(--dim);font-size:12px}
+#baru{margin:4px 12px 10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--panel);font-weight:700;display:flex;gap:8px;align-items:center;justify-content:center}
+#baru:hover{border-color:var(--accent)}
+#chats{flex:1;overflow:auto;padding:4px 8px}
+.chat{padding:9px 10px;border-radius:10px;color:var(--dim);display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13.5px}
+.chat:hover{background:var(--panel)}
+.chat.on{background:var(--panel);color:var(--ink)}
+.chat .t{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.chat .x{opacity:0;color:var(--dim);padding:2px 6px;border-radius:6px}
+.chat:hover .x{opacity:1}.chat .x:hover{color:var(--bad);background:#2a1a28}
+#side footer{padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--dim);display:flex;justify-content:space-between;align-items:center}
+#side footer a{color:var(--dim)}
+/* Main */
+#main{flex:1;display:flex;flex-direction:column;min-width:0}
+#top{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
+#burger{display:none;font-size:20px;padding:4px 8px}
+#model{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 10px;max-width:280px}
+#status{margin-left:auto;font-size:12px;color:var(--dim)}
+#status b{color:var(--ok)}
+#feed{flex:1;overflow:auto;padding:22px 0}
+.wrap{max-width:780px;margin:0 auto;padding:0 18px}
+.msg{display:flex;gap:12px;margin:0 0 20px}
+.av{flex:0 0 30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px;font-weight:800}
+.msg.user .av{background:var(--user)}.msg.bot .av{background:var(--bot);color:var(--accent2)}
+.body{flex:1;min-width:0}
+.body .who{font-size:12px;color:var(--dim);margin-bottom:3px}
+.body .txt{white-space:pre-wrap;word-wrap:break-word}
+.body pre{background:#0a1222;border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;margin:10px 0}
+.body code{background:#0a1222;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:13px}
+.body pre code{border:0;padding:0;background:none}
+.files{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.pill{font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--dim)}
+.cursor::after{content:"▍";color:var(--accent);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.empty{text-align:center;color:var(--dim);margin-top:12vh}
+.empty h2{color:var(--ink);font-weight:700}
+.ex{display:inline-block;margin:6px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--dim);font-size:13.5px}
+.ex:hover{border-color:var(--accent);color:var(--ink)}
+/* Composer */
+#bottom{border-top:1px solid var(--line);background:var(--panel2);padding:12px 0 16px}
+#attached{display:flex;flex-wrap:wrap;gap:6px;max-width:780px;margin:0 auto 8px;padding:0 18px}
+#attached:empty{display:none}
+.att{font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 8px 4px 10px;display:flex;gap:6px;align-items:center}
+.att.bad{border-color:#5a3030;color:#e9a}
+.att button{color:var(--dim);font-weight:800}
+#composer{max-width:780px;margin:0 auto;padding:0 18px;display:flex;gap:8px;align-items:flex-end}
+#clip{flex:0 0 42px;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--panel);font-size:18px}
+#clip:hover{border-color:var(--accent)}
+#ta{flex:1;resize:none;max-height:200px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:14px;padding:11px 14px;font:inherit}
+#ta:focus{outline:none;border-color:var(--accent)}
+#send{flex:0 0 auto;padding:0 18px;height:42px;border-radius:12px;background:linear-gradient(180deg,var(--accent2),var(--accent));font-weight:800;color:#fff}
+#send:disabled{opacity:.4;cursor:default}
+#hint{max-width:780px;margin:6px auto 0;padding:0 18px;font-size:11px;color:var(--dim);text-align:center}
+#drop{position:fixed;inset:0;z-index:20;display:none;place-items:center;background:rgba(8,12,30,.7)}
+#drop div{border:3px dashed var(--accent2);border-radius:22px;padding:30px 40px;font-weight:800;font-size:20px}
+@media(max-width:720px){
+  #side{position:fixed;z-index:30;height:100%;margin-left:-260px;box-shadow:0 0 40px #000}
+  #side.open{margin-left:0}
+  #burger{display:block}
+}
+</style>
+</head>
+<body>
+<aside id="side">
+  <h1>💬 <b>Ngobrol</b> <span>model lokal</span></h1>
+  <button id="baru">＋ Obrolan baru</button>
+  <div id="chats"></div>
+  <footer><span id="who">lokal · privat</span></footer>
+</aside>
+
+<main id="main">
+  <div id="top">
+    <button id="burger">☰</button>
+    <select id="model" title="Pilih model"></select>
+    <div id="status"></div>
+  </div>
+  <div id="feed"><div class="wrap" id="list"></div></div>
+  <div id="bottom">
+    <div id="attached"></div>
+    <div id="composer">
+      <button id="clip" title="Lampirkan file">📎</button>
+      <textarea id="ta" rows="1" placeholder="Tulis pesan… (Enter kirim, Shift+Enter baris baru)"></textarea>
+      <button id="send">Kirim</button>
+    </div>
+    <div id="hint">Semua berjalan di rig Anda. Tidak ada data yang keluar. Periksa sendiri kode yang dihasilkan sebelum dijalankan.</div>
+  </div>
+</main>
+
+<input type="file" id="file" multiple hidden>
+<div id="drop"><div>📎 Lepas file di sini</div></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const api = (p, o) => fetch(p, o).then((r) => r.json());
+let chatId = null, messages = [], attached = [], busy = false;
+
+// --- Model ---
+async function loadModels(){
+  const d = await api("/api/models");
+  const sel = $("model");
+  sel.innerHTML = "";
+  if (!d.models.length){
+    sel.innerHTML = `<option>(tidak ada model)</option>`;
+    $("status").innerHTML = d.error ? `<span style="color:var(--bad)">${d.error}</span>` : "Belum ada model. Jalankan: ollama pull qwen3-coder:30b";
+    return;
+  }
+  for (const m of d.models) sel.insertAdjacentHTML("beforeend", `<option>${m}</option>`);
+  const saved = localStorage.getItem("model");
+  if (saved && d.models.includes(saved)) sel.value = saved;
+  $("status").innerHTML = `<b>●</b> siap`;
+}
+$("model").onchange = () => localStorage.setItem("model", $("model").value);
+
+// --- Daftar percakapan ---
+async function loadChats(){
+  const d = await api("/api/chats");
+  const box = $("chats");
+  box.innerHTML = "";
+  for (const c of d.chats){
+    const el = document.createElement("div");
+    el.className = "chat" + (c.id === chatId ? " on" : "");
+    el.innerHTML = `<span>💬</span><span class="t">${esc(c.title)}</span><button class="x" title="Hapus">✕</button>`;
+    el.querySelector(".t").onclick = el.firstChild.onclick = () => openChat(c.id);
+    el.onclick = (e) => { if (e.target.classList.contains("x")) return; openChat(c.id); };
+    el.querySelector(".x").onclick = async (e) => { e.stopPropagation(); await fetch("/api/chats/"+c.id,{method:"DELETE"}); if (c.id===chatId) newChat(); loadChats(); };
+    box.appendChild(el);
+  }
+}
+async function openChat(id){
+  const c = await api("/api/chats/"+id).catch(()=>null);
+  if (!c || c.error) return;
+  chatId = c.id; messages = c.messages || [];
+  if (c.model) { $("model").value = c.model; }
+  render(); loadChats(); closeSide();
+}
+function newChat(){ chatId=null; messages=[]; attached=[]; render(); renderAttached(); loadChats(); $("ta").focus(); }
+$("baru").onclick = newChat;
+
+// --- Render pesan ---
+function esc(s){ return String(s).replace(/[&<>]/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+function md(s){ // minimal: blok kode ``` dan inline `code`
+  const parts = esc(s).split(/```/);
+  return parts.map((p,i)=> i%2 ? `<pre><code>${p.replace(/^[\w+-]*\n/,"")}</code></pre>` : p.replace(/`([^`]+)`/g,"<code>$1</code>")).join("");
+}
+function render(){
+  const list = $("list");
+  if (!messages.length){
+    list.innerHTML = `<div class="empty"><h2>Mulai mengobrol</h2><p>Model berjalan lokal di rig Anda.</p>
+      <div><button class="ex">Jelaskan cara kerja async/await di JavaScript</button>
+      <button class="ex">Buat skrip Python untuk rename banyak file</button>
+      <button class="ex">Tulis fungsi debounce dan jelaskan</button></div></div>`;
+    list.querySelectorAll(".ex").forEach(b=> b.onclick=()=>{ $("ta").value=b.textContent; resize(); $("ta").focus(); });
+    return;
+  }
+  list.innerHTML = messages.filter(m=>m.role!=="system").map((m)=>{
+    const files = (m.files||[]).map(f=>`<span class="pill">📄 ${esc(f.name)}</span>`).join("");
+    return `<div class="msg ${m.role==="user"?"user":"bot"}">
+      <div class="av">${m.role==="user"?"🧑":"🤖"}</div>
+      <div class="body"><div class="who">${m.role==="user"?"Anda":($("model").value||"model")}</div>
+      <div class="txt">${md(m.content)}</div>${files?`<div class="files">${files}</div>`:""}</div></div>`;
+  }).join("");
+  $("feed").scrollTop = $("feed").scrollHeight;
+}
+
+// --- Lampiran ---
+function renderAttached(){
+  $("attached").innerHTML = attached.map((a,i)=>
+    `<span class="att ${a.canRead?"":"bad"}">📄 ${esc(a.name)} ${a.canRead?"":"(tak terbaca)"} <button data-i="${i}">✕</button></span>`).join("");
+  $("attached").querySelectorAll("button").forEach(b=> b.onclick=()=>{ attached.splice(+b.dataset.i,1); renderAttached(); });
+}
+async function upload(file){
+  if (file.size > 20*1024*1024){ attached.push({name:file.name,canRead:false}); renderAttached(); return; }
+  const r = await fetch("/api/upload",{method:"POST",headers:{"x-nama-file":encodeURIComponent(file.name)},body:file});
+  const d = await r.json().catch(()=>({name:file.name,canRead:false}));
+  attached.push(d); renderAttached();
+}
+$("clip").onclick = ()=> $("file").click();
+$("file").onchange = async (e)=>{ for (const f of e.target.files) await upload(f); e.target.value=""; };
+
+// Drag & drop
+let depth=0;
+addEventListener("dragenter",(e)=>{ if(![...e.dataTransfer.types].includes("Files"))return; depth++; $("drop").style.display="grid"; });
+addEventListener("dragover",(e)=>{ if([...e.dataTransfer.types].includes("Files"))e.preventDefault(); });
+addEventListener("dragleave",()=>{ if(--depth<=0) $("drop").style.display="none"; });
+addEventListener("drop", async (e)=>{ e.preventDefault(); depth=0; $("drop").style.display="none";
+  for (const f of e.dataTransfer.files) await upload(f); });
+
+// --- Kirim ---
+function resize(){ const t=$("ta"); t.style.height="auto"; t.style.height=Math.min(200,t.scrollHeight)+"px"; }
+$("ta").oninput = resize;
+$("ta").onkeydown = (e)=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); } };
+$("send").onclick = send;
+
+async function send(){
+  if (busy) return;
+  const text = $("ta").value.trim();
+  if (!text && !attached.length) return;
+  const model = $("model").value;
+  if (!model || model.startsWith("(")) { alert("Belum ada model. Jalankan: ollama pull qwen3-coder:30b"); return; }
+
+  // Susun isi: lampiran teks ditempel sebelum pesan
+  let content = text;
+  const fileNotes = attached.filter(a=>a.canRead && a.text).map(a=>`\n\n--- Isi file: ${a.name} ---\n${a.text}`).join("");
+  if (fileNotes) content = (text||"Lihat file terlampir.") + fileNotes;
+
+  const userMsg = { role:"user", content, files: attached.map(a=>({name:a.name})) };
+  messages.push(userMsg);
+  attached = []; renderAttached();
+  $("ta").value=""; resize(); render();
+
+  busy=true; $("send").disabled=true;
+  const botMsg = { role:"assistant", content:"" };
+  messages.push(botMsg);
+  render();
+  const txtEl = () => $("list").querySelector(".msg.bot:last-child .txt");
+  if (txtEl()) txtEl().classList.add("cursor");
+
+  try{
+    // Kirim hanya role+content (tanpa field files) ke model
+    const payload = messages.filter(m=>m.role!=="assistant"||m.content).map(({role,content})=>({role,content}));
+    const res = await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({ model, id:chatId, messages:payload.slice(0,-1).concat([userMsg]) })});
+    if (!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error||("HTTP "+res.status)); }
+    chatId = res.headers.get("x-chat-id") || chatId;
+    const reader = res.body.getReader(); const dec=new TextDecoder(); let buf="";
+    for(;;){
+      const {done,value}=await reader.read(); if(done)break;
+      buf += dec.decode(value,{stream:true}); let nl;
+      while((nl=buf.indexOf("\n"))>=0){ const line=buf.slice(0,nl); buf=buf.slice(nl+1);
+        if(!line.trim())continue; try{ const o=JSON.parse(line); botMsg.content += o.message?.content||""; }catch{} }
+      const el=txtEl(); if(el){ el.innerHTML=md(botMsg.content); } $("feed").scrollTop=$("feed").scrollHeight;
+    }
+  }catch(err){ botMsg.content += `\n\n⚠️ ${err.message}`; }
+  const el=txtEl(); if(el){ el.classList.remove("cursor"); el.innerHTML=md(botMsg.content); }
+  busy=false; $("send").disabled=false; loadChats(); $("ta").focus();
+}
+
+// Sidebar mobile
+$("burger").onclick = ()=> $("side").classList.toggle("open");
+function closeSide(){ $("side").classList.remove("open"); }
+
+loadModels(); loadChats(); render();
+</script>
+</body>
+</html>

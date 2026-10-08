@@ -5,3 +5,6 @@ hasil/*
 pengetahuan/*
 !pengetahuan/README.md
 .rumah-agent/
+
+# Data chat lokal (tidak ikut Git)
+ngobrol/data/
