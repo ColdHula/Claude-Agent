@@ -161,8 +161,14 @@ curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-f
 ```
 Nexa adalah aplikasi web (chat biasa + mode coding, riwayat tersimpan, lampiran file,
 berpassword, bisa dipasang di layar utama HP dengan logonya). Dibuka di
-`https://<nama-rig>.ts.net:8443` (port terpisah dari Kantor PGA, kata sandinya sama).
+`https://<nama-rig>.ts.net:8443` (port terpisah dari Kantor PGA).
 Nyalakan tombol **💻 Coding** di pojok atas agar jawaban fokus kode yang benar.
+
+**Kata sandi Nexa terpisah dari Kantor PGA**, jadi aman dibagi ke teman/pacar tanpa
+memberi akses ke data PGD. Skrip mencetak kata sandinya saat pasang. Mengganti:
+```
+NEXA_PASSWORD=katasandibaru sudo -E bash -c 'curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ngobrol.sh | bash'
+```
 
 **Cek GPU aman:** saat model menjawab, di tab Hive Shell lain jalankan `nvidia-smi` — tidak boleh
 ada proses `ollama` di daftar GPU, dan utilisasi GPU tetap penuh oleh miner.

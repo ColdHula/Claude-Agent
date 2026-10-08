@@ -18,14 +18,18 @@ id "$APP_USER" >/dev/null 2>&1 || die "Pengguna '$APP_USER' tidak ada. Jalankan 
 [ -d "$APP_DIR/ngobrol" ] || die "Folder $APP_DIR/ngobrol tidak ada. Pastikan repo Kantor PGA sudah terpasang & terbaru."
 command -v node >/dev/null 2>&1 || die "Node.js belum ada. Pasang Kantor PGA dulu (deploy/pasang-hiveos.sh)."
 
-# Kata sandi: pakai milik Kantor PGA bila ada, agar satu kata sandi untuk keduanya.
-PW=""
-if [ -f "$APP_DIR/.env" ]; then PW="$(grep -E '^APP_PASSWORD=' "$APP_DIR/.env" | head -1 | cut -d= -f2- | tr -d "'\"")"; fi
+# Kata sandi Nexa TERPISAH dari Kantor PGA (bisa dibagi ke teman tanpa memberi akses data PGA).
+# Urutan: NEXA_PASSWORD dari env  >  kata sandi lama di ngobrol.service  >  dibuatkan baru.
+PW="${NEXA_PASSWORD:-${NGOBROL_PASSWORD:-}}"
+if [ -z "$PW" ] && [ -f /etc/systemd/system/ngobrol.service ]; then
+  PW="$(grep -oE 'NGOBROL_PASSWORD=.*' /etc/systemd/system/ngobrol.service | head -1 | cut -d= -f2-)"
+  [ -n "$PW" ] && say "Memakai kata sandi Nexa yang sudah ada."
+fi
 if [ -z "$PW" ]; then
   PW="$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 14)"
-  say "Tidak menemukan kata sandi Kantor PGA. Dibuatkan kata sandi baru untuk Ngobrol:"
+  say "Kata sandi Nexa (TERPISAH dari Kantor PGA) dibuatkan:"
   printf '    \033[1m%s\033[0m\n' "$PW"
-  say "CATAT kata sandi di atas."
+  say "CATAT kata sandi di atas. Ganti kapan saja dengan: NEXA_PASSWORD=... jalankan ulang skrip ini."
 fi
 
 say "Membuat layanan systemd…"
@@ -69,7 +73,8 @@ cat <<EOF
   Ngobrol berjalan sebagai layanan (nyala lagi otomatis setelah reboot).
   Buka dari HP/laptop (Tailscale aktif):
     https://${HOSTN:-<nama-rig>.ts.net}:${SERVE_PORT}
-  Kata sandi: sama dengan Kantor PGA (atau yang tercetak di atas).
+  Kata sandi: TERPISAH dari Kantor PGA (yang tercetak di atas / yang Anda set).
+  Aman dibagi ke teman: mereka hanya bisa membuka Nexa, bukan data Kantor PGA.
 
   Perintah:
     sudo systemctl restart ngobrol
