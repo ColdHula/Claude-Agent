@@ -33,7 +33,8 @@ case "$MODE" in
   local)
     TARGET="${2:?Sebutkan folder tujuan, mis. /var/www/layar-klasik}"
     mkdir -p "$TARGET"
-    rsync -a --delete dist/ "$TARGET"/
+    if command -v rsync >/dev/null; then rsync -a --delete dist/ "$TARGET"/
+    else rm -rf "${TARGET:?}"/* && cp -a dist/. "$TARGET"/; fi
     echo "Disalin ke $TARGET"
     ;;
   *) echo "Mode tidak dikenal: $MODE"; exit 1 ;;
