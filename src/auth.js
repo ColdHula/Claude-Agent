@@ -8,9 +8,17 @@ const COOKIE = "kpga";
 const MAX_AGE = 30 * 24 * 3600; // 30 hari
 const attempts = new Map(); // ip -> { n, until }
 
-export function makeAuth(password) {
+// brand: { name, tagline, iconHref, themeColor, dark } — biarkan kosong untuk tampilan Kantor PGA.
+export function makeAuth(password, brand = {}) {
   if (!password) return null;
   const token = crypto.createHmac("sha256", password).update("kantor-pga-sesi-v1").digest("hex");
+  const B = {
+    name: brand.name || "Kantor PGA",
+    tagline: brand.tagline || "Masukkan kata sandi untuk masuk ke kantor.",
+    iconHref: brand.iconHref || null,
+    themeColor: brand.themeColor || "#0e1424",
+    dark: brand.dark || false,
+  };
 
   function cookieOf(req) {
     const raw = req.headers.cookie || "";
@@ -27,27 +35,43 @@ export function makeAuth(password) {
   }
 
   function page(res, status, message = "") {
+    const logo = B.iconHref
+      ? `<img src="${B.iconHref}" width="56" height="56" alt="" style="margin:0 auto;border-radius:14px">`
+      : `<svg width="26" height="40" viewBox="0 0 22 34" aria-hidden="true" style="margin:0 auto;display:block"><path d="M11 0 L22 15 L11 34 L0 15 Z" fill="#3fc948" stroke="#1a7a24"/></svg>`;
+    const css = B.dark
+      ? `:root{--ink:#e7edfb;--dim:#8da2c8;--line:#223154;--accent:#5b8cff;--accent2:#7aa2ff;--bad:#ff6b6b}
+body{background:radial-gradient(900px 500px at 30% -10%,#101a36,#0b1020 55%,#0a0f1e);color:var(--ink)}
+form{background:#121a30;border:1px solid var(--line);box-shadow:0 20px 50px rgba(0,0,0,.5)}
+p{color:var(--dim)}
+input{border:2px solid var(--line);background:#0e1627;color:var(--ink)}
+input:focus{border-color:var(--accent);background:#0b1222}
+button{background:linear-gradient(180deg,var(--accent2),var(--accent));box-shadow:0 3px 0 #2a52b8}`
+      : `:root{--sky:#cfe9f7;--ink:#17324d;--blue:#1769c9;--bad:#e2453c}
+body{background:radial-gradient(900px 500px at 30% -10%,#e9f6fd,var(--sky) 45%,#9fd0ee);color:var(--ink)}
+form{background:#fff;box-shadow:0 10px 30px rgba(23,50,77,.18)}
+p{color:#55708a}
+input{border:2px solid #d4e4f1;background:#eef6fc}
+input:focus{border-color:#3b9be8;background:#fff}
+button{background:linear-gradient(180deg,#4fb0ff,var(--blue));box-shadow:0 3px 0 #0d4f9c}`;
     res.writeHead(status, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
     res.end(`<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Masuk · Kantor PGA</title>
+<title>Masuk · ${B.name}</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0e1424">
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="${B.themeColor}">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@600;800&display=swap">
 <style>
-:root{--sky:#cfe9f7;--ink:#17324d;--blue:#1769c9;--green:#3fc948;--bad:#e2453c}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;
-background:radial-gradient(900px 500px at 30% -10%,#e9f6fd,var(--sky) 45%,#9fd0ee);color:var(--ink);font:15px/1.5 Nunito,system-ui,sans-serif}
-form{background:#fff;border-radius:22px;padding:28px 24px;width:min(360px,100%);box-shadow:0 10px 30px rgba(23,50,77,.18);display:grid;gap:14px;text-align:center}
-svg{margin:0 auto}h1{font:600 24px Fredoka,Nunito,sans-serif;margin:0}p{margin:0;color:#55708a;font-size:13.5px}
-input{font:inherit;padding:12px 14px;border-radius:14px;border:2px solid #d4e4f1;background:#eef6fc;width:100%}
-input:focus{outline:none;border-color:#3b9be8;background:#fff}
-button{font:600 17px Fredoka,Nunito,sans-serif;color:#fff;border:0;border-radius:999px;padding:12px;cursor:pointer;
-background:linear-gradient(180deg,#4fb0ff,var(--blue));box-shadow:0 3px 0 #0d4f9c}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;font:15px/1.5 Nunito,system-ui,sans-serif}
+form{border-radius:22px;padding:28px 24px;width:min(360px,100%);display:grid;gap:14px;text-align:center}
+h1{font:600 24px Fredoka,Nunito,sans-serif;margin:0}p{margin:0;font-size:13.5px}
+input{font:inherit;padding:12px 14px;border-radius:14px;width:100%}
+input:focus{outline:none}
+button{font:600 17px Fredoka,Nunito,sans-serif;color:#fff;border:0;border-radius:999px;padding:12px;cursor:pointer}
 .err{color:var(--bad);font-weight:800}
+${css}
 </style></head><body>
 <form method="post" action="/login">
-<svg width="26" height="40" viewBox="0 0 22 34" aria-hidden="true"><path d="M11 0 L22 15 L11 34 L0 15 Z" fill="#3fc948" stroke="#1a7a24"/></svg>
-<h1>Kantor PGA</h1><p>Masukkan kata sandi untuk masuk ke kantor.</p>
+${logo}
+<h1>${B.name}</h1><p>${B.tagline}</p>
 ${message ? `<p class="err">${message}</p>` : ""}
 <label for="pw" style="position:absolute;left:-9999px">Kata sandi</label>
 <input id="pw" name="password" type="password" autocomplete="current-password" autofocus required>

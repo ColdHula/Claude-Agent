@@ -26,8 +26,13 @@ const INLINE_CHARS = 60_000; // berapa karakter isi file teks yang ditempel ke p
 await fs.mkdir(CHATS, { recursive: true });
 await fs.mkdir(FILES, { recursive: true });
 
-const auth = makeAuth(PASSWORD);
-const guard = auth; // null bila tanpa kata sandi (hanya untuk 127.0.0.1)
+const guard = makeAuth(PASSWORD, {
+  name: "Nexa",
+  tagline: "Masukkan kata sandi untuk masuk ke AI lokal.",
+  iconHref: "/icon.svg",
+  themeColor: "#0b1020",
+  dark: true,
+}); // null bila tanpa kata sandi (hanya untuk 127.0.0.1)
 
 const MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
