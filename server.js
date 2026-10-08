@@ -170,6 +170,23 @@ async function saveResult(task, result, id = "") {
   return file;
 }
 
+// Riwayat tugas untuk Bima: daftar ringkas tugas terakhir (bukan isinya) agar pekerjaan lanjutan
+// atau revisi bisa merujuk hasil sebelumnya. Agent membuka file riwayat hanya bila Bima menyebutnya.
+const HISTORY_MAX = Math.max(0, Number(process.env.RIWAYAT_TUGAS || 15));
+async function recentHistory() {
+  if (!HISTORY_MAX) return [];
+  const names = (await fs.readdir(HASIL).catch(() => [])).filter((f) => f.endsWith(".md")).sort().reverse().slice(0, HISTORY_MAX);
+  const out = [];
+  for (const name of names) {
+    const head = await fs.readFile(path.join(HASIL, name), "utf8").then((t) => t.slice(0, 600)).catch(() => "");
+    const task = (head.match(/^> Tugas: (.*)$/m) || [, name])[1].replace(/\s+/g, " ").slice(0, 120);
+    const id = (name.match(/_([a-z0-9]+)\.md$/) || [])[1];
+    const files = id ? (await listFiles(path.join(HASIL, `tugas-${id}`))).map((f) => `hasil/tugas-${id}/${f.name}`) : [];
+    out.push({ date: name.slice(0, 10), task, report: `hasil/${name}`, files: files.slice(0, 8) });
+  }
+  return out;
+}
+
 // Pilihan preset dari layar; bila kosong pakai pengaturan .env.
 function resolveModels(preset) {
   const p = PRESETS[preset];
@@ -232,14 +249,14 @@ function startJob(task, models, draft) {
   })()
     .then(async (inputs) => {
       if (inputs.length) emit({ type: "leader_say", text: `📎 Lampiran: ${inputs.join(", ")}` });
-      return { inputs, fresh: await loadAgents({ lazy: ENGINE !== "api" }) };
+      return { inputs, fresh: await loadAgents({ lazy: ENGINE !== "api" }), history: await recentHistory() };
     })
-    .then(({ inputs, fresh }) => {
+    .then(({ inputs, fresh, history }) => {
       if (fresh.knowledge.files.length) {
         const k = fresh.knowledge;
         emit({ type: "leader_say", text: `📚 Pengetahuan: ${k.files.length} file (${k.chars.toLocaleString("id-ID")} karakter)${k.lazy ? `; mode hemat: rata-rata ${k.inlineChars.toLocaleString("id-ID")} karakter per agent ditempel, sisanya dibaca bila perlu` : ""}${k.truncated ? ", sebagian dipotong" : ""}.` });
       }
-      return run(task, emit, { ...fresh, models, signal: job.controller.signal, workDir, inputs });
+      return run(task, emit, { ...fresh, models, signal: job.controller.signal, workDir, inputs, history });
     })
     .then(async (result) => {
       const file = await saveResult(task, result, id).catch(() => null);

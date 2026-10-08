@@ -75,6 +75,7 @@ BENTUK   : DOCX + PDF siap tanda tangan
 - **Revisi**: kirim tugas baru, lampirkan file hasil sebelumnya, tulis yang harus diubah. Koreksi berlaku untuk semua dokumen sejenis dalam tugas itu.
 - **Dokumen yang sudah ditandatangani** jangan diminta dibuat ulang; minta "tambal halaman X" atau "buat lampiran baru".
 - **Memori kantor**: fakta tetap (nomor surat terakhir, keputusan Anda) disimpan otomatis dari hasil akhir dan dipakai tugas berikutnya.
+- **Riwayat tugas**: Bima melihat daftar 15 tugas terakhir beserta file hasilnya. Tulis saja "revisi BA kasbon kemarin" atau "seperti rekap bulan lalu", Bima akan meminta agent membuka hasil lama itu (tidak perlu melampirkan ulang).
 - **Data rutin** (template, master karyawan, daftar cabang) cukup diunggah sekali lewat tab **📚 Konteks** sebagai ZIP, tidak perlu dilampirkan tiap tugas.
 
 ## 6. Yang tidak dilakukan tim

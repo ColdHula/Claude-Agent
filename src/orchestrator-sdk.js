@@ -129,7 +129,7 @@ async function prepareAgentHome() {
  * @param {(event: object) => void} emit
  * @param {{agents: any[], leader: any, signal?: AbortSignal, models?: {leader: string, worker: string}}} team
  */
-export async function runTaskSdk(task, emit, { agents, leader, signal, models = defaultModels(), workDir, inputs = [] }) {
+export async function runTaskSdk(task, emit, { agents, leader, signal, models = defaultModels(), workDir, inputs = [], history = [] }) {
   const skills = await findSkills();
   const modelFor = (id) => (LIGHT_AGENTS.has(id) && models.light ? models.light : models.worker);
   const workRel = workDir ? path.relative(APP_ROOT, workDir) : null;
@@ -191,6 +191,13 @@ FILE
 - Lampiran dari Rahula: ${inputs.length ? inputs.map((f) => `${workRel}/masukan/${f}`).join(", ") : "tidak ada"}. Sebutkan lampiran yang relevan di instruksi delegasi.
 - Agent yang bisa membaca/menulis file dan menjalankan generator: ${[...FILE_AGENTS].join(", ")}. Hasil file mereka tersimpan di ${workRel}/ dan otomatis muncul sebagai tautan unduhan untuk Rahula; di hasil akhir cukup sebutkan nama filenya.`
     : "";
+  const leaderHistory = history.length
+    ? `
+
+RIWAYAT TUGAS (${history.length} terakhir, terbaru di atas; semua agent bisa membacanya dengan Read)
+${history.map((h) => `- ${h.date} | ${h.task} | laporan: ${h.report}${h.files.length ? ` | file: ${h.files.join(", ")}` : ""}`).join("\n")}
+Bila tugas ini revisi, lanjutan, atau merujuk pekerjaan sebelumnya ("seperti bulan lalu", "BA kemarin"), sebutkan path laporan/file riwayat yang relevan di instruksi delegasi agar agent membacanya. Jangan minta agent membaca riwayat yang tidak relevan.`
+    : "";
 
   // Pagar file: Pemimpin hanya mendelegasikan; agent menulis hanya di folder tugas dan
   // membaca hanya di folder aplikasi (tanpa .env). Bash tidak bisa dipagari sepenuhnya,
@@ -219,7 +226,7 @@ FILE
     options: {
       model: models.leader,
       effort: models.leaderEffort || LEADER_EFFORT,
-      systemPrompt: leader.system + LEADER_APPENDIX + leaderFiles,
+      systemPrompt: leader.system + LEADER_APPENDIX + leaderFiles + leaderHistory,
       agents: agentDefs,
       // Alat subagent harus juga ada di sesi utama; Pemimpin sendiri dicegah memakainya lewat fileGuard.
       tools: ["Agent", "WebSearch", "WebFetch", ...(workDir ? FILE_TOOLS : READ_TOOLS), ...(skills.names.length ? ["Skill"] : [])],
