@@ -11,7 +11,19 @@
   },
   "ads": {
     "prerollSeconds": 5,
-    "prerollHtml": "<!-- tempel kode iklan jaringan Anda di sini (banner/native). Tidak ada kewajiban klik. -->",
-    "sideHtml": ""
+    "headHtml": "",
+    "bodyEndHtml": "",
+    "slots": {
+      "preroll": {
+        "width": 300,
+        "height": 250,
+        "html": ""
+      },
+      "side": {
+        "width": 728,
+        "height": 90,
+        "html": ""
+      }
+    }
   }
 }

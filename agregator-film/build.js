@@ -49,13 +49,18 @@ input[type=search]{padding:10px 14px;border-radius:8px;border:1px solid #444;bac
 const layout = (title, desc, path, body, extraHead = '') => `<!doctype html>
 <html lang="${cfg.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title><meta name="description" content="${esc(clip(desc, 160))}">
-<link rel="canonical" href="${base}${path}"><link rel="stylesheet" href="/style.css">${extraHead}</head><body>
+<link rel="canonical" href="${base}${path}"><link rel="stylesheet" href="/style.css">${extraHead}${cfg.ads.headHtml ?? ''}</head><body>
 <header><a class="logo" href="/">🎞️ ${esc(cfg.siteName)}</a>
 <input type="search" id="q" placeholder="Cari judul, tahun, atau tag…" autocomplete="off"></header>
 <main>${body}</main>
 <footer>Semua film berstatus domain publik berdasarkan metadata lisensi sumbernya (${esc(cfg.source.type)}). Video disajikan lewat embed dari sumber asli; kami tidak menyimpan file video. Ada keberatan? Hubungi pengelola situs untuk penurunan konten.</footer>
-<script src="/search.js"></script></body></html>`;
+<script src="/search.js"></script><script src="/ads.js"></script>${cfg.ads.bodyEndHtml ?? ''}</body></html>`;
 
+const slot = name => {
+  const s = cfg.ads.slots?.[name];
+  if (!s?.html?.trim()) return '';
+  return `<div class="adslot" data-w="${Number(s.width) || 300}" data-h="${Number(s.height) || 250}" data-ad="${Buffer.from(s.html).toString('base64')}"></div>`;
+};
 const thumb = id => `https://archive.org/services/img/${encodeURIComponent(id)}`;
 const card = f => `<a class="card" href="/film/${encodeURIComponent(f.id)}.html"><img loading="lazy" src="${thumb(f.id)}" alt="${esc(f.title)}"><div><b>${esc(f.title)}</b><br><small>${esc(f.year)}</small></div></a>`;
 
@@ -64,7 +69,7 @@ await mkdir('dist/film', { recursive: true });
 await writeFile('dist/style.css', css);
 
 await writeFile('dist/index.html', layout(`${cfg.siteName} — ${cfg.tagline}`, cfg.tagline, '/',
-  `<h1>${esc(cfg.tagline)}</h1><div class="ad">${cfg.ads.sideHtml}</div><div class="grid" id="grid">${films.map(card).join('')}</div>`));
+  `<h1>${esc(cfg.tagline)}</h1><div class="ad">${slot('side')}</div><div class="grid" id="grid">${films.map(card).join('')}</div>`));
 
 for (const f of films) {
   const related = films.filter(o => o.id !== f.id && o.tags.some(t => f.tags.includes(t))).slice(0, 4);
@@ -72,12 +77,12 @@ for (const f of films) {
     thumbnailUrl: thumb(f.id), embedUrl: `https://archive.org/embed/${f.id}`, ...(f.year && { uploadDate: `${f.year}-01-01` }), ...(f.license && { license: f.license }) };
   const body = `<h1>${esc(f.title)} ${f.year ? `(${esc(f.year)})` : ''}</h1>
 <div class="player"><iframe id="v" data-src="https://archive.org/embed/${encodeURIComponent(f.id)}" allowfullscreen></iframe>
-<div class="gate" id="gate"><div class="ad">${cfg.ads.prerollHtml}</div><button id="go" disabled>Tonton dalam <span id="n">${cfg.ads.prerollSeconds}</span> dtk</button></div></div>
+<div class="gate" id="gate"><div class="ad">${slot('preroll')}</div><button id="go" disabled>Tonton dalam <span id="n">${cfg.ads.prerollSeconds}</span> dtk</button></div></div>
 <p>${esc(f.desc) || 'Belum ada sinopsis.'}</p>
 ${f.creator ? `<p><small>Sutradara/pembuat: ${esc(f.creator)}</small></p>` : ''}
 <p>${f.tags.map(t => `<span class="tag">#${esc(t)}</span>`).join('')}</p>
 ${f.license ? `<p><small>Lisensi: <a href="${esc(f.license)}" rel="noopener">${esc(f.license)}</a> · <a href="https://archive.org/details/${encodeURIComponent(f.id)}" rel="noopener">Halaman sumber</a></small></p>` : ''}
-<div class="ad">${cfg.ads.sideHtml}</div>
+<div class="ad">${slot('side')}</div>
 ${related.length ? `<h2>Film terkait</h2><div class="grid">${related.map(card).join('')}</div>` : ''}
 <script>(function(){var n=${Number(cfg.ads.prerollSeconds) || 0},b=document.getElementById('go'),s=document.getElementById('n'),v=document.getElementById('v');
 function open_(){document.getElementById('gate').remove();v.src=v.dataset.src}
@@ -89,6 +94,13 @@ b.onclick=open_})();</script>`;
     `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`));
 }
 
+await writeFile('dist/ads.js', `(function(){var els=document.querySelectorAll('.adslot');if(!els.length)return;
+function load(el){var f=document.createElement('iframe');f.width=el.dataset.w;f.height=el.dataset.h;f.style.border='0';
+f.setAttribute('sandbox','allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation');
+f.srcdoc=new TextDecoder().decode(Uint8Array.from(atob(el.dataset.ad),function(c){return c.charCodeAt(0)}));el.appendChild(f)}
+if(!('IntersectionObserver' in window)){els.forEach(load);return}
+var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.unobserve(e.target);load(e.target)}})},{rootMargin:'200px'});
+els.forEach(function(el){io.observe(el)})})();`);
 await writeFile('dist/search.json', JSON.stringify(films.map(f => ({ id: f.id, t: f.title, y: f.year, g: f.tags }))));
 await writeFile('dist/search.js', `(function(){var q=document.getElementById('q'),g=document.getElementById('grid'),d=null,h=g&&g.innerHTML;
 if(!q||!g)return;q.addEventListener('input',function(){var s=q.value.trim().toLowerCase();

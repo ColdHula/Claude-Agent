@@ -17,11 +17,21 @@ canonical, sitemap, dan robots.txt.
 Tambah adapter di `src/sources/` (ekspor `fetchFilms(cfg)`), daftarkan di `src/sources/index.js`,
 lalu ubah `source.type`. Pakai hanya API/sumber berlisensi jelas, bukan menyalin situs lain.
 
-## Iklan
-Isi `ads.prerollHtml` / `ads.sideHtml` dengan kode jaringan iklan Anda. Pintu putar hanya hitung
-mundur, tidak mewajibkan klik iklan (klik paksa melanggar kebijakan hampir semua jaringan).
-Cek kebijakan jaringan yang dipakai; AdSense menolak situs berisi sedikit konten asli, jadi tambahkan
-sinopsis/ulasan bahasa Indonesia buatan sendiri.
+## Iklan (Adsterra, Monetag, dll.)
+Kode iklan dari dashboard jaringan ditempel di `config.json` → `ads`:
+
+- `slots.preroll` / `slots.side`: `{ "width", "height", "html" }`. `html` = kode banner/native dari
+  dashboard (mis. Adsterra "Banner"/"Native Banner"). Dimuat malas (lazy) di dalam iframe
+  tersandbox, jadi tidak memperlambat halaman dan tidak bisa membaca situs Anda.
+- `headHtml` / `bodyEndHtml`: untuk kode berbentuk skrip global, mis. Monetag (Vignette/In-Page Push/
+  tag verifikasi situs) atau Adsterra Social Bar. Format iklan global ini bisa mengganggu
+  pengunjung; pakai secukupnya dan hindari popunder agresif.
+- Kosongkan `html` jika slot tidak dipakai. Pintu putar hanya hitung mundur, tanpa wajib klik.
+
+### Pembayaran
+Alamat wallet TIDAK ditaruh di kode. Masukkan di dashboard jaringan: Adsterra → Payment/Withdrawal
+→ pilih USDT atau Bitcoin → isi alamat Anda sendiri (cek jaringan yang benar, mis. TRC20/ERC20,
+dan kirim tes kecil dulu). Aktifkan 2FA. Monetag/PropellerAds → Payoneer untuk ke bank Indonesia.
 
 ## Catatan hukum
 Status "domain publik" berbeda per negara. Filter `onlyPublicDomainLicense` hanya meloloskan item
