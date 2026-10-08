@@ -1,0 +1,17 @@
+{
+  "siteName": "Layar Klasik",
+  "siteUrl": "https://contoh-domain-anda.com",
+  "tagline": "Film klasik domain publik, gratis ditonton",
+  "lang": "id",
+  "source": {
+    "type": "internet-archive",
+    "collection": "feature_films",
+    "rows": 60,
+    "onlyPublicDomainLicense": true
+  },
+  "ads": {
+    "prerollSeconds": 5,
+    "prerollHtml": "<!-- tempel kode iklan jaringan Anda di sini (banner/native). Tidak ada kewajiban klik. -->",
+    "sideHtml": ""
+  }
+}
