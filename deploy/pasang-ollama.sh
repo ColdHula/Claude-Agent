@@ -28,13 +28,9 @@ if ! grep -qw avx /proc/cpuinfo; then
 fi
 grep -qw avx2 /proc/cpuinfo || say "Peringatan: CPU punya AVX tapi tidak AVX2. Model akan lebih lambat."
 
-# 2) Alamat Tailscale rig (akses hanya dari perangkat Tailscale Anda, tidak ke internet).
-IP="$(tailscale ip -4 2>/dev/null | head -1 || true)"
-if [ -z "$IP" ]; then
-  IP="127.0.0.1"
-  say "Tailscale belum aktif. Sementara Ollama hanya bisa diakses dari rig sendiri (127.0.0.1)."
-  say "Setelah Tailscale aktif, jalankan ulang skrip ini agar bisa diakses dari HP/laptop."
-fi
+# 2) Ollama hanya mendengarkan di 127.0.0.1 (lebih aman). Akses dari HP/laptop lewat
+#    aplikasi HvM AI (berpassword) di Tailscale, bukan langsung ke Ollama.
+IP="127.0.0.1"
 
 # 3) Pasang Ollama (resmi).
 # Pasang bila binary belum ada ATAU service systemd belum terbentuk (instalasi sebelumnya terputus).
@@ -55,8 +51,8 @@ cat > /etc/systemd/system/ollama.service.d/rig.conf <<EOF
 Environment="CUDA_VISIBLE_DEVICES="
 Environment="OLLAMA_LLM_LIBRARY=cpu_avx2"
 
-# --- Akses hanya dari jaringan Tailscale Anda ---
-Environment="OLLAMA_HOST=${IP}:11434"
+# --- Hanya lokal (127.0.0.1); diakses lewat HvM AI yang berpassword ---
+Environment="OLLAMA_HOST=127.0.0.1:11434"
 
 # --- Hemat RAM (penting di 16 GB) ---
 Environment="OLLAMA_FLASH_ATTENTION=1"
@@ -88,17 +84,17 @@ systemctl is-active --quiet ollama || die "Ollama gagal menyala. Lihat: journalc
 # 5) Unduh model (opsional).
 if [ -n "$MODEL" ]; then
   say "Mengunduh model: $MODEL (bisa beberapa GB, sekali saja)…"
-  OLLAMA_HOST="${IP}:11434" ollama pull "$MODEL" || say "Gagal mengunduh $MODEL. Coba manual: OLLAMA_HOST=${IP}:11434 ollama pull $MODEL"
+  OLLAMA_HOST="127.0.0.1:11434" ollama pull "$MODEL" || say "Gagal mengunduh $MODEL. Coba manual: OLLAMA_HOST=127.0.0.1:11434 ollama pull $MODEL"
 fi
 
 # Model embedding untuk RAG (dokumen pribadi di HvM AI). Kecil (~270 MB).
 say "Mengunduh model embedding untuk RAG: nomic-embed-text…"
-OLLAMA_HOST="${IP}:11434" ollama pull nomic-embed-text || say "Lewati embedding (bisa nanti: OLLAMA_HOST=${IP}:11434 ollama pull nomic-embed-text)"
+OLLAMA_HOST="127.0.0.1:11434" ollama pull nomic-embed-text || say "Lewati embedding (bisa nanti: OLLAMA_HOST=127.0.0.1:11434 ollama pull nomic-embed-text)"
 
 say "Selesai."
 cat <<EOF
 
-  Ollama (CPU-only) berjalan di : http://${IP}:11434
+  Ollama (CPU-only) berjalan di : http://127.0.0.1:11434 (lokal; diakses lewat HvM AI)
   Thread CPU untuk LLM          : ${THREADS}
   Batas RAM                     : ${RAM_MAX}
   GPU                           : TIDAK dipakai (semua tetap untuk mining)
@@ -107,12 +103,12 @@ cat <<EOF
     nvidia-smi        # tidak boleh ada proses 'ollama' di daftar GPU
 
   Pakai dari laptop (Tailscale aktif), mis. VS Code + ekstensi Continue:
-    Base URL : http://${IP}:11434
+    Base URL : http://127.0.0.1:11434 (dari rig); lewat HvM AI untuk HP/laptop
     Model    : ${MODEL:-<nama-model>}
 
   Perintah harian:
     ollama list                         # daftar model
-    OLLAMA_HOST=${IP}:11434 ollama pull <model>   # tambah model
+    OLLAMA_HOST=127.0.0.1:11434 ollama pull <model>   # tambah model
     sudo systemctl restart ollama       # restart
     journalctl -u ollama -f             # log
 
