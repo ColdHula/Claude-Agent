@@ -1,7 +1,7 @@
 {
-  "name": "Nexa — AI Lokal",
-  "short_name": "Nexa",
-  "description": "Chat & coding dengan model AI lokal di rig Anda. Gratis, privat, offline.",
+  "name": "HvM AI",
+  "short_name": "HvM AI",
+  "description": "AI lokal pribadi: chat, coding, Excel, dan baca dokumen Anda. Privat & offline.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

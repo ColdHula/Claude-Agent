@@ -18,16 +18,16 @@ id "$APP_USER" >/dev/null 2>&1 || die "Pengguna '$APP_USER' tidak ada. Jalankan 
 [ -d "$APP_DIR/ngobrol" ] || die "Folder $APP_DIR/ngobrol tidak ada. Pastikan repo Kantor PGA sudah terpasang & terbaru."
 command -v node >/dev/null 2>&1 || die "Node.js belum ada. Pasang Kantor PGA dulu (deploy/pasang-hiveos.sh)."
 
-# Kata sandi Nexa TERPISAH dari Kantor PGA (bisa dibagi ke teman tanpa memberi akses data PGA).
+# Kata sandi HvM AI TERPISAH dari Kantor PGA (bisa dibagi ke teman tanpa memberi akses data PGA).
 # Urutan: NEXA_PASSWORD dari env  >  kata sandi lama di ngobrol.service  >  dibuatkan baru.
-PW="${NEXA_PASSWORD:-${NGOBROL_PASSWORD:-}}"
+PW="${HVM_PASSWORD:-${NEXA_PASSWORD:-${NGOBROL_PASSWORD:-}}}"
 if [ -z "$PW" ] && [ -f /etc/systemd/system/ngobrol.service ]; then
   PW="$(grep -oE 'NGOBROL_PASSWORD=.*' /etc/systemd/system/ngobrol.service | head -1 | cut -d= -f2-)"
-  [ -n "$PW" ] && say "Memakai kata sandi Nexa yang sudah ada."
+  [ -n "$PW" ] && say "Memakai kata sandi HvM AI yang sudah ada."
 fi
 if [ -z "$PW" ]; then
   PW="$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 14)"
-  say "Kata sandi Nexa (TERPISAH dari Kantor PGA) dibuatkan:"
+  say "Kata sandi HvM AI (TERPISAH dari Kantor PGA) dibuatkan:"
   printf '    \033[1m%s\033[0m\n' "$PW"
   say "CATAT kata sandi di atas. Ganti kapan saja dengan: NEXA_PASSWORD=... jalankan ulang skrip ini."
 fi
@@ -35,7 +35,7 @@ fi
 say "Membuat layanan systemd…"
 cat > /etc/systemd/system/ngobrol.service <<EOF
 [Unit]
-Description=Ngobrol - antarmuka chat model lokal
+Description=HvM AI - antarmuka chat model lokal
 After=network-online.target ollama.service
 
 [Service]
@@ -74,7 +74,7 @@ cat <<EOF
   Buka dari HP/laptop (Tailscale aktif):
     https://${HOSTN:-<nama-rig>.ts.net}:${SERVE_PORT}
   Kata sandi: TERPISAH dari Kantor PGA (yang tercetak di atas / yang Anda set).
-  Aman dibagi ke teman: mereka hanya bisa membuka Nexa, bukan data Kantor PGA.
+  Aman dibagi ke teman: mereka hanya bisa membuka HvM AI, bukan data Kantor PGA.
 
   Perintah:
     sudo systemctl restart ngobrol
@@ -82,6 +82,6 @@ cat <<EOF
     sudo systemctl disable --now ngobrol    # matikan
 
   Catatan: pilih model di pojok kiri atas. Bila kosong, jalankan dulu:
-    OLLAMA_HOST=127.0.0.1:11434 ollama pull qwen3-coder:30b
+    OLLAMA_HOST=127.0.0.1:11434 ollama pull huihui_ai/qwen2.5-coder-abliterate:14b
 
 EOF

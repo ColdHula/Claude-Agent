@@ -14,7 +14,7 @@ set -euo pipefail
 # Lebih ringan: qwen2.5-coder-abliterate:7b. Versi biasa (bersensor): qwen2.5-coder:14b.
 # Qwen3-Coder 30B (±19 GB) TIDAK muat di 16 GB — hanya untuk RAM 32 GB+.
 MODEL="${MODEL-huihui_ai/qwen2.5-coder-abliterate:14b}"
-THREADS="${THREADS:-8}"
+THREADS="${THREADS:-6}"  # i5-10400F punya 6 core fisik; untuk inferensi CPU biasanya paling optimal = core fisik
 RAM_MAX="${RAM_MAX:-13G}"
 
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
@@ -65,6 +65,7 @@ Environment="OLLAMA_MAX_LOADED_MODELS=1"
 
 # --- Sisakan CPU untuk sistem & miner ---
 Environment="OLLAMA_NUM_THREADS=${THREADS}"
+Environment="OLLAMA_NUM_PARALLEL=1"
 
 # --- Mengalah ke proses lain; miner (berat di GPU) tidak terganggu ---
 Nice=15
@@ -88,6 +89,10 @@ if [ -n "$MODEL" ]; then
   say "Mengunduh model: $MODEL (bisa beberapa GB, sekali saja)…"
   OLLAMA_HOST="${IP}:11434" ollama pull "$MODEL" || say "Gagal mengunduh $MODEL. Coba manual: OLLAMA_HOST=${IP}:11434 ollama pull $MODEL"
 fi
+
+# Model embedding untuk RAG (dokumen pribadi di HvM AI). Kecil (~270 MB).
+say "Mengunduh model embedding untuk RAG: nomic-embed-text…"
+OLLAMA_HOST="${IP}:11434" ollama pull nomic-embed-text || say "Lewati embedding (bisa nanti: OLLAMA_HOST=${IP}:11434 ollama pull nomic-embed-text)"
 
 say "Selesai."
 cat <<EOF

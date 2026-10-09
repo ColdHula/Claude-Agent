@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Nexa · AI Lokal</title>
+<title>HvM AI</title>
 <meta name="theme-color" content="#0b1020">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Nexa">
+<meta name="apple-mobile-web-app-title" content="HvM AI">
 <style>
 :root{
   --bg:#0b1020; --panel:#121a30; --panel2:#0e1627; --line:#223154;
@@ -28,6 +28,9 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 #side h1 b{font-weight:800}#side h1 span{font-weight:400;color:var(--dim);font-size:12px}
 #baru{margin:4px 12px 10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--panel);font-weight:700;display:flex;gap:8px;align-items:center;justify-content:center}
 #baru:hover{border-color:var(--accent)}
+#docsBtn{margin:4px 12px 6px;padding:9px;border:1px solid var(--line);border-radius:12px;color:var(--dim);font-weight:700;font-size:13px}
+#docsBtn:hover{border-color:var(--accent);color:var(--ink)}
+#docsCount{color:var(--accent2)}
 #chats{flex:1;overflow:auto;padding:4px 8px}
 .chat{padding:9px 10px;border-radius:10px;color:var(--dim);display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13.5px}
 .chat:hover{background:var(--panel)}
@@ -80,6 +83,19 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 #send{flex:0 0 auto;padding:0 18px;height:42px;border-radius:12px;background:linear-gradient(180deg,var(--accent2),var(--accent));font-weight:800;color:#fff}
 #send:disabled{opacity:.4;cursor:default}
 #hint{max-width:780px;margin:6px auto 0;padding:0 18px;font-size:11px;color:var(--dim);text-align:center}
+#docsModal{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:rgba(5,8,20,.72);padding:16px}
+#docsModal .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;width:min(520px,100%);max-height:80vh;overflow:auto}
+#docsModal h3{margin:0 0 6px;display:flex;align-items:center;gap:8px}
+#docsModal h3 button{margin-left:auto;color:var(--dim);font-size:18px}
+#docsModal .muted{color:var(--dim);font-size:12.5px;margin:0 0 12px}
+#docUp{width:100%;padding:11px;border:1px dashed var(--line);border-radius:12px;color:var(--accent2);font-weight:700;margin-bottom:12px}
+#docUp:hover{border-color:var(--accent)}
+#docList .d{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;font-size:13px}
+#docList .d .n{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#docList .d .c{color:var(--dim);font-size:11px}
+#docList .d button{color:var(--dim);padding:2px 6px;border-radius:6px}
+#docList .d button:hover{color:var(--bad)}
+.ragbadge{display:inline-block;font-size:11px;color:var(--accent2);background:#141f3e;border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin-top:6px}
 #drop{position:fixed;inset:0;z-index:20;display:none;place-items:center;background:rgba(8,12,30,.7)}
 #drop div{border:3px dashed var(--accent2);border-radius:22px;padding:30px 40px;font-weight:800;font-size:20px}
 @media(max-width:720px){
@@ -91,9 +107,10 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 </head>
 <body>
 <aside id="side">
-  <h1><img src="/icon.svg" width="22" height="22" alt="" style="vertical-align:-4px;border-radius:6px"> <b>Nexa</b> <span>AI lokal</span></h1>
+  <h1><img src="/icon.svg" width="22" height="22" alt="" style="vertical-align:-4px;border-radius:6px"> <b>HvM AI</b></h1>
   <button id="baru">＋ Obrolan baru</button>
   <div id="chats"></div>
+  <button id="docsBtn" title="Dokumen yang dibaca AI (RAG)">📚 Dokumen <span id="docsCount"></span></button>
   <footer><span id="who">lokal · privat</span></footer>
 </aside>
 
@@ -117,7 +134,18 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 </main>
 
 <input type="file" id="file" multiple hidden>
+<input type="file" id="docfile" multiple hidden>
 <div id="drop"><div>📎 Lepas file di sini</div></div>
+
+<div id="docsModal" hidden>
+  <div class="card">
+    <h3>📚 Dokumen HvM AI <button id="docsX" title="Tutup">✕</button></h3>
+    <p class="muted">Unggah dokumen teks/kode (txt, md, csv, kode). AI akan membacanya saat relevan untuk menjawab (RAG). Tersimpan privat di rig.</p>
+    <button id="docUp">⬆ Unggah dokumen</button>
+    <div id="docList"></div>
+    <p class="muted" id="docNote"></p>
+  </div>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -189,10 +217,11 @@ function render(){
   }
   list.innerHTML = messages.filter(m=>m.role!=="system").map((m)=>{
     const files = (m.files||[]).map(f=>`<span class="pill">📄 ${esc(f.name)}</span>`).join("");
+    const rag = m.rag ? `<div class="ragbadge">📚 memakai dokumen: ${esc(m.rag)}</div>` : "";
     return `<div class="msg ${m.role==="user"?"user":"bot"}">
       <div class="av">${m.role==="user"?"🧑":"🤖"}</div>
       <div class="body"><div class="who">${m.role==="user"?"Anda":($("model").value||"model")}</div>
-      <div class="txt">${md(m.content)}</div>${files?`<div class="files">${files}</div>`:""}</div></div>`;
+      <div class="txt">${md(m.content)}</div>${files?`<div class="files">${files}</div>`:""}${rag}</div></div>`;
   }).join("");
   $("feed").scrollTop = $("feed").scrollHeight;
 }
@@ -259,6 +288,8 @@ async function send(){
       body:JSON.stringify({ model, id:chatId, messages:payload })});
     if (!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error||("HTTP "+res.status)); }
     chatId = res.headers.get("x-chat-id") || chatId;
+    const ragUsed = decodeURIComponent(res.headers.get("x-rag") || "");
+    if (ragUsed){ botMsg.rag = ragUsed; }
     const reader = res.body.getReader(); const dec=new TextDecoder(); let buf="";
     for(;;){
       const {done,value}=await reader.read(); if(done)break;
@@ -272,11 +303,40 @@ async function send(){
   busy=false; $("send").disabled=false; loadChats(); $("ta").focus();
 }
 
+// --- Dokumen (RAG) ---
+async function loadDocs(){
+  const d = await api("/api/pengetahuan").catch(()=>({docs:[]}));
+  const n = (d.docs||[]).length;
+  $("docsCount").textContent = n ? `(${n})` : "";
+  const list = $("docList");
+  if (list){
+    list.innerHTML = (d.docs||[]).map(x=>
+      `<div class="d"><span>📄</span><span class="n">${esc(x.name)}</span><span class="c">${x.chunks} bagian</span><button data-doc="${x.doc}">✕</button></div>`).join("")
+      || `<p class="muted">Belum ada dokumen.</p>`;
+    list.querySelectorAll("button[data-doc]").forEach(b=> b.onclick=async()=>{ await fetch("/api/pengetahuan/"+b.dataset.doc,{method:"DELETE"}); loadDocs(); });
+  }
+  return d;
+}
+$("docsBtn").onclick = async ()=>{ $("docsModal").hidden=false; $("docNote").textContent=""; await loadDocs(); };
+$("docsX").onclick = ()=> $("docsModal").hidden=true;
+$("docsModal").onclick = (e)=>{ if(e.target.id==="docsModal") $("docsModal").hidden=true; };
+$("docUp").onclick = ()=> $("docfile").click();
+$("docfile").onchange = async (e)=>{
+  for (const f of e.target.files){
+    $("docNote").textContent = `Memproses ${f.name}…`;
+    const r = await fetch("/api/pengetahuan",{method:"POST",headers:{"x-nama-file":encodeURIComponent(f.name)},body:f});
+    const d = await r.json().catch(()=>({error:"gagal"}));
+    $("docNote").textContent = d.error ? `⚠️ ${d.error}` : `✅ ${f.name}: ${d.chunks} bagian terindeks.`;
+    await loadDocs();
+  }
+  e.target.value="";
+};
+
 // Sidebar mobile
 $("burger").onclick = ()=> $("side").classList.toggle("open");
 function closeSide(){ $("side").classList.remove("open"); }
 
-syncMode(); loadModels(); loadChats(); render();
+syncMode(); loadModels(); loadChats(); loadDocs(); render();
 </script>
 </body>
 </html>

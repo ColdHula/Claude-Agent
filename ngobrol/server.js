@@ -14,6 +14,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.join(here, "data");
 const CHATS = path.join(DATA, "chats");
 const FILES = path.join(DATA, "berkas");
+const PENGETAHUAN = path.join(DATA, "pengetahuan"); // dokumen untuk RAG
+const RAG_INDEX = path.join(DATA, "rag-index.json");
 const PUBLIC = path.join(here, "public");
 
 const PORT = Number(process.env.PORT || 3001);
@@ -22,13 +24,17 @@ const OLLAMA = (process.env.OLLAMA_URL || "http://127.0.0.1:11434").replace(/\/$
 const PASSWORD = process.env.NGOBROL_PASSWORD || process.env.APP_PASSWORD || "";
 const MAX_FILE = 20 * 1024 * 1024; // 20 MB per file
 const INLINE_CHARS = 60_000; // berapa karakter isi file teks yang ditempel ke prompt
+const EMBED_MODEL = process.env.EMBED_MODEL || "nomic-embed-text"; // model embedding untuk RAG
+const RAG_TOPK = Number(process.env.RAG_TOPK || 4); // berapa potongan dokumen diambil per pertanyaan
+const CHUNK = 1100, OVERLAP = 180;
 
 await fs.mkdir(CHATS, { recursive: true });
 await fs.mkdir(FILES, { recursive: true });
+await fs.mkdir(PENGETAHUAN, { recursive: true });
 
 const guard = makeAuth(PASSWORD, {
-  name: "Nexa",
-  tagline: "Masukkan kata sandi untuk masuk ke AI lokal.",
+  name: "HvM AI",
+  tagline: "Masukkan kata sandi untuk masuk.",
   iconHref: "/icon.svg",
   themeColor: "#0b1020",
   dark: true,
@@ -75,6 +81,67 @@ const chatPath = (id) => path.join(CHATS, `${id}.json`);
 async function saveChat(c) {
   c.at = Date.now();
   await fs.writeFile(chatPath(c.id), JSON.stringify(c));
+}
+
+// --- RAG: pengetahuan dokumen pribadi ---
+// Index di memori + disk: [{id, doc, name, text, vec:[...]}]
+let ragIndex = [];
+try { ragIndex = JSON.parse(await fs.readFile(RAG_INDEX, "utf8")); } catch {}
+const saveRag = () => fs.writeFile(RAG_INDEX, JSON.stringify(ragIndex)).catch(() => {});
+
+async function embed(text) {
+  const r = await fetch(`${OLLAMA}/api/embeddings`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ model: EMBED_MODEL, prompt: text }),
+  });
+  if (!r.ok) throw new Error(`embed ${r.status}`);
+  const d = await r.json();
+  if (!Array.isArray(d.embedding)) throw new Error("embedding kosong");
+  return d.embedding;
+}
+function chunkText(t) {
+  const out = [];
+  t = String(t).replace(/\r/g, "");
+  for (let i = 0; i < t.length; i += CHUNK - OVERLAP) {
+    const s = t.slice(i, i + CHUNK).trim();
+    if (s.length > 40) out.push(s);
+    if (i + CHUNK >= t.length) break;
+  }
+  return out;
+}
+function cosine(a, b) {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1);
+}
+async function addKnowledge(name, text) {
+  const doc = crypto.randomBytes(5).toString("hex");
+  const chunks = chunkText(text);
+  let added = 0;
+  for (const chunk of chunks) {
+    const vec = await embed(chunk); // bisa lempar error bila model embedding belum ada
+    ragIndex.push({ id: crypto.randomBytes(6).toString("hex"), doc, name, text: chunk, vec });
+    added++;
+  }
+  await saveRag();
+  return { doc, chunks: added };
+}
+function listKnowledge() {
+  const by = new Map();
+  for (const e of ragIndex) {
+    const k = by.get(e.doc) || { doc: e.doc, name: e.name, chunks: 0 };
+    k.chunks++; by.set(e.doc, k);
+  }
+  return [...by.values()];
+}
+async function retrieve(query, k = RAG_TOPK) {
+  if (!ragIndex.length) return [];
+  const qv = await embed(query);
+  return ragIndex
+    .map((e) => ({ name: e.name, text: e.text, score: cosine(qv, e.vec) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k)
+    .filter((e) => e.score > 0.25);
 }
 
 // --- Server ---
@@ -146,6 +213,31 @@ const server = http.createServer(async (req, res) => {
       return res.end(buf);
     }
 
+    // Pengetahuan (RAG): daftar / unggah / hapus dokumen
+    if (url.pathname === "/api/pengetahuan" && req.method === "GET")
+      return json(res, 200, { docs: listKnowledge(), embedModel: EMBED_MODEL });
+    if (url.pathname === "/api/pengetahuan" && req.method === "POST") {
+      const name = safeName(decodeURIComponent(req.headers["x-nama-file"] || "dokumen"));
+      const ext = path.extname(name).toLowerCase();
+      if (!TEXT_EXT.has(ext)) return json(res, 400, { error: "Hanya file teks/kode (txt, md, csv, kode) yang bisa dibaca untuk pengetahuan." });
+      let size = 0; const chunks = [];
+      for await (const ch of req) { size += ch.length; if (size > MAX_FILE) { res.writeHead(413); return res.end("terlalu besar"); } chunks.push(ch); }
+      const text = Buffer.concat(chunks).toString("utf8");
+      try {
+        const r = await addKnowledge(name, text);
+        return json(res, 200, { ok: true, ...r, name });
+      } catch (e) {
+        return json(res, 502, { error: `Gagal membuat embedding (model "${EMBED_MODEL}" belum ada?). Jalankan: ollama pull ${EMBED_MODEL}. Detail: ${e.message}` });
+      }
+    }
+    const dm = url.pathname.match(/^\/api\/pengetahuan\/([a-f0-9]{10})$/);
+    if (dm && req.method === "DELETE") {
+      const before = ragIndex.length;
+      ragIndex = ragIndex.filter((e) => e.doc !== dm[1]);
+      await saveRag();
+      return json(res, 200, { ok: true, removed: before - ragIndex.length });
+    }
+
     // Chat: teruskan ke Ollama dan alirkan jawaban ke browser (NDJSON), lalu simpan percakapan
     if (url.pathname === "/api/chat" && req.method === "POST") {
       const body = await readBody(req);
@@ -153,6 +245,21 @@ const server = http.createServer(async (req, res) => {
       const messages = Array.isArray(body.messages) ? body.messages : [];
       if (!model || !messages.length) return json(res, 400, { error: "model dan messages wajib" });
       let id = okId(body.id) ? body.id : crypto.randomBytes(6).toString("hex");
+
+      // RAG: bila ada dokumen & diminta, sisipkan potongan relevan sebagai konteks
+      let ragInfo = null;
+      if (body.rag !== false && ragIndex.length) {
+        try {
+          const lastUser = [...messages].reverse().find((m) => m.role === "user");
+          const hits = lastUser ? await retrieve(String(lastUser.content).slice(0, 2000)) : [];
+          if (hits.length) {
+            const ctx = hits.map((h, i) => `[${i + 1}] (${h.name})\n${h.text}`).join("\n\n");
+            messages.unshift({ role: "system", content:
+              "Gunakan potongan dokumen Rahula berikut bila relevan untuk menjawab. Jangan mengarang di luar ini; bila tidak ada jawabannya, katakan. Sebut nomor sumber [n] saat memakai.\n\n" + ctx });
+            ragInfo = hits.map((h) => h.name);
+          }
+        } catch {}
+      }
 
       let upstream;
       try {
@@ -169,7 +276,8 @@ const server = http.createServer(async (req, res) => {
         return json(res, 502, { error: `Ollama menolak: ${upstream.status} ${t.slice(0, 200)}` });
       }
 
-      res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store", "x-chat-id": id });
+      res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store",
+        "x-chat-id": id, "x-rag": ragInfo ? encodeURIComponent(ragInfo.join(", ")) : "" });
       let full = "";
       const reader = upstream.body.getReader();
       const dec = new TextDecoder();
@@ -212,5 +320,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Ngobrol di http://${HOST}:${PORT}  → Ollama: ${OLLAMA}  → kata sandi: ${PASSWORD ? "aktif" : "TIDAK ADA (hanya aman di 127.0.0.1)"}`);
+  console.log(`HvM AI di http://${HOST}:${PORT}  → Ollama: ${OLLAMA}  → kata sandi: ${PASSWORD ? "aktif" : "TIDAK ADA (hanya aman di 127.0.0.1)"}`);
 });

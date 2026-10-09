@@ -32,4 +32,6 @@ if grep -qE '^package(-lock)?\.json$' <<<"$CHANGED"; then
   as_user npm install --omit=dev --no-audit --no-fund --loglevel=error
 fi
 systemctl restart kantor-pga
+# Restart juga HvM AI (HvM AI) bila terpasang, agar ikut versi baru.
+if systemctl list-unit-files 2>/dev/null | grep -q "^ngobrol.service"; then systemctl restart ngobrol || true; fi
 log "Diperbarui ${LOCAL:0:7} → ${REMOTE:0:7} dan layanan di-restart."

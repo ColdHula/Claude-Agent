@@ -1,6 +1,6 @@
-# Ngobrol — antarmuka chat model lokal
+# HvM AI — antarmuka chat model lokal (RAG + persona)
 
-Chatbot sederhana untuk model lokal (Ollama) yang jalan di rig. Terpisah dari Kantor PGA.
+Chatbot untuk model lokal (Ollama) di rig: chat, coding, Excel, dan baca dokumen Anda (RAG). Terpisah dari Kantor PGA.
 
 - **Pengalaman seperti chatbot biasa**: ketik, jawaban mengalir, blok kode rapi.
 - **Riwayat tersimpan**: tiap percakapan disimpan di `ngobrol/data/chats/` (JSON) dan muncul di sisi kiri.
@@ -26,3 +26,9 @@ Lihat `deploy/pasang-ngobrol.sh` dan bagian "Ngobrol" di `deploy/HIVEOS.md`.
 | `NGOBROL_PASSWORD` | (APP_PASSWORD) | Kata sandi; kosong = hanya aman di 127.0.0.1 |
 
 `ngobrol/data/` tidak ikut Git.
+
+## RAG (baca dokumen Anda)
+Klik **📚 Dokumen** di aplikasi, unggah file teks/kode. Potongan relevan otomatis disisipkan saat menjawab (ditandai `[n]`). Butuh `ollama pull nomic-embed-text`. Index di `ngobrol/data/rag-index.json`.
+
+## Model pribadi
+Lihat `model-pribadi/Modelfile.hvm` dan `deploy/buat-model-pribadi.sh` (model `hvm`).

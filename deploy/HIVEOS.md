@@ -159,31 +159,53 @@ Model untuk RAM 16 GB (CPU-only):
 > Model abliterated tidak punya rem keamanan: ia akan menuruti apa pun, jadi **periksa sendiri**
 > kode/keluarannya sebelum dijalankan. Risiko sepenuhnya di tangan Anda.
 
-**Langkah 2 — pasang antarmuka "Nexa" (chat + coding):**
+**Langkah 2 — pasang antarmuka "HvM AI" (chat + coding):**
 ```
 curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ngobrol.sh | sudo bash
 ```
-Nexa adalah aplikasi web (chat biasa + mode coding, riwayat tersimpan, lampiran file,
+HvM AI adalah aplikasi web (chat biasa + mode coding, riwayat tersimpan, lampiran file,
 berpassword, bisa dipasang di layar utama HP dengan logonya). Dibuka di
 `https://<nama-rig>.ts.net:8443` (port terpisah dari Kantor PGA).
 Nyalakan tombol **💻 Coding** di pojok atas agar jawaban fokus kode yang benar.
 
-**Kata sandi Nexa terpisah dari Kantor PGA**, jadi aman dibagi ke teman/pacar tanpa
+**Kata sandi HvM AI terpisah dari Kantor PGA**, jadi aman dibagi ke teman/pacar tanpa
 memberi akses ke data PGD. Skrip mencetak kata sandinya saat pasang. Mengganti:
 ```
-NEXA_PASSWORD=katasandibaru sudo -E bash -c 'curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ngobrol.sh | bash'
+HVM_PASSWORD=katasandibaru sudo -E bash -c 'curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ngobrol.sh | bash'
 ```
+
+**Langkah 3 (opsional) — model pribadi "HvM":** persona santai yang disetel untuk coding,
+Excel, dan belajar. Tanpa training/GPU.
+```
+curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/buat-model-pribadi.sh | sudo bash
+```
+Lalu pilih model **`hvm`** di aplikasi. Ubah kepribadiannya kapan saja dengan mengedit
+`ngobrol/model-pribadi/Modelfile.hvm` lalu jalankan skrip itu lagi.
+
+**Dokumen pribadi (RAG):** di aplikasi klik **📚 Dokumen** → unggah file teks/kode (txt, md, csv, kode).
+HvM AI membacanya saat relevan untuk menjawab, dan menandai sumber `[n]`. Butuh model embedding
+`nomic-embed-text` (otomatis diunduh skrip Ollama). Semuanya tersimpan privat di rig.
 
 **Cek GPU aman:** saat model menjawab, di tab Hive Shell lain jalankan `nvidia-smi` — tidak boleh
 ada proses `ollama` di daftar GPU, dan utilisasi GPU tetap penuh oleh miner.
+
+**Agar lebih cepat/efisien di CPU i5-10400F + 16 GB:**
+- Thread diset ke 6 (jumlah core fisik) — biasanya paling optimal untuk inferensi CPU.
+- Flash Attention + KV cache q8 aktif (hemat RAM, konteks lebih panjang).
+- Untuk kecepatan, pakai model **7B** (`huihui_ai/qwen2.5-coder-abliterate:7b`); untuk kualitas, 14B.
+- Konteks dibatasi 8K di model `hvm` agar RAM cukup; naikkan `num_ctx` di Modelfile bila RAM lega.
 
 Perintah harian:
 | Perlu | Perintah |
 |---|---|
 | Tambah model | `OLLAMA_HOST=127.0.0.1:11434 ollama pull <model>` |
 | Lihat daftar model | `ollama list` |
-| Restart chat | `sudo systemctl restart ngobrol` |
+| Restart HvM AI | `sudo systemctl restart ngobrol` |
 | Matikan AI lokal | `sudo systemctl disable --now ngobrol ollama` |
+| Model embedding RAG | `OLLAMA_HOST=127.0.0.1:11434 ollama pull nomic-embed-text` |
+
+> **Update otomatis:** HvM AI ikut timer `kantor-pga-perbarui`. Setiap kali repo di-push,
+> dalam ±5 menit rig menariknya dan me-restart HvM AI ke versi baru (persis seperti Kantor PGA).
 
 > Catatan: kualitas model lokal 7B–30B jauh di bawah Claude untuk tugas rumit. Pakai untuk
 > chat ringan, coding kecil, dan latihan. Untuk dokumen PGA yang ditandatangani, tetap Kantor PGA.

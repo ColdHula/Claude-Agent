@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Membuat model pribadi dari Modelfile (persona + aturan), tanpa training/GPU.
-# Model hasilnya muncul di Nexa untuk dipilih. Jalankan SETELAH pasang-ollama.sh.
+# Model hasilnya muncul di HvM AI untuk dipilih. Jalankan SETELAH pasang-ollama.sh.
 #
 #   curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/buat-model-pribadi.sh | sudo bash
 #
 # Pilihan (tulis di depan perintah):
-#   NAMA=mager                         nama model yang muncul di Nexa
-#   MODELFILE=Modelfile.mager          file persona di ngobrol/model-pribadi/
+#   NAMA=hvm                           nama model yang muncul di HvM AI
+#   MODELFILE=Modelfile.hvm          file persona di ngobrol/model-pribadi/
 #   APP_USER=user  APP_DIR=/home/user/kantor-pga
 set -euo pipefail
 APP_USER="${APP_USER:-user}"
 APP_DIR="${APP_DIR:-/home/${APP_USER}/kantor-pga}"
-NAMA="${NAMA:-mager}"
-MODELFILE="${MODELFILE:-Modelfile.mager}"
+NAMA="${NAMA:-hvm}"
+MODELFILE="${MODELFILE:-Modelfile.hvm}"
 DIR="${APP_DIR}/ngobrol/model-pribadi"
 
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
@@ -28,7 +28,7 @@ OLLAMA_HOST="127.0.0.1:11434" ollama create "${NAMA}" -f "${DIR}/${MODELFILE}"
 say "Selesai. Model '${NAMA}' siap dipakai."
 cat <<EOF
 
-  Buka Nexa → pilih model "${NAMA}" di pojok kiri atas.
+  Buka HvM AI → pilih model "${NAMA}" di pojok kiri atas.
   Ubah kepribadian/aturan kapan saja: edit ${DIR}/${MODELFILE}
   lalu jalankan skrip ini lagi (model dengan nama sama akan diperbarui).
 

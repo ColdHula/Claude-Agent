@@ -1,11 +1,11 @@
-# Memakai Kantor PGA & Nexa di Chromebook
+# Memakai Kantor PGA & HvM AI di Chromebook
 
 Dua aplikasi berjalan di rig Anda dan dibuka lewat Tailscale:
 
 | Aplikasi | Alamat | Kata sandi |
 |---|---|---|
 | **Kantor PGA** (tim Claude) | `https://<nama-rig>.ts.net` | kata sandi Kantor PGA |
-| **Nexa** (AI lokal, chat + coding) | `https://<nama-rig>.ts.net:8443` | kata sandi Nexa (terpisah) |
+| **HvM AI** (AI lokal, chat + coding) | `https://<nama-rig>.ts.net:8443` | kata sandi HvM AI (terpisah) |
 
 > Ganti `<nama-rig>` dengan nama rig Anda di Tailscale (lihat https://login.tailscale.com/admin/machines, mis. `kantor-pga.xxxx.ts.net`).
 
@@ -29,7 +29,7 @@ Dua aplikasi berjalan di rig Anda dan dibuka lewat Tailscale:
 2. Ketik alamat aplikasinya (lihat tabel di atas).
 3. Masukkan kata sandi → **Masuk**.
    - Kantor PGA: pil kanan atas harus **● Langganan**.
-   - Nexa: pilih model di pojok kiri atas; nyalakan tombol **💻 Coding** bila mau coding.
+   - HvM AI: pilih model di pojok kiri atas; nyalakan tombol **💻 Coding** bila mau coding.
 
 ---
 
@@ -43,7 +43,7 @@ Lakukan untuk masing-masing alamat, jadi ada dua ikon terpisah:
 3. Ikon muncul di **launcher** (lingkaran di kiri bawah) dan bisa dibuka seperti aplikasi biasa.
 4. Agar menetap di rak bawah: klik kanan ikonnya → **Pin to shelf**.
 
-Sekarang Kantor PGA dan Nexa punya ikon sendiri dan bisa dibuka tanpa mengetik alamat.
+Sekarang Kantor PGA dan HvM AI punya ikon sendiri dan bisa dibuka tanpa mengetik alamat.
 
 ---
 
@@ -59,7 +59,7 @@ Bagikan **perangkat rig** ke akun Tailscale mereka (bukan akun atau jaringan And
 5. Beri tahu mereka **alamat** + **kata sandi** aplikasi yang boleh dibuka.
 
 **Keamanan:**
-- Beri **kata sandi Nexa** saja bila hanya ingin mereka memakai AI lokal — mereka **tidak** bisa membuka Kantor PGA (data PGD aman).
+- Beri **kata sandi HvM AI** saja bila hanya ingin mereka memakai AI lokal — mereka **tidak** bisa membuka Kantor PGA (data PGD aman).
 - Mencabut akses kapan saja: menu **⋯** perangkat → **Unshare**.
 - Jangan pernah memberi login HiveOS atau akun Tailscale Anda. Jangan pakai port forwarding router.
 
@@ -71,8 +71,8 @@ Bagikan **perangkat rig** ke akun Tailscale mereka (bukan akun atau jaringan And
 |---|---|
 | Alamat `ts.net` tidak terbuka | Pastikan Tailscale **Connected**. Lalu di Chrome buka `chrome://settings/security` → matikan **Use secure DNS** sementara. |
 | "Your connection is not private" | Pastikan Anda mengetik **https://** dan nama rig benar. HTTPS Tailscale harus sudah dinyalakan (Bagian 0 tutorial utama). |
-| Nexa: daftar model kosong | Model belum diunduh di rig: `OLLAMA_HOST=127.0.0.1:11434 ollama pull qwen2.5-coder:14b` |
-| Nexa lambat menjawab | Wajar — model jalan di CPU rig. Chromebook hanya menampilkan. Pakai model 7B bila mau lebih cepat. |
+| HvM AI: daftar model kosong | Model belum diunduh di rig: `OLLAMA_HOST=127.0.0.1:11434 ollama pull qwen2.5-coder:14b` |
+| HvM AI lambat menjawab | Wajar — model jalan di CPU rig. Chromebook hanya menampilkan. Pakai model 7B bila mau lebih cepat. |
 | Play Store tidak ada | Settings → Apps → Google Play Store → Turn on (beberapa Chromebook sekolah/kantor mematikannya). |
 
 ---
