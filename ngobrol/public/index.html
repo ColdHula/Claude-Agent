@@ -134,6 +134,16 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 .tabpane{overflow:auto;flex:1}
 .drow{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;cursor:pointer}
 .drow:hover{border-color:var(--accent)}
+.dcard{border:1px solid var(--line);border-radius:12px;margin-bottom:9px;overflow:hidden}
+.dcard.blocked{opacity:.65}
+.dcard .drow{border:0;border-radius:0;margin:0}
+.dcard .dctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;border-top:1px solid var(--line);background:var(--bg)}
+.dcard .dctl label{font-size:12px;color:var(--dim)}
+.dcard .dctl .lim{width:64px;font:inherit;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.dcard .act{font-size:12px;font-weight:600;padding:6px 10px;border:1px solid var(--line);border-radius:8px;color:var(--dim)}
+.dcard .act:hover{border-color:var(--accent);color:var(--ink)}
+.dcard .act.del:hover{border-color:var(--bad);color:var(--bad)}
+.tagb{font-size:10.5px;color:var(--bad);border:1px solid var(--bad);border-radius:6px;padding:1px 6px;margin-left:4px}
 .drow .av2{width:34px;height:34px;border-radius:9px;background:var(--bg);border:1px solid var(--line2);display:grid;place-items:center;font:700 13px var(--display);color:var(--accent)}
 .drow .n{flex:1}.drow .n b{font-weight:600}.drow .n small{display:block;color:var(--dim);font-size:11.5px}
 .drow .c{color:var(--dim);font-size:12px;text-align:right}
@@ -204,7 +214,6 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
     <p class="muted">Dipakai untuk menandai percakapan Anda di perangkat ini.</p>
     <input id="nameInput" type="text" placeholder="mis. Rama" maxlength="40" autocomplete="name">
     <button id="nameOk">Mulai →</button>
-    <p class="muted" style="font-size:11.5px;margin-top:10px">ℹ️ Pemilik rig dapat melihat percakapan di perangkat ini.</p>
   </div>
 </div>
 
@@ -479,11 +488,29 @@ async function openDash(){
     `<div class="stat"><b>${ov.totals.perangkat||0}</b><span>Perangkat</span></div>
      <div class="stat"><b>${ov.totals.pesan||0}</b><span>Pesan dikirim</span></div>
      <div class="stat"><b>${ov.totals.chats||0}</b><span>Percakapan</span></div>`;
-  $("tab-dev").innerHTML = (ov.devices||[]).map(d=>
-    `<div class="drow" data-cid="${esc(d.cid)}" data-who="${esc(d.who||"")}"><div class="av2">${esc(initial(d.who))}</div>
-     <div class="n"><b>${esc(d.who||"(tanpa nama)")}</b><small>${esc(d.device||"")} · ${esc(d.ip||"")}</small></div>
-     <div class="c">${d.count||0} pesan<br>${d.lastSeen?ago(d.lastSeen):""}</div></div>`).join("") || `<p class="muted">Belum ada perangkat.</p>`;
-  $("tab-dev").querySelectorAll(".drow").forEach(r=> r.onclick=()=> showUserChats(r.dataset.cid, r.dataset.who));
+  $("tab-dev").innerHTML = (ov.devices||[]).map(d=>{
+    const used = (d.day===new Date().toISOString().slice(0,10)) ? (d.dayCount||0) : 0;
+    const lim = d.daily>0 ? `${used}/${d.daily} hari ini` : "tanpa batas";
+    return `<div class="dcard${d.blocked?" blocked":""}" data-cid="${esc(d.cid)}" data-who="${esc(d.who||"")}">
+      <div class="drow open"><div class="av2">${esc(initial(d.who))}</div>
+       <div class="n"><b>${esc(d.who||"(tanpa nama)")}</b> ${d.blocked?'<span class="tagb">diblokir</span>':''}<small>${esc(d.device||"")} · ${esc(d.ip||"")} · ${lim}</small></div>
+       <div class="c">${d.count||0} pesan<br>${d.lastSeen?ago(d.lastSeen):""}</div></div>
+      <div class="dctl">
+        <label>Batas/hari: <input type="number" min="0" class="lim" value="${d.daily||0}" title="0 = tanpa batas"></label>
+        <button class="act" data-a="limit">Simpan</button>
+        <button class="act" data-a="${d.blocked?'unblock':'block'}">${d.blocked?'Buka blokir':'Blokir'}</button>
+        <button class="act del" data-a="delete">Hapus</button>
+      </div></div>`;
+  }).join("") || `<p class="muted">Belum ada perangkat.</p>`;
+  $("tab-dev").querySelectorAll(".drow.open").forEach(r=> r.onclick=()=>{ const c=r.closest(".dcard"); showUserChats(c.dataset.cid, c.dataset.who); });
+  $("tab-dev").querySelectorAll(".act").forEach(b=> b.onclick=async(e)=>{
+    e.stopPropagation();
+    const card=b.closest(".dcard"); const cid=card.dataset.cid; const a=b.dataset.a;
+    if (a==="delete" && !confirm("Hapus perangkat ini beserta semua chatnya? Tidak bisa dibatalkan.")) return;
+    const limit = a==="limit" ? Number(card.querySelector(".lim").value)||0 : undefined;
+    await fetch("/api/admin/device",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({cid,action:a,limit})});
+    openDash();
+  });
   const fd = await api("/api/admin/feed").catch(()=>({feed:[]}));
   $("tab-feed").innerHTML = (fd.feed||[]).map(f=>
     `<div class="frow"><div class="meta"><b>${esc(f.who||"?")}</b> · ${esc(f.device||"")} · ${ago(f.t)} · ${esc(f.model||"")}</div>${esc(f.q||"")}</div>`).join("") || `<p class="muted">Belum ada aktivitas.</p>`;

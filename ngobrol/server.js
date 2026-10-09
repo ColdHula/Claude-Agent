@@ -184,11 +184,26 @@ function ownerOk(req) {
 let devices = {};
 try { devices = JSON.parse(await fs.readFile(DEVICES, "utf8")); } catch {}
 const saveDevices = () => fs.writeFile(DEVICES, JSON.stringify(devices)).catch(() => {});
+const devKey = (c) => c.cid || `ip:${c.ip}`;
+const today = () => new Date().toISOString().slice(0, 10);
+// Cek apakah perangkat boleh mengirim (blokir / batas harian). Mengembalikan pesan error atau null.
+function limitError(c) {
+  const d = devices[devKey(c)];
+  if (!d) return null;
+  if (d.blocked) return "Perangkat Anda diblokir oleh pemilik.";
+  if (d.daily > 0) {
+    const used = d.day === today() ? (d.dayCount || 0) : 0;
+    if (used >= d.daily) return `Batas pemakaian harian tercapai (${d.daily} pesan). Coba lagi besok.`;
+  }
+  return null;
+}
 async function recordUsage(c, model, question) {
   const now = Date.now();
-  const key = c.cid || `ip:${c.ip}`;
+  const key = devKey(c);
   const d = devices[key] || { cid: key, firstSeen: now, count: 0 };
   d.who = c.who; d.device = c.device; d.ip = c.ip; d.ua = c.ua; d.lastSeen = now; d.count++;
+  if (d.day !== today()) { d.day = today(); d.dayCount = 0; }
+  d.dayCount = (d.dayCount || 0) + 1;
   devices[key] = d;
   await saveDevices();
   const line = JSON.stringify({ t: now, cid: key, who: c.who, device: c.device, ip: c.ip, model, q: String(question).slice(0, 500) }) + "\n";
@@ -250,6 +265,26 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { devices: devs, totals: { perangkat: devs.length, chats: chats.length, pesan: devs.reduce((s, d) => s + (d.count || 0), 0) } });
       }
       if (url.pathname === "/api/admin/feed") return json(res, 200, { feed: await readUsage(150) });
+      if (url.pathname === "/api/admin/device" && req.method === "POST") {
+        const { cid, action, limit } = await readBody(req).catch(() => ({}));
+        const d = devices[cid];
+        if (!d) return json(res, 404, { error: "perangkat tidak ada" });
+        if (action === "block") d.blocked = true;
+        else if (action === "unblock") d.blocked = false;
+        else if (action === "limit") d.daily = Math.max(0, Number(limit) || 0);
+        else if (action === "delete") {
+          // hapus chat milik perangkat ini lalu catatannya
+          const names = (await fs.readdir(CHATS).catch(() => [])).filter((f) => f.endsWith(".json"));
+          for (const f of names) {
+            try { const c = JSON.parse(await fs.readFile(path.join(CHATS, f), "utf8")); if (c.client === cid) await fs.rm(path.join(CHATS, f), { force: true }); } catch {}
+          }
+          delete devices[cid];
+          await saveDevices();
+          return json(res, 200, { ok: true, deleted: true });
+        } else return json(res, 400, { error: "aksi tidak dikenal" });
+        await saveDevices();
+        return json(res, 200, { ok: true, device: d });
+      }
       if (url.pathname === "/api/admin/chats") {
         const cid = url.searchParams.get("client") || null;
         return json(res, 200, { chats: await listChats(cid, !cid) });
@@ -357,6 +392,8 @@ const server = http.createServer(async (req, res) => {
       if (!model || !messages.length) return json(res, 400, { error: "model dan messages wajib" });
       let id = okId(body.id) ? body.id : crypto.randomBytes(6).toString("hex");
       const who = clientOf(req);
+      const blocked = limitError(who);
+      if (blocked) return json(res, 429, { error: blocked });
       const lastQ = [...messages].reverse().find((m) => m.role === "user")?.content || "";
       recordUsage(who, model, lastQ).catch(() => {});
 
