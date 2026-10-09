@@ -37,11 +37,12 @@ if [ -z "$IP" ]; then
 fi
 
 # 3) Pasang Ollama (resmi).
-if ! command -v ollama >/dev/null 2>&1; then
-  say "Memasang Ollama…"
+# Pasang bila binary belum ada ATAU service systemd belum terbentuk (instalasi sebelumnya terputus).
+if ! command -v ollama >/dev/null 2>&1 || ! systemctl list-unit-files 2>/dev/null | grep -q '^ollama\.service'; then
+  say "Memasang Ollama (installer resmi, membuat service)…"
   curl -fsSL https://ollama.com/install.sh | sh
 else
-  say "Ollama sudah ada; memperbarui konfigurasi saja."
+  say "Ollama & service sudah ada; memperbarui konfigurasi saja."
 fi
 
 # 4) Konfigurasi: CPU-only, prioritas di bawah miner, batas RAM, akses via Tailscale.
