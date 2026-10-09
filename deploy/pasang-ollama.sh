@@ -10,9 +10,10 @@
 #   RAM_MAX=13G             batas RAM proses Ollama
 set -euo pipefail
 
-# Bawaan 14B: muat nyaman di RAM 16 GB (CPU-only). Untuk lebih ringan pakai qwen2.5-coder:7b.
+# Bawaan: Qwen2.5-Coder 14B versi "abliterated" (tanpa sensor), Q4 ±9 GB, muat di RAM 16 GB.
+# Lebih ringan: qwen2.5-coder-abliterate:7b. Versi biasa (bersensor): qwen2.5-coder:14b.
 # Qwen3-Coder 30B (±19 GB) TIDAK muat di 16 GB — hanya untuk RAM 32 GB+.
-MODEL="${MODEL-qwen2.5-coder:14b}"
+MODEL="${MODEL-huihui_ai/qwen2.5-coder-abliterate:14b}"
 THREADS="${THREADS:-8}"
 RAM_MAX="${RAM_MAX:-13G}"
 

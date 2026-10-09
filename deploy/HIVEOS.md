@@ -151,9 +151,13 @@ membatasi RAM, mengunci akses ke Tailscale, lalu mengunduh model coding.
 Model untuk RAM 16 GB (CPU-only):
 | Model | Perintah | Catatan |
 |---|---|---|
-| **Qwen2.5-Coder 14B** (bawaan) | — | Kualitas coding terbaik yang muat nyaman di 16 GB |
-| Qwen2.5-Coder 7B (lebih cepat) | `MODEL=qwen2.5-coder:7b` di depan `sudo` | Lebih ringan & cepat |
+| **Qwen2.5-Coder 14B abliterated** (bawaan, tanpa sensor) | — | Kualitas coding terbaik yang muat di 16 GB; rem keamanan dikurangi |
+| 7B abliterated (lebih cepat) | `MODEL=huihui_ai/qwen2.5-coder-abliterate:7b` di depan `sudo` | Ringan & cepat |
+| Qwen2.5-Coder 14B biasa (bersensor) | `MODEL=qwen2.5-coder:14b` di depan `sudo` | Bila ingin versi standar |
 | Qwen3-Coder 30B | — | **TIDAK muat** di 16 GB (butuh ±19 GB / RAM 32 GB+) |
+
+> Model abliterated tidak punya rem keamanan: ia akan menuruti apa pun, jadi **periksa sendiri**
+> kode/keluarannya sebelum dijalankan. Risiko sepenuhnya di tangan Anda.
 
 **Langkah 2 — pasang antarmuka "Nexa" (chat + coding):**
 ```
