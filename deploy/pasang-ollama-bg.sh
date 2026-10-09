@@ -5,9 +5,9 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ollama-bg.sh | sudo bash
 #
-# Opsi: MODEL=huihui_ai/qwen2.5-coder-abliterate:14b (bawaan 7B, lebih cepat diunduh)
+# Opsi: MODEL=huihui_ai/qwen2.5-coder-abliterate:7b (bawaan 14B, kualitas lebih baik)
 set -euo pipefail
-MODEL="${MODEL-huihui_ai/qwen2.5-coder-abliterate:7b}"
+MODEL="${MODEL-huihui_ai/qwen2.5-coder-abliterate:14b}"
 LOG=/home/user/hvm-pull.log
 RAW=https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ollama.sh
 
@@ -18,14 +18,23 @@ grep -qw avx /proc/cpuinfo || die "CPU tidak punya AVX. Pasang CPU ber-AVX2 dulu
 
 : > "$LOG"; chown user:user "$LOG" 2>/dev/null || true
 
-# Pintasan 'cek-model' untuk memeriksa nanti
+# Pintasan 'cek-model' (ringkas) dan 'progress-model' (pantau live)
 cat > /usr/local/bin/cek-model <<EOF
 #!/usr/bin/env bash
-echo "=== status pemasangan/unduh (hvm-setup) ==="; systemctl is-active hvm-setup 2>/dev/null || true
-echo "=== 6 baris log terakhir ==="; tail -n 6 "$LOG" 2>/dev/null
-echo "=== model yang sudah ada ==="; OLLAMA_HOST=127.0.0.1:11434 ollama list 2>/dev/null || echo "(ollama belum siap)"
+echo "=== status (hvm-setup): \$(systemctl is-active hvm-setup 2>/dev/null) ==="
+echo "--- progres unduhan terakhir ---"
+# ambil potongan progres terakhir (ollama pakai \\r, jadi ganti ke baris baru lalu ambil 3 terakhir)
+tr '\\r' '\\n' < "$LOG" 2>/dev/null | grep -vE '^\$' | tail -n 3
+echo "--- model yang sudah selesai ---"
+OLLAMA_HOST=127.0.0.1:11434 ollama list 2>/dev/null || echo "(ollama belum siap)"
 EOF
 chmod +x /usr/local/bin/cek-model
+# pantau live (keluar: Ctrl+C)
+cat > /usr/local/bin/progress-model <<EOF
+#!/usr/bin/env bash
+echo "Pantau progres (Ctrl+C untuk keluar)…"; tail -f "$LOG"
+EOF
+chmod +x /usr/local/bin/progress-model
 
 # Jalankan seluruh pemasangan+unduh sebagai layanan transient (tahan putus)
 systemctl reset-failed hvm-setup 2>/dev/null || true
@@ -41,7 +50,8 @@ cat <<EOF
   GPU   : TIDAK dipakai (semua tetap untuk mining)
 
   CEK KEMAJUAN (buka Hive Shell kapan saja, ketik):
-    cek-model
+    cek-model          # ringkas: status + % unduhan terakhir + model selesai
+    progress-model     # pantau live (Ctrl+C untuk keluar)
 
   SELESAI bila 'cek-model' menampilkan model di atas + nomic-embed-text.
   Lalu pasang aplikasinya:
