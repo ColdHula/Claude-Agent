@@ -29,7 +29,19 @@ if [ -z "$PW" ]; then
   PW="$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 14)"
   say "Kata sandi HvM AI (TERPISAH dari Kantor PGA) dibuatkan:"
   printf '    \033[1m%s\033[0m\n' "$PW"
-  say "CATAT kata sandi di atas. Ganti kapan saja dengan: NEXA_PASSWORD=... jalankan ulang skrip ini."
+  say "CATAT kata sandi di atas. Ganti kapan saja dengan: HVM_PASSWORD=... jalankan ulang skrip ini."
+fi
+
+# Kunci PEMILIK (untuk Dashboard: lihat perangkat & chat teman). Terpisah dari kata sandi biasa.
+OK="${HVM_OWNER_KEY:-}"
+if [ -z "$OK" ] && [ -f /etc/systemd/system/ngobrol.service ]; then
+  OK="$(grep -oE 'HVM_OWNER_KEY=.*' /etc/systemd/system/ngobrol.service | head -1 | cut -d= -f2-)"
+fi
+if [ -z "$OK" ]; then
+  OK="$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 12)"
+  say "Kunci PEMILIK (untuk Dashboard pemantauan) dibuatkan:"
+  printf '    \033[1m%s\033[0m\n' "$OK"
+  say "Kunci ini HANYA untuk Anda. Jangan beri ke teman. Dipakai di tombol '◆ Pemilik'."
 fi
 
 say "Membuat layanan systemd…"
@@ -46,6 +58,7 @@ Environment=PORT=${PORT}
 Environment=HOST=127.0.0.1
 Environment=OLLAMA_URL=http://127.0.0.1:11434
 Environment=NGOBROL_PASSWORD=${PW}
+Environment=HVM_OWNER_KEY=${OK}
 ExecStart=/usr/bin/env node ${APP_DIR}/ngobrol/server.js
 Restart=on-failure
 Nice=10

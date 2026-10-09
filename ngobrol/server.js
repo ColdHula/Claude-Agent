@@ -27,6 +27,10 @@ const INLINE_CHARS = 60_000; // berapa karakter isi file teks yang ditempel ke p
 const EMBED_MODEL = process.env.EMBED_MODEL || "nomic-embed-text"; // model embedding untuk RAG
 const RAG_TOPK = Number(process.env.RAG_TOPK || 4); // berapa potongan dokumen diambil per pertanyaan
 const CHUNK = 1100, OVERLAP = 180;
+// Kunci pemilik: bila diisi, muncul Dashboard untuk memantau perangkat & chat teman.
+const OWNER_KEY = process.env.HVM_OWNER_KEY || process.env.OWNER_KEY || "";
+const USAGE = path.join(DATA, "usage.jsonl"); // log pertanyaan per perangkat
+const DEVICES = path.join(DATA, "devices.json"); // ringkasan perangkat terkoneksi
 
 await fs.mkdir(CHATS, { recursive: true });
 await fs.mkdir(FILES, { recursive: true });
@@ -36,8 +40,9 @@ const guard = makeAuth(PASSWORD, {
   name: "HvM AI",
   tagline: "Masukkan kata sandi untuk masuk.",
   iconHref: "/icon.svg",
-  themeColor: "#0b1020",
+  themeColor: "#0e0f13",
   dark: true,
+  accent: "#ff7a59",
 }); // null bila tanpa kata sandi (hanya untuk 127.0.0.1)
 
 const MIME = {
@@ -66,13 +71,14 @@ async function readBody(req, limit = 4 * 1024 * 1024) {
 }
 
 // --- Riwayat percakapan ---
-async function listChats() {
+async function listChats(cid = null, all = false) {
   const names = (await fs.readdir(CHATS).catch(() => [])).filter((f) => f.endsWith(".json"));
   const out = [];
   for (const f of names) {
     try {
       const c = JSON.parse(await fs.readFile(path.join(CHATS, f), "utf8"));
-      out.push({ id: c.id, title: c.title || "(tanpa judul)", at: c.at || 0, model: c.model || "" });
+      if (!all && cid && c.client !== cid) continue; // tiap orang hanya melihat chatnya sendiri
+      out.push({ id: c.id, title: c.title || "(tanpa judul)", at: c.at || 0, model: c.model || "", who: c.who || "", client: c.client || "" });
     } catch {}
   }
   return out.sort((a, b) => b.at - a.at);
@@ -144,6 +150,63 @@ async function retrieve(query, k = RAG_TOPK) {
     .filter((e) => e.score > 0.25);
 }
 
+// --- Identitas perangkat & pemantauan pemilik ---
+function deviceLabel(ua = "") {
+  const os = /Android/.test(ua) ? "Android" : /iPhone|iPad|iOS/.test(ua) ? "iOS"
+    : /CrOS/.test(ua) ? "ChromeOS" : /Windows/.test(ua) ? "Windows"
+    : /Mac OS X/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "?";
+  const br = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera"
+    : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox"
+    : /Safari\//.test(ua) ? "Safari" : "Browser";
+  return `${br} · ${os}`;
+}
+function clientOf(req) {
+  const h = req.headers;
+  const ua = String(h["user-agent"] || "");
+  let who = "";
+  try { who = decodeURIComponent(String(h["x-hvm-who"] || "")).slice(0, 40); } catch {}
+  const cid = /^[a-z0-9]{6,40}$/.test(String(h["x-hvm-cid"] || "")) ? h["x-hvm-cid"] : "";
+  const ip = (String(h["x-forwarded-for"] || "").split(",")[0] || req.socket.remoteAddress || "").trim();
+  return { cid, who: who || "(tanpa nama)", ua, device: deviceLabel(ua), ip };
+}
+const cookieVal = (req, name) => {
+  const m = String(req.headers.cookie || "").match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return m ? m[1] : "";
+};
+const ownerToken = OWNER_KEY ? crypto.createHmac("sha256", OWNER_KEY).update("hvm-owner-v1").digest("hex") : "";
+function ownerOk(req) {
+  if (!OWNER_KEY) return false;
+  const got = Buffer.from(cookieVal(req, "hvm_owner"));
+  const want = Buffer.from(ownerToken);
+  return got.length === want.length && crypto.timingSafeEqual(got, want);
+}
+
+let devices = {};
+try { devices = JSON.parse(await fs.readFile(DEVICES, "utf8")); } catch {}
+const saveDevices = () => fs.writeFile(DEVICES, JSON.stringify(devices)).catch(() => {});
+async function recordUsage(c, model, question) {
+  const now = Date.now();
+  const key = c.cid || `ip:${c.ip}`;
+  const d = devices[key] || { cid: key, firstSeen: now, count: 0 };
+  d.who = c.who; d.device = c.device; d.ip = c.ip; d.ua = c.ua; d.lastSeen = now; d.count++;
+  devices[key] = d;
+  await saveDevices();
+  const line = JSON.stringify({ t: now, cid: key, who: c.who, device: c.device, ip: c.ip, model, q: String(question).slice(0, 500) }) + "\n";
+  try {
+    await fs.appendFile(USAGE, line);
+    const st = await fs.stat(USAGE);
+    if (st.size > 2_000_000) { // batasi ukuran: simpan 800 baris terakhir
+      const keep = (await fs.readFile(USAGE, "utf8")).trim().split("\n").slice(-800).join("\n") + "\n";
+      await fs.writeFile(USAGE, keep);
+    }
+  } catch {}
+}
+async function readUsage(limit = 150) {
+  const txt = await fs.readFile(USAGE, "utf8").catch(() => "");
+  return txt.trim().split("\n").filter(Boolean).slice(-limit).reverse()
+    .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+}
+
 // --- Server ---
 const server = http.createServer(async (req, res) => {
   try {
@@ -161,15 +224,63 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // Daftar / baca / hapus percakapan
-    if (url.pathname === "/api/chats" && req.method === "GET") return json(res, 200, { chats: await listChats() });
+    // Siapa saya / status pemilik
+    if (url.pathname === "/api/me" && req.method === "GET")
+      return json(res, 200, { ownerAvailable: !!OWNER_KEY, owner: ownerOk(req) });
+
+    // --- Dashboard pemilik ---
+    if (url.pathname === "/api/admin/login" && req.method === "POST") {
+      if (!OWNER_KEY) return json(res, 400, { error: "Dashboard belum diaktifkan. Set HVM_OWNER_KEY di layanan ngobrol." });
+      const { key } = await readBody(req).catch(() => ({}));
+      const g = Buffer.from(crypto.createHash("sha256").update(String(key || "")).digest("hex"));
+      const w = Buffer.from(crypto.createHash("sha256").update(OWNER_KEY).digest("hex"));
+      if (g.length === w.length && crypto.timingSafeEqual(g, w)) {
+        const secure = req.headers["x-forwarded-proto"] === "https" ? "; Secure" : "";
+        res.writeHead(200, { "content-type": "application/json; charset=utf-8",
+          "set-cookie": `hvm_owner=${ownerToken}; Path=/; Max-Age=${30 * 24 * 3600}; HttpOnly; SameSite=Lax${secure}` });
+        return res.end(JSON.stringify({ ok: true }));
+      }
+      return json(res, 401, { error: "Kunci pemilik salah." });
+    }
+    if (url.pathname.startsWith("/api/admin/")) {
+      if (!ownerOk(req)) return json(res, 403, { error: "Khusus pemilik." });
+      if (url.pathname === "/api/admin/overview") {
+        const chats = await listChats(null, true);
+        const devs = Object.values(devices).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+        return json(res, 200, { devices: devs, totals: { perangkat: devs.length, chats: chats.length, pesan: devs.reduce((s, d) => s + (d.count || 0), 0) } });
+      }
+      if (url.pathname === "/api/admin/feed") return json(res, 200, { feed: await readUsage(150) });
+      if (url.pathname === "/api/admin/chats") {
+        const cid = url.searchParams.get("client") || null;
+        return json(res, 200, { chats: await listChats(cid, !cid) });
+      }
+      const ac = url.pathname.match(/^\/api\/admin\/chat\/([a-z0-9]{6,32})$/);
+      if (ac) {
+        const c = await fs.readFile(chatPath(ac[1]), "utf8").catch(() => null);
+        return c ? (res.writeHead(200, { "content-type": "application/json; charset=utf-8" }), res.end(c)) : json(res, 404, { error: "tidak ada" });
+      }
+      return json(res, 404, { error: "tidak ada" });
+    }
+
+    // Daftar / baca / hapus percakapan (tiap orang hanya melihat miliknya sendiri)
+    if (url.pathname === "/api/chats" && req.method === "GET") {
+      const { cid } = clientOf(req);
+      return json(res, 200, { chats: await listChats(cid) });
+    }
     const one = url.pathname.match(/^\/api\/chats\/([a-z0-9]{6,32})$/);
     if (one) {
       if (req.method === "GET") {
         const c = await fs.readFile(chatPath(one[1]), "utf8").catch(() => null);
-        return c ? (res.writeHead(200, { "content-type": "application/json; charset=utf-8" }), res.end(c)) : json(res, 404, { error: "tidak ada" });
+        if (!c) return json(res, 404, { error: "tidak ada" });
+        const obj = JSON.parse(c);
+        const { cid } = clientOf(req);
+        if (obj.client && cid && obj.client !== cid && !ownerOk(req)) return json(res, 403, { error: "Bukan chat Anda." });
+        return (res.writeHead(200, { "content-type": "application/json; charset=utf-8" }), res.end(c));
       }
       if (req.method === "DELETE") {
+        const c = await fs.readFile(chatPath(one[1]), "utf8").then(JSON.parse).catch(() => null);
+        const { cid } = clientOf(req);
+        if (c && c.client && cid && c.client !== cid && !ownerOk(req)) return json(res, 403, { error: "Bukan chat Anda." });
         await fs.rm(chatPath(one[1]), { force: true });
         return json(res, 200, { ok: true });
       }
@@ -245,6 +356,9 @@ const server = http.createServer(async (req, res) => {
       const messages = Array.isArray(body.messages) ? body.messages : [];
       if (!model || !messages.length) return json(res, 400, { error: "model dan messages wajib" });
       let id = okId(body.id) ? body.id : crypto.randomBytes(6).toString("hex");
+      const who = clientOf(req);
+      const lastQ = [...messages].reverse().find((m) => m.role === "user")?.content || "";
+      recordUsage(who, model, lastQ).catch(() => {});
 
       // RAG: bila ada dokumen & diminta, sisipkan potongan relevan sebagai konteks
       let ragInfo = null;
@@ -297,11 +411,12 @@ const server = http.createServer(async (req, res) => {
       }
       res.end();
 
-      // Simpan percakapan (judul dari pesan user pertama)
+      // Simpan percakapan (judul dari pesan user pertama) + pemilik/perangkat
       try {
         const convo = [...messages, { role: "assistant", content: full }];
         const firstUser = messages.find((m) => m.role === "user")?.content || "Percakapan";
-        await saveChat({ id, model, title: String(firstUser).replace(/\s+/g, " ").slice(0, 60), messages: convo });
+        await saveChat({ id, model, title: String(firstUser).replace(/\s+/g, " ").slice(0, 60),
+          messages: convo, client: who.cid, who: who.who, device: who.device, ip: who.ip });
       } catch {}
       return;
     }

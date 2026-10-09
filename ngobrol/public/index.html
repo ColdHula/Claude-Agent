@@ -108,6 +108,41 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 #docList .d button{color:var(--dim);padding:2px 6px;border-radius:6px}
 #docList .d button:hover{color:var(--bad)}
 .ragbadge{display:inline-block;font-size:11px;color:var(--accent2);background:var(--accentdim);border:1px solid var(--line2);border-radius:999px;padding:3px 10px;margin-top:8px}
+/* Footer owner button */
+#side footer{display:flex;align-items:center;gap:8px}
+#ownerBtn{margin-left:auto;font-size:12px;color:var(--accent);border:1px solid var(--line);border-radius:8px;padding:3px 8px}
+#ownerBtn:hover{border-color:var(--accent);background:var(--accentdim)}
+/* Shared modal inputs/buttons (name/owner) */
+#nameModal,#ownerKeyModal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(5,6,9,.8);padding:16px}
+#nameModal .card,#ownerKeyModal .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;width:min(380px,100%);text-align:center}
+#nameModal h3,#ownerKeyModal h3{margin:0 0 4px}
+#nameModal input,#ownerKeyModal input,#docsModal input{width:100%;font:inherit;padding:11px 13px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink);margin:10px 0}
+#nameModal input:focus,#ownerKeyModal input:focus{outline:none;border-color:var(--accent)}
+#nameOk,#ownerKeyOk{width:100%;padding:11px;border-radius:12px;background:linear-gradient(180deg,var(--accent2),var(--accent));color:#1a0d08;font-weight:700}
+/* Dashboard */
+#dashModal{position:fixed;inset:0;z-index:45;display:grid;place-items:center;background:rgba(5,6,9,.78);padding:16px}
+#dashModal .card.big{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;width:min(860px,100%);max-height:86vh;display:flex;flex-direction:column}
+#dashModal h3{margin:0 0 12px;display:flex;align-items:center;gap:8px;font-family:var(--display)}
+#dashModal h3 button{margin-left:auto;color:var(--dim);font-size:18px}
+.stats{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.stat{flex:1;min-width:120px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat b{display:block;font:700 24px var(--display);color:var(--accent)}
+.stat span{font-size:12px;color:var(--dim)}
+.tabs{display:flex;gap:6px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+.tab{padding:8px 14px;color:var(--dim);font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--ink);border-bottom-color:var(--accent)}
+.tabpane{overflow:auto;flex:1}
+.drow{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;cursor:pointer}
+.drow:hover{border-color:var(--accent)}
+.drow .av2{width:34px;height:34px;border-radius:9px;background:var(--bg);border:1px solid var(--line2);display:grid;place-items:center;font:700 13px var(--display);color:var(--accent)}
+.drow .n{flex:1}.drow .n b{font-weight:600}.drow .n small{display:block;color:var(--dim);font-size:11.5px}
+.drow .c{color:var(--dim);font-size:12px;text-align:right}
+.frow{padding:9px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.frow .meta{color:var(--dim);font-size:11.5px;margin-bottom:2px}
+.frow .meta b{color:var(--accent2);font-weight:600}
+.viewmsg{padding:10px 0;border-bottom:1px solid var(--line)}
+.viewmsg .r{font-size:11px;color:var(--accent2);font-weight:600;margin-bottom:3px}
+.viewmsg .r.u{color:var(--dim)}
 #drop{position:fixed;inset:0;z-index:20;display:none;place-items:center;background:rgba(8,12,30,.7)}
 #drop div{border:3px dashed var(--accent2);border-radius:22px;padding:30px 40px;font-weight:800;font-size:20px}
 @media(max-width:720px){
@@ -123,7 +158,10 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
   <button id="baru">＋ Obrolan baru</button>
   <div id="chats"></div>
   <button id="docsBtn" title="Dokumen yang dibaca AI (RAG)">📚 Dokumen <span id="docsCount"></span></button>
-  <footer><span id="who">lokal · privat</span></footer>
+  <footer>
+    <span id="who">lokal · privat</span>
+    <button id="ownerBtn" hidden title="Dashboard pemilik">◆ Pemilik</button>
+  </footer>
 </aside>
 
 <main id="main">
@@ -159,10 +197,56 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
   </div>
 </div>
 
+<div id="nameModal" hidden>
+  <div class="card">
+    <img src="/icon.svg" width="48" height="48" alt="" style="border-radius:13px;margin-bottom:10px">
+    <h3 style="font-family:var(--display)">Halo! Siapa nama Anda?</h3>
+    <p class="muted">Dipakai untuk menandai percakapan Anda di perangkat ini.</p>
+    <input id="nameInput" type="text" placeholder="mis. Rama" maxlength="40" autocomplete="name">
+    <button id="nameOk">Mulai →</button>
+    <p class="muted" style="font-size:11.5px;margin-top:10px">ℹ️ Pemilik rig dapat melihat percakapan di perangkat ini.</p>
+  </div>
+</div>
+
+<div id="dashModal" hidden>
+  <div class="card big">
+    <h3>◆ Dashboard Pemilik <button id="dashX" title="Tutup">✕</button></h3>
+    <div class="stats" id="dashStats"></div>
+    <div class="tabs"><button class="tab on" data-t="dev">Perangkat</button><button class="tab" data-t="feed">Aktivitas</button><button class="tab" data-t="view">Chat</button></div>
+    <div id="tab-dev" class="tabpane"></div>
+    <div id="tab-feed" class="tabpane" hidden></div>
+    <div id="tab-view" class="tabpane" hidden><p class="muted">Pilih perangkat di tab "Perangkat", lalu klik sebuah chat untuk melihat isinya di sini.</p></div>
+  </div>
+</div>
+
+<div id="ownerKeyModal" hidden>
+  <div class="card">
+    <h3 style="font-family:var(--display)">◆ Masuk sebagai Pemilik</h3>
+    <p class="muted">Masukkan kunci pemilik untuk membuka dashboard pemantauan.</p>
+    <input id="ownerKeyInput" type="password" placeholder="Kunci pemilik" autocomplete="off">
+    <button id="ownerKeyOk">Buka Dashboard →</button>
+    <p class="muted" id="ownerKeyNote"></p>
+  </div>
+</div>
+
 <script>
 const $ = (id) => document.getElementById(id);
 const api = (p, o) => fetch(p, o).then((r) => r.json());
 let chatId = null, messages = [], attached = [], busy = false;
+
+// --- Identitas perangkat (untuk pemilik memantau) ---
+let CID = localStorage.getItem("hvm_cid");
+if (!CID){ CID = (Date.now().toString(36) + Math.random().toString(36).slice(2,10)); localStorage.setItem("hvm_cid", CID); }
+let WHO = localStorage.getItem("hvm_name") || "";
+// Sisipkan header identitas ke semua permintaan /api same-origin
+const _fetch = window.fetch;
+window.fetch = (input, init = {}) => {
+  const u = typeof input === "string" ? input : (input && input.url) || "";
+  if (u.startsWith("/api")){
+    init = { ...init, headers: { ...(init.headers||{}), "x-hvm-cid": CID, "x-hvm-who": encodeURIComponent(WHO||"") } };
+  }
+  return _fetch(input, init);
+};
 const SYS_CODE = "Kamu asisten pemrograman yang andal. Tulis kode yang benar dan bisa langsung dijalankan. Selalu bungkus kode dalam blok ``` dengan nama bahasa. Jelaskan singkat dalam Bahasa Indonesia. Bila permintaan ambigu, sebutkan asumsimu. Jangan mengarang nama fungsi atau API; bila ragu, katakan.";
 let codeMode = localStorage.getItem("codeMode") !== "0";
 
@@ -349,11 +433,83 @@ $("docfile").onchange = async (e)=>{
   e.target.value="";
 };
 
+// --- Nama (identitas) ---
+function askName(){
+  $("nameInput").value = WHO || "";
+  $("nameModal").hidden = false;
+  setTimeout(()=>$("nameInput").focus(), 50);
+}
+function saveName(){
+  const v = $("nameInput").value.trim();
+  if (!v) { $("nameInput").focus(); return; }
+  WHO = v; localStorage.setItem("hvm_name", v);
+  $("nameModal").hidden = true;
+}
+$("nameOk").onclick = saveName;
+$("nameInput").onkeydown = (e)=>{ if(e.key==="Enter") saveName(); };
+
+// --- Pemilik / Dashboard ---
+let isOwner = false;
+async function checkOwner(){
+  const d = await api("/api/me").catch(()=>({}));
+  if (d.ownerAvailable){ $("ownerBtn").hidden = false; isOwner = !!d.owner; }
+}
+$("ownerBtn").onclick = ()=>{ if (isOwner) openDash(); else { $("ownerKeyNote").textContent=""; $("ownerKeyModal").hidden=false; setTimeout(()=>$("ownerKeyInput").focus(),50); } };
+$("ownerKeyOk").onclick = async ()=>{
+  const key = $("ownerKeyInput").value;
+  const r = await fetch("/api/admin/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({key})});
+  const d = await r.json().catch(()=>({}));
+  if (d.ok){ isOwner = true; $("ownerKeyModal").hidden = true; $("ownerKeyInput").value=""; openDash(); }
+  else $("ownerKeyNote").textContent = "⚠️ " + (d.error || "Gagal");
+};
+$("ownerKeyInput").onkeydown = (e)=>{ if(e.key==="Enter") $("ownerKeyOk").click(); };
+$("dashX").onclick = ()=> $("dashModal").hidden = true;
+$("dashModal").onclick = (e)=>{ if(e.target.id==="dashModal") $("dashModal").hidden=true; };
+document.querySelectorAll(".tab").forEach(t=> t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on", x===t));
+  for (const name of ["dev","feed","view"]) $("tab-"+name).hidden = (name!==t.dataset.t);
+});
+const initial = (s)=> (s||"?").trim().charAt(0).toUpperCase() || "?";
+const ago = (ts)=>{ const s=(Date.now()-ts)/1000; if(s<60)return "baru saja"; if(s<3600)return Math.floor(s/60)+" mnt lalu"; if(s<86400)return Math.floor(s/3600)+" jam lalu"; return Math.floor(s/86400)+" hari lalu"; };
+
+async function openDash(){
+  $("dashModal").hidden = false;
+  const ov = await api("/api/admin/overview").catch(()=>({devices:[],totals:{}}));
+  $("dashStats").innerHTML =
+    `<div class="stat"><b>${ov.totals.perangkat||0}</b><span>Perangkat</span></div>
+     <div class="stat"><b>${ov.totals.pesan||0}</b><span>Pesan dikirim</span></div>
+     <div class="stat"><b>${ov.totals.chats||0}</b><span>Percakapan</span></div>`;
+  $("tab-dev").innerHTML = (ov.devices||[]).map(d=>
+    `<div class="drow" data-cid="${esc(d.cid)}" data-who="${esc(d.who||"")}"><div class="av2">${esc(initial(d.who))}</div>
+     <div class="n"><b>${esc(d.who||"(tanpa nama)")}</b><small>${esc(d.device||"")} · ${esc(d.ip||"")}</small></div>
+     <div class="c">${d.count||0} pesan<br>${d.lastSeen?ago(d.lastSeen):""}</div></div>`).join("") || `<p class="muted">Belum ada perangkat.</p>`;
+  $("tab-dev").querySelectorAll(".drow").forEach(r=> r.onclick=()=> showUserChats(r.dataset.cid, r.dataset.who));
+  const fd = await api("/api/admin/feed").catch(()=>({feed:[]}));
+  $("tab-feed").innerHTML = (fd.feed||[]).map(f=>
+    `<div class="frow"><div class="meta"><b>${esc(f.who||"?")}</b> · ${esc(f.device||"")} · ${ago(f.t)} · ${esc(f.model||"")}</div>${esc(f.q||"")}</div>`).join("") || `<p class="muted">Belum ada aktivitas.</p>`;
+}
+async function showUserChats(cid, who){
+  document.querySelector('.tab[data-t="view"]').click();
+  const d = await api("/api/admin/chats?client="+encodeURIComponent(cid)).catch(()=>({chats:[]}));
+  $("tab-view").innerHTML = `<p class="muted">Percakapan <b style="color:var(--ink)">${esc(who||"")}</b> — klik untuk lihat isi.</p>` +
+    (d.chats||[]).map(c=>`<div class="drow" data-id="${c.id}"><div class="n"><b>${esc(c.title)}</b><small>${ago(c.at)}</small></div></div>`).join("");
+  $("tab-view").querySelectorAll(".drow").forEach(r=> r.onclick=()=> viewChat(r.dataset.id, who));
+}
+async function viewChat(id, who){
+  const c = await api("/api/admin/chat/"+id).catch(()=>null);
+  if (!c || c.error) return;
+  $("tab-view").innerHTML = `<p class="muted"><button class="tab on" id="backChats">← Kembali</button> &nbsp; Chat milik <b style="color:var(--ink)">${esc(who||c.who||"")}</b></p>` +
+    (c.messages||[]).filter(m=>m.role!=="system").map(m=>
+      `<div class="viewmsg"><div class="r ${m.role==="user"?"u":""}">${m.role==="user"?esc(who||"Pengguna"):"HvM"}</div><div class="txt">${md(m.content)}</div></div>`).join("");
+  $("backChats").onclick = ()=> showUserChats(c.client, who);
+}
+
 // Sidebar mobile
 $("burger").onclick = ()=> $("side").classList.toggle("open");
 function closeSide(){ $("side").classList.remove("open"); }
 
-syncMode(); loadModels(); loadChats(); loadDocs(); render();
+if (!WHO) askName();
+syncMode(); loadModels(); loadChats(); loadDocs(); checkOwner(); render();
 </script>
 </body>
 </html>

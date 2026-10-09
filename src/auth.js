@@ -18,6 +18,7 @@ export function makeAuth(password, brand = {}) {
     iconHref: brand.iconHref || null,
     themeColor: brand.themeColor || "#0e1424",
     dark: brand.dark || false,
+    accent: brand.accent || null, // mis. "#ff7a59" untuk tema gelap HvM AI
   };
 
   function cookieOf(req) {
@@ -38,14 +39,15 @@ export function makeAuth(password, brand = {}) {
     const logo = B.iconHref
       ? `<img src="${B.iconHref}" width="56" height="56" alt="" style="margin:0 auto;border-radius:14px">`
       : `<svg width="26" height="40" viewBox="0 0 22 34" aria-hidden="true" style="margin:0 auto;display:block"><path d="M11 0 L22 15 L11 34 L0 15 Z" fill="#3fc948" stroke="#1a7a24"/></svg>`;
+    const A = B.accent; // bila diisi, pakai aksen merek (mis. oranye HvM AI)
     const css = B.dark
-      ? `:root{--ink:#e7edfb;--dim:#8da2c8;--line:#223154;--accent:#5b8cff;--accent2:#7aa2ff;--bad:#ff6b6b}
-body{background:radial-gradient(900px 500px at 30% -10%,#101a36,#0b1020 55%,#0a0f1e);color:var(--ink)}
-form{background:#121a30;border:1px solid var(--line);box-shadow:0 20px 50px rgba(0,0,0,.5)}
+      ? `:root{--ink:#f4f5f7;--dim:#9aa0ad;--line:#262a33;--accent:${A || "#5b8cff"};--accent2:${A || "#7aa2ff"};--bad:#ff6b6b}
+body{background:radial-gradient(900px 500px at 30% -10%,#17181e,#0e0f13 60%,#0a0b0e);color:var(--ink)}
+form{background:#16181d;border:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.6)}
 p{color:var(--dim)}
-input{border:2px solid var(--line);background:#0e1627;color:var(--ink)}
-input:focus{border-color:var(--accent);background:#0b1222}
-button{background:linear-gradient(180deg,var(--accent2),var(--accent));box-shadow:0 3px 0 #2a52b8}`
+input{border:2px solid var(--line);background:#0e0f13;color:var(--ink)}
+input:focus{border-color:var(--accent);background:#0b0c10}
+button{background:linear-gradient(180deg,var(--accent2),var(--accent));color:${A ? "#1a0d08" : "#fff"};box-shadow:0 3px 0 ${A ? "#b64a30" : "#2a52b8"}}`
       : `:root{--sky:#cfe9f7;--ink:#17324d;--blue:#1769c9;--bad:#e2453c}
 body{background:radial-gradient(900px 500px at 30% -10%,#e9f6fd,var(--sky) 45%,#9fd0ee);color:var(--ink)}
 form{background:#fff;box-shadow:0 10px 30px rgba(23,50,77,.18)}
