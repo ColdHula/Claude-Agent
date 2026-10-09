@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 160" role="img" aria-label="HvM AI">
+  <!-- mark -->
+  <rect x="8" y="24" width="112" height="112" rx="28" fill="#0e0f13"/>
+  <g fill="#f4f5f7">
+    <rect x="40" y="52" width="12" height="56" rx="3"/>
+    <rect x="76" y="52" width="12" height="56" rx="3"/>
+    <rect x="40" y="74" width="48" height="12" rx="3"/>
+  </g>
+  <circle cx="92" cy="104" r="6" fill="#ff7a59"/>
+  <!-- wordmark text (font geometris, fallback aman) -->
+  <text x="148" y="104" font-family="'Space Grotesk','Segoe UI',system-ui,sans-serif" font-size="68" font-weight="700" letter-spacing="-1" fill="#f4f5f7">HvM<tspan fill="#ff7a59"> AI</tspan></text>
+</svg>
