@@ -164,9 +164,19 @@ Model untuk RAM 16 GB (CPU-only):
 curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ngobrol.sh | sudo bash
 ```
 HvM AI adalah aplikasi web (chat biasa + mode coding, riwayat tersimpan, lampiran file,
-berpassword, bisa dipasang di layar utama HP dengan logonya). Dibuka di
-`https://<nama-rig>.ts.net:8443` (port terpisah dari Kantor PGA).
+berpassword, bisa dipasang di layar utama HP dengan logo & namanya). Dibuka di
+`https://<nama-rig>.ts.net:8443` — ini sudah **HTTPS tersendiri** (sertifikat Tailscale yang sah),
+di port terpisah dari Kantor PGA.
 Nyalakan tombol **💻 Coding** di pojok atas agar jawaban fokus kode yang benar.
+
+**(Opsional) Alamat HTTPS khusus tanpa port** — bila ingin `https://hvm-ai.<tailnet>.ts.net`
+(bukan `:8443`), jalankan skrip ini. Ia membuat node Tailscale kedua khusus HvM AI dengan
+*userspace networking*, jadi **tidak mengganggu mining/rute** rig:
+```
+curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/hvm-https-khusus.sh | sudo bash
+```
+Buka tautan login yang muncul di HP (akun Tailscale sama) untuk menyetujui node baru.
+Alamat lama `:8443` tetap jalan. Matikan kapan saja: `sudo systemctl disable --now tailscaled-hvm`.
 
 **Kata sandi HvM AI terpisah dari Kantor PGA**, jadi aman dibagi ke teman/pacar tanpa
 memberi akses ke data PGD. Skrip mencetak kata sandinya saat pasang. Mengganti:
@@ -185,6 +195,14 @@ Lalu pilih model **`hvm`** di aplikasi. Ubah kepribadiannya kapan saja dengan me
 **Dokumen pribadi (RAG):** di aplikasi klik **📚 Dokumen** → unggah file teks/kode (txt, md, csv, kode).
 HvM AI membacanya saat relevan untuk menjawab, dan menandai sumber `[n]`. Butuh model embedding
 `nomic-embed-text` (otomatis diunduh skrip Ollama). Semuanya tersimpan privat di rig.
+
+**Dashboard Pemilik (memantau teman yang Anda beri akses):**
+Installer `pasang-ngobrol.sh` mencetak **kunci pemilik** (selain kata sandi biasa). Simpan — ini hanya untuk Anda.
+- Buka HvM AI → tombol **◆ Pemilik** (kiri bawah) → masukkan kunci pemilik.
+- Lihat: **perangkat** yang terkoneksi (nama, jenis perangkat, IP, jumlah pesan), **aktivitas** (apa yang mereka tanyakan), dan **isi chat** tiap orang.
+- Kontrol per perangkat: **Batas pesan/hari**, **Blokir / Buka blokir**, **Hapus** (beserta chatnya).
+- Chat tiap teman terpisah (mereka tidak saling melihat). Bagikan **hanya kata sandi biasa**, jangan kunci pemilik.
+- Ganti kunci pemilik: `HVM_OWNER_KEY=kunciku` di depan `sudo -E bash -c '...pasang-ngobrol.sh | bash'`.
 
 **Cek GPU aman:** saat model menjawab, di tab Hive Shell lain jalankan `nvidia-smi` — tidak boleh
 ada proses `ollama` di daftar GPU, dan utilisasi GPU tetap penuh oleh miner.

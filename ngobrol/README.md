@@ -32,3 +32,25 @@ Klik **📚 Dokumen** di aplikasi, unggah file teks/kode. Potongan relevan otoma
 
 ## Model pribadi
 Lihat `model-pribadi/Modelfile.hvm` dan `deploy/buat-model-pribadi.sh` (model `hvm`).
+
+## Dashboard Pemilik (memantau teman)
+Saat dibagikan ke beberapa orang, pemilik dapat memantau pemakaian.
+
+- **Identitas:** tiap orang mengisi nama saat pertama buka; chat tiap orang **terpisah** (tidak saling lihat).
+- **Aktifkan:** set env `HVM_OWNER_KEY=<kunci rahasia>` pada layanan. Tanpa itu, dashboard tidak muncul.
+- **Buka:** tombol **◆ Pemilik** di kiri bawah → masukkan kunci pemilik.
+- **Isi dashboard:**
+  - Statistik: jumlah perangkat, pesan, percakapan.
+  - **Perangkat:** nama, jenis perangkat/browser, IP, terakhir aktif, jumlah pesan.
+  - **Aktivitas:** feed pertanyaan terbaru tiap orang.
+  - **Chat:** klik perangkat → lihat daftar & isi percakapannya.
+- **Kontrol per perangkat:** **Batas pesan/hari** (0 = tanpa batas), **Blokir/Buka blokir**, **Hapus** (beserta chatnya).
+
+Endpoint pemilik (`/api/admin/*`) digerbang cookie yang dibuat dari `HVM_OWNER_KEY`. Data pemakaian
+tersimpan di `ngobrol/data/devices.json` dan `ngobrol/data/usage.jsonl` (tidak ikut Git).
+
+| Variabel | Arti |
+|---|---|
+| `HVM_OWNER_KEY` | Kunci pemilik; jika diisi, Dashboard aktif |
+| `RAG_TOPK` | Jumlah potongan dokumen per pertanyaan (bawaan 4) |
+| `EMBED_MODEL` | Model embedding RAG (bawaan `nomic-embed-text`) |

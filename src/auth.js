@@ -60,6 +60,8 @@ button{background:linear-gradient(180deg,#4fb0ff,var(--blue));box-shadow:0 3px 0
 <title>Masuk · ${B.name}</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="${B.themeColor}">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="${B.name}"><meta name="application-name" content="${B.name}">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@600;800&display=swap">
 <style>
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;font:15px/1.5 Nunito,system-ui,sans-serif}
