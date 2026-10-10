@@ -7,6 +7,7 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { makeAuth } from "../src/auth.js";
 
@@ -222,6 +223,42 @@ async function readUsage(limit = 150) {
     .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
 }
 
+// --- Status rig (suhu CPU, RAM, beban) ---
+// Suhu CPU dari /sys/class/thermal (Linux); utamakan paket x86/coretemp. Nilai milidrajat.
+async function cpuTemp() {
+  try {
+    const base = "/sys/class/thermal";
+    const zones = (await fs.readdir(base).catch(() => [])).filter((z) => z.startsWith("thermal_zone"));
+    let best = null, fallback = null;
+    for (const z of zones) {
+      const type = (await fs.readFile(path.join(base, z, "type"), "utf8").catch(() => "")).trim().toLowerCase();
+      const raw = Number((await fs.readFile(path.join(base, z, "temp"), "utf8").catch(() => "")).trim());
+      if (!Number.isFinite(raw) || raw <= 0) continue;
+      const c = raw > 1000 ? raw / 1000 : raw; // milidrajat → drajat
+      if (/x86_pkg|coretemp|cpu|k10temp|package/.test(type)) { if (best === null) best = c; }
+      else if (fallback === null) fallback = c;
+    }
+    const v = best ?? fallback;
+    return v === null ? null : Math.round(v);
+  } catch { return null; }
+}
+
+// RAM dari /proc/meminfo (Linux); fallback ke os.*.
+async function mem() {
+  try {
+    const txt = await fs.readFile("/proc/meminfo", "utf8");
+    const g = (k) => { const m = txt.match(new RegExp(`^${k}:\\s+(\\d+)`, "m")); return m ? Number(m[1]) * 1024 : null; };
+    const total = g("MemTotal"), avail = g("MemAvailable");
+    if (total && avail != null) {
+      const totalMB = Math.round(total / 1048576), availMB = Math.round(avail / 1048576);
+      return { totalMB, availMB, usedMB: totalMB - availMB, usedPct: Math.round((1 - avail / total) * 100) };
+    }
+  } catch {}
+  const total = os.totalmem(), free = os.freemem();
+  const totalMB = Math.round(total / 1048576), availMB = Math.round(free / 1048576);
+  return { totalMB, availMB, usedMB: totalMB - availMB, usedPct: Math.round((1 - free / total) * 100) };
+}
+
 // --- Server ---
 const server = http.createServer(async (req, res) => {
   try {
@@ -236,6 +273,52 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { models: (d.models || []).map((m) => m.name) });
       } catch {
         return json(res, 200, { models: [], error: `Tidak bisa menghubungi Ollama di ${OLLAMA}. Pastikan Ollama berjalan.` });
+      }
+    }
+
+    // Status rig: suhu CPU, RAM, beban CPU, model yang sedang dimuat
+    if (url.pathname === "/api/stats" && req.method === "GET") {
+      const [temp, ram] = await Promise.all([cpuTemp(), mem()]);
+      const load = os.loadavg(); // [1m, 5m, 15m]
+      const cores = os.cpus().length || 1;
+      let loaded = [];
+      try {
+        const r = await fetch(`${OLLAMA}/api/ps`, { signal: AbortSignal.timeout(2500) });
+        const d = await r.json();
+        loaded = (d.models || []).map((m) => ({
+          name: m.name || m.model,
+          sizeMB: m.size ? Math.round(m.size / 1048576) : null,
+          vramMB: m.size_vram ? Math.round(m.size_vram / 1048576) : 0,
+          expires: m.expires_at || null,
+        }));
+      } catch {}
+      return json(res, 200, {
+        cpu: { load1: +load[0].toFixed(2), load5: +load[1].toFixed(2), load15: +load[2].toFixed(2), cores, pct: Math.min(100, Math.round((load[0] / cores) * 100)) },
+        ram, temp, loaded, uptime: Math.round(os.uptime()),
+      });
+    }
+
+    // Info konteks model (ukuran jendela token), untuk indikator konteks
+    if (url.pathname === "/api/model-info" && req.method === "GET") {
+      const name = url.searchParams.get("name");
+      if (!name) return json(res, 400, { error: "butuh ?name=" });
+      try {
+        const r = await fetch(`${OLLAMA}/api/show`, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name }), signal: AbortSignal.timeout(4000),
+        });
+        const d = await r.json();
+        let ctx = null;
+        const mi = d.model_info || {};
+        for (const k of Object.keys(mi)) if (/\.context_length$/.test(k)) { ctx = Number(mi[k]); break; }
+        let numCtx = null;
+        const pm = (d.parameters || "").match(/num_ctx\s+(\d+)/);
+        if (pm) numCtx = Number(pm[1]);
+        // Jendela efektif = num_ctx bila diset (biasanya lebih kecil), jika tidak pakai context_length model.
+        const window = numCtx || ctx || null;
+        return json(res, 200, { name, context_length: ctx, num_ctx: numCtx, window });
+      } catch {
+        return json(res, 200, { name, context_length: null, num_ctx: null, window: null });
       }
     }
 

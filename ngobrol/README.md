@@ -7,6 +7,8 @@ Chatbot untuk model lokal (Ollama) di rig: chat, coding, Excel, dan baca dokumen
 - **Lampiran file**: seret & lepas atau tombol 📎. File teks/kode dibaca isinya; semua file disimpan di `ngobrol/data/berkas/`.
 - **Aman**: berpassword (sama dengan Kantor PGA), browser tidak pernah mengakses Ollama langsung — server ini yang meneruskan. Dibuka hanya lewat Tailscale.
 - **Privat**: tidak ada data yang keluar dari rig.
+- **Status rig** (di header): suhu CPU 🌡️, RAM bebas 🧠, beban CPU ⚙️ (persen · load 1 menit), dan jumlah model yang sedang dimuat 🟢 — diperbarui tiap ~5 detik. Berwarna kuning/merah bila mendekati batas.
+- **Indikator jendela konteks** (di atas kolom ketik): perkiraan token percakapan vs. jendela model (`num_ctx`), mis. `3.200 / 8.192 token · 39%`. Menguning di ≥75% dan merah di ≥90% sebagai tanda percakapan mulai penuh.
 
 ## Jalankan sendiri (lokal)
 ```

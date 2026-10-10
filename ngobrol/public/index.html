@@ -58,6 +58,22 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 #mode,#think{border:1px solid var(--line);border-radius:10px;padding:8px 12px;color:var(--dim);font-weight:700;white-space:nowrap}
 #mode.on,#think.on{border-color:var(--accent);color:var(--accent2);background:var(--accentdim)}
 #status{margin-left:auto;font-size:12px;color:var(--dim)}
+/* Status rig (suhu CPU, RAM, beban) */
+#rig{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;overflow:hidden}
+#rig .rp{font-size:11.5px;color:var(--dim);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-flex;gap:5px;align-items:center;font-variant-numeric:tabular-nums}
+#rig .rp b{color:var(--ink);font-weight:600}
+#rig .rp.warn{border-color:#5a4420;color:#e9c46a}#rig .rp.warn b{color:#e9c46a}
+#rig .rp.hot{border-color:#5a3030;color:var(--bad)}#rig .rp.hot b{color:var(--bad)}
+#rig .rp.off{opacity:.5}
+#rig .dotlive{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+/* Indikator jendela konteks */
+#ctx{max-width:780px;margin:0 auto 7px;padding:0 18px;display:flex;align-items:center;gap:9px;font-size:11px;color:var(--dim)}
+#ctx.hide{display:none}
+#ctx .track{flex:1;height:5px;background:var(--panel);border:1px solid var(--line);border-radius:999px;overflow:hidden}
+#ctx .fill{height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .3s}
+#ctx.warn .fill{background:#e9c46a}#ctx.full .fill{background:var(--bad)}
+#ctx .lbl{white-space:nowrap;font-variant-numeric:tabular-nums}
+#ctx.warn .lbl,#ctx.full .lbl{color:var(--ink)}
 /* Blok proses berpikir */
 .think{border-left:2px solid var(--line2);background:#0c0d11;border-radius:8px;padding:8px 12px;margin:0 0 10px;color:var(--dim);font-size:13px}
 .think summary{cursor:pointer;color:var(--accent2);font-weight:600;font-size:12px;list-style:none}
@@ -169,6 +185,10 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
   #side{position:fixed;z-index:30;height:100%;margin-left:-260px;box-shadow:0 0 40px #000}
   #side.open{margin-left:0}
   #burger{display:block}
+  /* Header melipat: kontrol di baris atas, status rig di baris bawah (tak meluber) */
+  #top{flex-wrap:wrap}
+  #model{max-width:150px}
+  #rig{order:5;width:100%;margin-left:0;justify-content:flex-start;flex-wrap:wrap}
 }
 </style>
 </head>
@@ -191,9 +211,14 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
     <button id="mode" title="Mode coding: jawaban fokus kode yang benar + penjelasan singkat">💻 Coding</button>
     <button id="think" title="Tampilkan proses berpikir AI sebelum menjawab">💭 Berpikir</button>
     <div id="status"></div>
+    <div id="rig" title="Keadaan rig AI (diperbarui tiap beberapa detik)"></div>
   </div>
   <div id="feed"><div class="wrap" id="list"></div></div>
   <div id="bottom">
+    <div id="ctx" class="hide">
+      <span class="lbl" id="ctxLbl"></span>
+      <div class="track"><div class="fill" id="ctxFill"></div></div>
+    </div>
     <div id="attached"></div>
     <div id="composer">
       <button id="clip" title="Lampirkan file">📎</button>
@@ -290,8 +315,62 @@ async function loadModels(){
   const saved = localStorage.getItem("model");
   if (saved && d.models.includes(saved)) sel.value = saved;
   $("status").innerHTML = `<b>●</b> siap`;
+  loadModelInfo();
 }
-$("model").onchange = () => localStorage.setItem("model", $("model").value);
+$("model").onchange = () => { localStorage.setItem("model", $("model").value); loadModelInfo(); };
+
+// --- Indikator jendela konteks ---
+// Perkiraan kasar: ~4 karakter per token. Jendela model diambil dari /api/model-info.
+const winCache = {};
+let curWindow = null;
+async function loadModelInfo(){
+  const m = $("model").value;
+  if (!m || m.startsWith("(")){ curWindow=null; updateCtx(); return; }
+  if (winCache[m] !== undefined){ curWindow = winCache[m]; updateCtx(); return; }
+  try{
+    const d = await api("/api/model-info?name="+encodeURIComponent(m));
+    winCache[m] = d.window || null; curWindow = winCache[m];
+  }catch{ curWindow = null; }
+  updateCtx();
+}
+function estTokens(){
+  let chars = 0;
+  for (const m of messages) if (m.role!=="system") chars += (m.content||"").length;
+  chars += ($("ta").value||"").length;
+  return Math.round(chars/4);
+}
+function updateCtx(){
+  const box = $("ctx");
+  const used = estTokens();
+  if (!curWindow){ // tanpa info jendela: tampilkan perkiraan token saja bila ada isi
+    if (used > 0){ box.classList.remove("hide","warn","full"); $("ctxLbl").textContent = `~${used.toLocaleString("id")} token`; $("ctxFill").style.width="0%"; }
+    else box.classList.add("hide");
+    return;
+  }
+  box.classList.remove("hide");
+  const pct = Math.min(100, Math.round((used/curWindow)*100));
+  $("ctxFill").style.width = pct+"%";
+  $("ctxLbl").textContent = `${used.toLocaleString("id")} / ${curWindow.toLocaleString("id")} token · ${pct}%`;
+  box.classList.toggle("warn", pct>=75 && pct<90);
+  box.classList.toggle("full", pct>=90);
+}
+
+// --- Status rig (suhu CPU, RAM, beban CPU) ---
+let statsTimer = null;
+function pill(cls, html){ return `<span class="rp ${cls||""}">${html}</span>`; }
+async function loadStats(){
+  let d;
+  try{ d = await api("/api/stats"); }
+  catch{ $("rig").innerHTML = pill("off","rig?"); return; }
+  const out = [];
+  if (d.temp != null){ const cls = d.temp>=85?"hot":d.temp>=72?"warn":""; out.push(pill(cls, `🌡️ <b>${d.temp}°</b>`)); }
+  if (d.ram){ const r=d.ram, cls=r.usedPct>=90?"hot":r.usedPct>=78?"warn":""; const freeG=(r.availMB/1024).toFixed(1); out.push(pill(cls, `🧠 <b>${freeG}G</b> bebas`)); }
+  if (d.cpu){ const c=d.cpu, cls=c.pct>=90?"hot":c.pct>=70?"warn":""; out.push(pill(cls, `⚙️ <b>${c.pct}%</b> · ${c.load1}`)); }
+  if (d.loaded && d.loaded.length){ out.push(pill("", `🟢 <b>${d.loaded.length}</b> model`)); }
+  $("rig").innerHTML = out.join("");
+}
+function startStats(){ loadStats(); if (statsTimer) clearInterval(statsTimer); statsTimer = setInterval(loadStats, 5000); }
+document.addEventListener("visibilitychange", ()=>{ if (document.hidden){ if(statsTimer){clearInterval(statsTimer);statsTimer=null;} } else startStats(); });
 
 // --- Daftar percakapan ---
 let pendingPoll = null;
@@ -362,6 +441,7 @@ function render(){
       <button class="ex">Buat skrip Python untuk rename banyak file</button>
       <button class="ex">Tulis fungsi debounce dan jelaskan</button></div></div>`;
     list.querySelectorAll(".ex").forEach(b=> b.onclick=()=>{ $("ta").value=b.textContent; resize(); $("ta").focus(); });
+    updateCtx();
     return;
   }
   list.innerHTML = messages.filter(m=>m.role!=="system").map((m)=>{
@@ -373,6 +453,7 @@ function render(){
       <div class="txt">${md(m.content)}</div>${files?`<div class="files">${files}</div>`:""}${rag}</div></div>`;
   }).join("");
   $("feed").scrollTop = $("feed").scrollHeight;
+  updateCtx();
 }
 
 // --- Lampiran ---
@@ -400,7 +481,7 @@ addEventListener("drop", async (e)=>{ e.preventDefault(); depth=0; $("drop").sty
 
 // --- Kirim ---
 function resize(){ const t=$("ta"); t.style.height="auto"; t.style.height=Math.min(200,t.scrollHeight)+"px"; }
-$("ta").oninput = resize;
+$("ta").oninput = ()=>{ resize(); updateCtx(); };
 $("ta").onkeydown = (e)=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); } };
 $("send").onclick = send;
 
@@ -454,7 +535,7 @@ async function send(){
       buf += dec.decode(value,{stream:true}); let nl;
       while((nl=buf.indexOf("\n"))>=0){ const line=buf.slice(0,nl); buf=buf.slice(nl+1);
         if(!line.trim())continue; try{ const o=JSON.parse(line); botMsg.content += o.message?.content||""; }catch{} }
-      const el=txtEl(); if(el){ el.innerHTML=md(botMsg.content); } $("feed").scrollTop=$("feed").scrollHeight;
+      const el=txtEl(); if(el){ el.innerHTML=md(botMsg.content); } $("feed").scrollTop=$("feed").scrollHeight; updateCtx();
     }
   }catch(err){ botMsg.content += `\n\n⚠️ ${err.message}`; }
   clearInterval(thinkTimer);
@@ -585,7 +666,7 @@ $("burger").onclick = ()=> $("side").classList.toggle("open");
 function closeSide(){ $("side").classList.remove("open"); }
 
 if (!WHO) askName();
-syncMode(); loadModels(); loadChats(); loadDocs(); checkOwner(); render();
+syncMode(); loadModels(); loadChats(); loadDocs(); checkOwner(); render(); startStats();
 </script>
 </body>
 </html>
