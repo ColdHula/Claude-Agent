@@ -38,8 +38,8 @@ chmod +x /usr/local/bin/progress-model
 
 # Jalankan seluruh pemasangan+unduh sebagai layanan transient (tahan putus)
 systemctl reset-failed hvm-setup 2>/dev/null || true
-systemd-run --unit=hvm-setup --collect --property=Nice=15 --property=IOWeight=20 \
-  /bin/bash -c "curl -fsSL '$RAW' | MODEL='$MODEL' bash >> '$LOG' 2>&1"
+systemd-run --unit=hvm-setup --collect --setenv=HOME=/root --property=Nice=15 --property=IOWeight=20 \
+  /bin/bash -c "export HOME=/root; curl -fsSL '$RAW' | MODEL='$MODEL' bash >> '$LOG' 2>&1"
 
 cat <<EOF
 
