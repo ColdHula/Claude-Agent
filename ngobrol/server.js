@@ -78,7 +78,7 @@ async function listChats(cid = null, all = false) {
     try {
       const c = JSON.parse(await fs.readFile(path.join(CHATS, f), "utf8"));
       if (!all && cid && c.client !== cid) continue; // tiap orang hanya melihat chatnya sendiri
-      out.push({ id: c.id, title: c.title || "(tanpa judul)", at: c.at || 0, model: c.model || "", who: c.who || "", client: c.client || "" });
+      out.push({ id: c.id, title: c.title || "(tanpa judul)", at: c.at || 0, model: c.model || "", who: c.who || "", client: c.client || "", pending: !!c.pending });
     } catch {}
   }
   return out.sort((a, b) => b.at - a.at);
@@ -430,9 +430,18 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store",
         "x-chat-id": id, "x-rag": ragInfo ? encodeURIComponent(ragInfo.join(", ")) : "" });
       let full = "";
+      let alive = true;                       // true selama browser masih terhubung
+      res.on("close", () => { alive = false; }); // tab ditutup -> berhenti menulis, TAPI terus proses
+      const title = String(messages.find((m) => m.role === "user")?.content || "Percakapan").replace(/\s+/g, " ").slice(0, 60);
+      const persist = (pending) => saveChat({
+        id, model, title, messages: [...messages, { role: "assistant", content: full }],
+        client: who.cid, who: who.who, device: who.device, ip: who.ip, pending,
+      }).catch(() => {});
+      await persist(true);                    // langsung muncul di riwayat, ditandai "sedang diproses"
+
       const reader = upstream.body.getReader();
       const dec = new TextDecoder();
-      let buf = "";
+      let buf = "", lastSave = Date.now();
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -444,17 +453,11 @@ const server = http.createServer(async (req, res) => {
           if (!line.trim()) continue;
           try { const o = JSON.parse(line); full += o.message?.content || ""; } catch {}
         }
-        res.write(text);
+        if (alive) { try { res.write(text); } catch { alive = false; } } // soket mati -> abaikan, lanjut proses
+        if (Date.now() - lastSave > 1500) { lastSave = Date.now(); persist(true); } // simpan progres berkala
       }
-      res.end();
-
-      // Simpan percakapan (judul dari pesan user pertama) + pemilik/perangkat
-      try {
-        const convo = [...messages, { role: "assistant", content: full }];
-        const firstUser = messages.find((m) => m.role === "user")?.content || "Percakapan";
-        await saveChat({ id, model, title: String(firstUser).replace(/\s+/g, " ").slice(0, 60),
-          messages: convo, client: who.cid, who: who.who, device: who.device, ip: who.ip });
-      } catch {}
+      try { if (alive) res.end(); } catch {}
+      await persist(false);                   // selesai: simpan final, hapus tanda "sedang diproses"
       return;
     }
 

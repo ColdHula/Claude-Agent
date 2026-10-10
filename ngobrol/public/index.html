@@ -55,9 +55,17 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 #top{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
 #burger{display:none;font-size:20px;padding:4px 8px}
 #model{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 10px;max-width:240px}
-#mode{border:1px solid var(--line);border-radius:10px;padding:8px 12px;color:var(--dim);font-weight:700}
-#mode.on{border-color:var(--accent);color:var(--accent2);background:var(--accentdim)}
+#mode,#think{border:1px solid var(--line);border-radius:10px;padding:8px 12px;color:var(--dim);font-weight:700;white-space:nowrap}
+#mode.on,#think.on{border-color:var(--accent);color:var(--accent2);background:var(--accentdim)}
 #status{margin-left:auto;font-size:12px;color:var(--dim)}
+/* Blok proses berpikir */
+.think{border-left:2px solid var(--line2);background:#0c0d11;border-radius:8px;padding:8px 12px;margin:0 0 10px;color:var(--dim);font-size:13px}
+.think summary{cursor:pointer;color:var(--accent2);font-weight:600;font-size:12px;list-style:none}
+.think summary::-webkit-details-marker{display:none}
+.think[open] summary{margin-bottom:6px}
+.think .tk{white-space:pre-wrap;line-height:1.5}
+.think-wait{color:var(--dim)}
+.chat .dot{color:var(--accent);animation:pulse 1.1s ease-in-out infinite}
 #status b{color:var(--ok)}
 #feed{flex:1;overflow:auto;padding:22px 0}
 .wrap{max-width:780px;margin:0 auto;padding:0 18px}
@@ -181,6 +189,7 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
     <button id="burger">☰</button>
     <select id="model" title="Pilih model"></select>
     <button id="mode" title="Mode coding: jawaban fokus kode yang benar + penjelasan singkat">💻 Coding</button>
+    <button id="think" title="Tampilkan proses berpikir AI sebelum menjawab">💭 Berpikir</button>
     <div id="status"></div>
   </div>
   <div id="feed"><div class="wrap" id="list"></div></div>
@@ -261,8 +270,11 @@ window.fetch = (input, init = {}) => {
 const SYS_CODE = "Kamu asisten pemrograman yang andal. Tulis kode yang benar dan bisa langsung dijalankan. Selalu bungkus kode dalam blok ``` dengan nama bahasa. Jelaskan singkat dalam Bahasa Indonesia. Bila permintaan ambigu, sebutkan asumsimu. Jangan mengarang nama fungsi atau API; bila ragu, katakan.";
 let codeMode = localStorage.getItem("codeMode") !== "0";
 
-function syncMode(){ $("mode").classList.toggle("on", codeMode); }
+const SYS_THINK = "Sebelum memberi jawaban final, tuliskan langkah berpikirmu secara ringkas di dalam blok <think> dan </think>. Setelah menutup </think>, barulah tulis jawaban final di luar blok itu.";
+let thinkMode = localStorage.getItem("thinkMode") === "1";
+function syncMode(){ $("mode").classList.toggle("on", codeMode); $("think").classList.toggle("on", thinkMode); }
 $("mode").onclick = () => { codeMode = !codeMode; localStorage.setItem("codeMode", codeMode ? "1" : "0"); syncMode(); };
+$("think").onclick = () => { thinkMode = !thinkMode; localStorage.setItem("thinkMode", thinkMode ? "1" : "0"); syncMode(); };
 
 // --- Model ---
 async function loadModels(){
@@ -282,19 +294,31 @@ async function loadModels(){
 $("model").onchange = () => localStorage.setItem("model", $("model").value);
 
 // --- Daftar percakapan ---
+let pendingPoll = null;
 async function loadChats(){
-  const d = await api("/api/chats");
+  const d = await api("/api/chats").catch(()=>({chats:[]}));
   const box = $("chats");
   box.innerHTML = "";
+  let anyPending = false;
   for (const c of d.chats){
+    if (c.pending) anyPending = true;
     const el = document.createElement("div");
     el.className = "chat" + (c.id === chatId ? " on" : "");
-    el.innerHTML = `<span>💬</span><span class="t">${esc(c.title)}</span><button class="x" title="Hapus">✕</button>`;
+    el.innerHTML = `<span>${c.pending ? '<span class="dot">●</span>' : '💬'}</span><span class="t">${esc(c.title)}</span><button class="x" title="Hapus">✕</button>`;
     el.querySelector(".t").onclick = el.firstChild.onclick = () => openChat(c.id);
     el.onclick = (e) => { if (e.target.classList.contains("x")) return; openChat(c.id); };
     el.querySelector(".x").onclick = async (e) => { e.stopPropagation(); await fetch("/api/chats/"+c.id,{method:"DELETE"}); if (c.id===chatId) newChat(); loadChats(); };
     box.appendChild(el);
   }
+  // Ada tugas yang masih diproses di latar belakang → segarkan berkala (walau chat sempat ditutup)
+  clearTimeout(pendingPoll);
+  if (anyPending) pendingPoll = setTimeout(async ()=>{ if (!busy) await refreshOpenIfPending(); loadChats(); }, 3000);
+}
+// Jika chat yang sedang dibuka masih diproses, ambil versi terbarunya (jawaban yang tumbuh di latar belakang)
+async function refreshOpenIfPending(){
+  if (!chatId || busy) return;
+  const c = await api("/api/chats/"+chatId).catch(()=>null);
+  if (c && !c.error && Array.isArray(c.messages)) { messages = c.messages; render(); }
 }
 async function openChat(id){
   const c = await api("/api/chats/"+id).catch(()=>null);
@@ -308,7 +332,7 @@ $("baru").onclick = newChat;
 
 // --- Render pesan ---
 function esc(s){ return String(s).replace(/[&<>]/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
-function md(s){ // minimal: blok kode ```, inline `code`, **tebal**, *miring*
+function mdBody(s){ // blok kode ```, inline `code`, **tebal**, *miring*
   const parts = esc(s).split(/```/);
   return parts.map((p,i)=> i%2
     ? `<pre><code>${p.replace(/^[\w+-]*\n/,"")}</code></pre>`
@@ -316,6 +340,19 @@ function md(s){ // minimal: blok kode ```, inline `code`, **tebal**, *miring*
        .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
        .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,"$1<em>$2</em>")
   ).join("");
+}
+function md(s){ // tangani blok <think>…</think> jadi kotak "proses berpikir"
+  s = String(s);
+  const m = s.match(/<think>([\s\S]*?)(<\/think>|$)/i);
+  if (m){
+    const before = s.slice(0, m.index);
+    const closed = /<\/think>/i.test(m[0]);
+    const after = closed ? s.slice(m.index + m[0].length) : "";
+    const label = closed ? "💭 Proses berpikir" : "💭 Sedang berpikir…";
+    const det = `<details class="think"${closed?"":" open"}><summary>${label}</summary><div class="tk">${esc(m[1].trim())}</div></details>`;
+    return mdBody(before) + det + mdBody(after);
+  }
+  return mdBody(s);
 }
 function render(){
   const list = $("list");
@@ -390,12 +427,21 @@ async function send(){
   render();
   const txtEl = () => $("list").querySelector(".msg.bot:last-child .txt");
   if (txtEl()) txtEl().classList.add("cursor");
+  // Indikator "sedang berpikir" dengan penghitung detik, sampai token pertama tiba
+  const t0 = Date.now();
+  const thinkTimer = setInterval(()=>{
+    if (botMsg.content){ clearInterval(thinkTimer); return; }
+    const el=txtEl(); if(el) el.innerHTML = `<span class="think-wait">💭 HvM sedang berpikir… ${Math.round((Date.now()-t0)/1000)}s</span>`;
+  }, 500);
 
   try{
-    // Bangun payload: buang system lama & assistant kosong; prepend system coding bila aktif
+    // Bangun payload: buang system lama & assistant kosong; prepend system coding/berpikir bila aktif
     let payload = messages.filter(m => m.role !== "system" && !(m.role==="assistant" && !m.content))
       .map(({role,content}) => ({role,content}));
-    if (codeMode) payload = [{ role:"system", content:SYS_CODE }, ...payload];
+    const sys = [];
+    if (codeMode) sys.push(SYS_CODE);
+    if (thinkMode) sys.push(SYS_THINK);
+    if (sys.length) payload = [{ role:"system", content: sys.join("\n\n") }, ...payload];
     const res = await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},
       body:JSON.stringify({ model, id:chatId, messages:payload })});
     if (!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error||("HTTP "+res.status)); }
@@ -411,6 +457,7 @@ async function send(){
       const el=txtEl(); if(el){ el.innerHTML=md(botMsg.content); } $("feed").scrollTop=$("feed").scrollHeight;
     }
   }catch(err){ botMsg.content += `\n\n⚠️ ${err.message}`; }
+  clearInterval(thinkTimer);
   const el=txtEl(); if(el){ el.classList.remove("cursor"); el.innerHTML=md(botMsg.content); }
   busy=false; $("send").disabled=false; loadChats(); $("ta").focus();
 }
