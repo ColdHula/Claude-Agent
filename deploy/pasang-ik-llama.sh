@@ -26,10 +26,11 @@ PORT_IK="${PORT_IK:-11435}"
 CTX="${CTX:-4096}"
 THREADS="${THREADS:-6}"
 APP_DIR="${APP_DIR:-/home/user/kantor-pga}"
-# Flag kinerja ik_llama (CPU): -fa flash-attn, -fmoe fused-MoE (kencang untuk MoE),
-# -ub batch prompt, --no-mmap = muat SELURUH model ke RAM saat start (residen; wajib di HDD
-# agar tak ada paging). Kalau service gagal start, sederhanakan: IK_FLAGS="-c 4096 -t 6 -fa --no-mmap".
-IK_FLAGS="${IK_FLAGS:--c ${CTX} -t ${THREADS} -fa -fmoe -ub 2048 --no-mmap}"
+# Flag kinerja ik_llama (CPU): flash-attn, fused-MoE (kencang untuk MoE), batch prompt,
+# --no-mmap = muat SELURUH model ke RAM saat start (residen; wajib di HDD agar tak ada paging).
+# Bawaan "auto": flag DIDETEKSI dari 'llama-server --help' (format flag berubah antar versi,
+# mis. -fa kini butuh nilai 'on'). Bisa dipaksa manual: IK_FLAGS="-c 4096 -t 6 -fa on --no-mmap".
+IK_FLAGS="${IK_FLAGS:-auto}"
 LOG=/home/user/ik-build.log
 
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
@@ -70,6 +71,19 @@ SRV="${IK_DIR}/build/bin/llama-server"
 [ -x "\$SRV" ] || SRV="${IK_DIR}/build/bin/server"
 [ -x "\$SRV" ] || { echo "GAGAL: binary llama-server tidak ditemukan"; exit 1; }
 
+# Susun flag sesuai yang benar-benar didukung binary ini (hindari "unknown argument").
+FL="${IK_FLAGS}"
+if [ "\$FL" = "auto" ]; then
+  HELP="\$("\$SRV" --help 2>&1 || true)"
+  FL="-c ${CTX} -t ${THREADS}"
+  if echo "\$HELP" | grep -qE -- '--flash-attn[[:space:]]+(\[|FA|on|<)'; then FL="\$FL -fa on"
+  elif echo "\$HELP" | grep -qE -- '--flash-attn'; then FL="\$FL -fa"; fi
+  echo "\$HELP" | grep -qE -- '(-fmoe|--fused-moe)' && FL="\$FL -fmoe" || true
+  echo "\$HELP" | grep -qE -- '--ubatch-size' && FL="\$FL -ub 2048" || true
+  echo "\$HELP" | grep -qE -- '--no-mmap' && FL="\$FL --no-mmap" || true
+fi
+echo "Flag llama-server: \$FL"
+
 echo "[4/6] Unduh model GGUF (bila belum ada): ${MODEL_FILE}"
 mkdir -p "${MODELS_DIR}"; chown user:user "${MODELS_DIR}" 2>/dev/null || true
 if [ ! -s "${MODEL_FILE}" ]; then
@@ -88,7 +102,7 @@ Wants=network-online.target
 Type=simple
 # GPU tidak tersentuh (binary memang di-build tanpa CUDA)
 Environment=CUDA_VISIBLE_DEVICES=
-ExecStart=\${SRV} -m ${MODEL_FILE} --host 127.0.0.1 --port ${PORT_IK} ${IK_FLAGS}
+ExecStart=\${SRV} -m ${MODEL_FILE} --host 127.0.0.1 --port ${PORT_IK} \${FL}
 Restart=on-failure
 RestartSec=5
 Nice=15
@@ -124,6 +138,8 @@ echo "=== build/pasang (hvm-ik): \$(systemctl is-active hvm-ik 2>/dev/null) ==="
 tail -n 6 "$LOG" 2>/dev/null
 echo "=== ik-llama.service: \$(systemctl is-active ik-llama 2>/dev/null) ==="
 curl -s http://127.0.0.1:${PORT_IK}/health 2>/dev/null || echo "(llama-server belum siap)"
+echo "--- error terakhir ik-llama (kosong = aman) ---"
+journalctl -u ik-llama -n 300 --no-pager 2>/dev/null | grep -iE "error|invalid|unknown|failed|killed" | tail -n 4
 EOF
 chmod +x /usr/local/bin/cek-ik
 cat > /usr/local/bin/progress-ik <<EOF
