@@ -45,6 +45,29 @@ await fs.mkdir(CHATS, { recursive: true });
 await fs.mkdir(FILES, { recursive: true });
 await fs.mkdir(PENGETAHUAN, { recursive: true });
 
+// Persona "HvM": saat mesin chat menyajikan GGUF mentah (ik_llama, backend openai), model tidak
+// punya SYSTEM bawaan seperti model 'hvm' di Ollama. Kita suntik persona dari sisi app agar gaya
+// & aturan tetap sama. Sumber: HVM_SYSTEM (teks langsung) → HVM_SYSTEM_FILE → Modelfile.hvm.
+let PERSONA = (process.env.HVM_SYSTEM || "").trim() || null;
+if (!PERSONA && (BACKEND === "openai" || process.env.HVM_SYSTEM_FILE)) {
+  const f = process.env.HVM_SYSTEM_FILE || path.join(here, "model-pribadi", "Modelfile.hvm");
+  try {
+    const t = await fs.readFile(f, "utf8");
+    const m = t.match(/SYSTEM\s+"""([\s\S]*?)"""/);
+    if (m) PERSONA = m[1].trim();
+  } catch {}
+}
+// Lipat semua pesan 'system' (persona + mode Coding/Berpikir + RAG) jadi satu system di depan.
+function withPersona(messages) {
+  if (!PERSONA) return messages;
+  const sys = [PERSONA], rest = [];
+  for (const m of messages) {
+    if (m.role === "system") sys.push(m.content);
+    else rest.push({ role: m.role, content: m.content });
+  }
+  return [{ role: "system", content: sys.join("\n\n") }, ...rest];
+}
+
 const guard = makeAuth(PASSWORD, {
   name: "HvM AI",
   tagline: "Masukkan kata sandi untuk masuk.",
@@ -572,7 +595,7 @@ const server = http.createServer(async (req, res) => {
 
       let upstream;
       try {
-        upstream = await openChat(model, messages);
+        upstream = await openChat(model, withPersona(messages));
       } catch {
         return json(res, 502, { error: `Tidak bisa menghubungi mesin LLM di ${LLM_URL}.` });
       }
