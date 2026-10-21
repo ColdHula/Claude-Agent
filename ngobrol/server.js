@@ -9,6 +9,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
+import { lookup as dnsLookup } from "node:dns/promises";
 import { makeAuth } from "../src/auth.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -392,13 +393,37 @@ function cleanSchedule(s = {}) {
 }
 
 // Ambil sumber: RSS/Atom → daftar judul; JSON → potongan teks; HTML → teks polos.
-function blockedHost(u) {
+// Keamanan jaringan rumah: cegah pengambil sumber menyentuh perangkat LOKAL (rig mining, router,
+// NAS, Tailscale, apa pun di LAN). Cek nama host literal DAN hasil resolusi DNS-nya (anti rebinding).
+function isPrivateIp(ip) {
+  ip = String(ip).toLowerCase();
+  if (ip.includes(":")) { // IPv6
+    if (ip.startsWith("::ffff:") && ip.includes(".")) return isPrivateIp(ip.slice(7)); // IPv4-mapped
+    return ip === "::1" || ip === "::" || ip.startsWith("fe80") || ip.startsWith("fc") || ip.startsWith("fd");
+  }
+  const p = ip.split(".").map(Number);
+  if (p.length !== 4 || p.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return true; // aneh → blokir
+  const [a, b] = p;
+  return a === 0 || a === 127 || a === 10 || a >= 224 || a === 100 && b >= 64 && b <= 127 ||
+    a === 192 && b === 168 || a === 169 && b === 254 || a === 172 && b >= 16 && b <= 31 ||
+    a === 192 && b === 0 && p[2] === 0 || a === 198 && (b === 18 || b === 19);
+}
+function blockedHostName(h) {
+  h = String(h).toLowerCase().replace(/^\[|\]$/g, "");
+  return !h || h === "localhost" || h.endsWith(".ts.net") || h.endsWith(".local") ||
+    h.endsWith(".internal") || h.endsWith(".lan") || h.endsWith(".home.arpa") || /^\d+\.\d+\.\d+\.\d+$/.test(h) && isPrivateIp(h) || h.includes(":") && isPrivateIp(h);
+}
+// true bila URL AMAN dituju (publik). Menolak non-http(s), host lokal, dan domain yang RESOLVE ke IP lokal.
+async function allowedTarget(u) {
+  let host;
+  try { const x = new URL(u); if (!/^https?:$/.test(x.protocol)) return false; host = x.hostname.replace(/^\[|\]$/g, ""); }
+  catch { return false; }
+  if (blockedHostName(host)) return false;
   try {
-    const h = new URL(u).hostname.toLowerCase().replace(/^\[|\]$/g, "");
-    return h === "localhost" || h.endsWith(".ts.net") || h.endsWith(".local") || h === "::1" ||
-      /^(127|10|0)\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h) ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(h) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(h);
-  } catch { return true; }
+    const addrs = await dnsLookup(host, { all: true });
+    if (!addrs.length || addrs.some((a) => isPrivateIp(a.address))) return false;
+  } catch { return false; } // gagal resolve → jangan tembak
+  return true;
 }
 const decodeEnt = (s) => String(s).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
   .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
@@ -406,7 +431,7 @@ const decodeEnt = (s) => String(s).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
 const stripTags = (s) => decodeEnt(s).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ")
   .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 async function fetchSource(u, maxItems = 12) {
-  if (!/^https?:\/\//i.test(u) || blockedHost(u)) return { url: u, error: "alamat tidak diizinkan" };
+  if (!(await allowedTarget(u))) return { url: u, error: "alamat tidak diizinkan (hanya alamat publik; LAN/rig/router diblokir)" };
   try {
     const r = await fetch(u, { headers: { "user-agent": "Mozilla/5.0 (X11; Linux x86_64) HvM-AI/1.0", accept: "*/*" },
       signal: AbortSignal.timeout(20000), redirect: "follow" });
@@ -675,7 +700,9 @@ const server = http.createServer(async (req, res) => {
         const b = await readBody(req).catch(() => ({}));
         const who = clientOf(req);
         const srcs = (Array.isArray(b.sources) ? b.sources : String(b.sources || "").split(/\n+/))
-          .map((s) => String(s).trim()).filter((s) => /^https?:\/\//i.test(s)).slice(0, 8);
+          .map((s) => String(s).trim())
+          .filter((s) => { try { const x = new URL(s); return /^https?:$/.test(x.protocol) && !blockedHostName(x.hostname.replace(/^\[|\]$/g, "")); } catch { return false; } })
+          .slice(0, 8);
         const name = String(b.name || "").trim().slice(0, 60), prompt = String(b.prompt || "").trim().slice(0, 2000);
         if (!name || !prompt) return json(res, 400, { error: "Nama dan perintah wajib diisi." });
         let t = okId(b.id) ? tasks.find((x) => x.id === b.id) : null;
@@ -802,6 +829,38 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Chat: teruskan ke Ollama dan alirkan jawaban ke browser (NDJSON), lalu simpan percakapan
+    // --- Padatkan konteks: ringkas pesan lama jadi satu catatan, simpan ke rig, agar chat lanjut terus ---
+    if (url.pathname === "/api/compact" && req.method === "POST") {
+      const b = await readBody(req).catch(() => ({}));
+      const model = String(b.model || "").trim();
+      const all = (Array.isArray(b.messages) ? b.messages : []).filter((m) => m && m.role !== "system" && (m.content || "").trim());
+      const KEEP = Math.max(2, Number(b.keep) || 4);
+      if (all.length <= KEEP + 1) return json(res, 200, { skipped: true, messages: all });
+      const head = all.slice(0, -KEEP), tail = all.slice(-KEEP);
+      const transcript = head.map((m) => `${m.role === "user" ? "PENGGUNA" : "ASISTEN"}: ${String(m.content).slice(0, 4000)}`).join("\n\n");
+      const sumPrompt = "Ringkas percakapan berikut menjadi CATATAN KONTEKS yang padat namun lengkap. Pertahankan semua fakta, keputusan, angka, nama, potongan kode penting, dan hal yang masih dikerjakan — agar percakapan bisa dilanjutkan tanpa kehilangan informasi. Tulis sebagai poin-poin ringkas dalam Bahasa Indonesia. Jangan menambah basa-basi atau sapaan.\n\n=== PERCAKAPAN ===\n" + transcript;
+      let summary = "";
+      try {
+        const up = await openChat(model, [{ role: "user", content: sumPrompt }]);
+        if (!up.ok || !up.body) throw new Error("HTTP " + up.status);
+        for await (const d of chatDeltas(up)) summary += d;
+      } catch (e) {
+        return json(res, 502, { error: "Gagal memadatkan: " + (e?.message || e) });
+      }
+      summary = summary.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+      if (!summary) return json(res, 502, { error: "Ringkasan kosong, coba lagi." });
+      const compacted = [{ role: "system", content: "📦 Ringkasan konteks sebelumnya (dipadatkan otomatis agar chat bisa lanjut):\n" + summary }, ...tail];
+      if (okId(b.id)) {
+        const prev = await fs.readFile(chatPath(b.id), "utf8").then(JSON.parse).catch(() => null);
+        const who = clientOf(req);
+        if (prev && prev.client && who.cid && prev.client !== who.cid && !ownerOk(req)) return json(res, 403, { error: "Bukan chat Anda." });
+        await saveChat({ ...(prev || {}), id: b.id, model: model || prev?.model, messages: compacted,
+          client: prev?.client || who.cid, who: prev?.who || who.who, device: prev?.device, ip: prev?.ip,
+          compacted: (prev?.compacted || 0) + 1, pending: false });
+      }
+      return json(res, 200, { ok: true, messages: compacted, removed: head.length });
+    }
+
     if (url.pathname === "/api/chat" && req.method === "POST") {
       const body = await readBody(req);
       const model = String(body.model || "").trim();
