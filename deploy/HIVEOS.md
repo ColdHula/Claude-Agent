@@ -151,10 +151,15 @@ membatasi RAM, mengunci akses ke Tailscale, lalu mengunduh model coding.
 Model untuk RAM 16 GB (CPU-only):
 | Model | Perintah | Catatan |
 |---|---|---|
-| **Qwen2.5-Coder 14B abliterated** (bawaan, tanpa sensor) | — | Kualitas coding terbaik yang muat di 16 GB; rem keamanan dikurangi |
-| 7B abliterated (lebih cepat) | `MODEL=huihui_ai/qwen2.5-coder-abliterate:7b` di depan `sudo` | Ringan & cepat |
+| ⭐ **Qwen3-30B-A3B abliterated (MoE)** | lihat `deploy/tarik-model.sh` | **Disarankan**: MoE 3B aktif → **lebih cepat di CPU** daripada dense 14B, sekaligus lebih pintar. Pakai quant `q3_K_M` (±15 GB) agar pas di 16 GB. Tanpa sensor. |
+| Qwen2.5-Coder 14B abliterated (dense, lama) | `MODEL=huihui_ai/qwen2.5-coder-abliterate:14b` di depan `sudo` | Baseline dense; justru paling berat untuk CPU (baca 14B/token) |
+| 7B abliterated (lebih ringan) | `MODEL=huihui_ai/qwen2.5-coder-abliterate:7b` di depan `sudo` | Ringan & cepat, kualitas lebih rendah |
 | Qwen2.5-Coder 14B biasa (bersensor) | `MODEL=qwen2.5-coder:14b` di depan `sudo` | Bila ingin versi standar |
-| Qwen3-Coder 30B | — | **TIDAK muat** di 16 GB (butuh ±19 GB / RAM 32 GB+) |
+
+> **Kenapa MoE?** Model Mixture-of-Experts seperti Qwen3-30B-A3B hanya mengaktifkan **3B dari 30B**
+> parameter per token. Di CPU (yang dibatasi bandwidth RAM), ini berarti **lebih kencang** daripada
+> model dense 14B, dan bobot expert yang tak aktif bisa di-*mmap* dari SSD. Cara menariknya + panduan
+> pakai dari laptop + add-to-home ada di **`deploy/LAPTOP.md`**.
 
 > Model abliterated tidak punya rem keamanan: ia akan menuruti apa pun, jadi **periksa sendiri**
 > kode/keluarannya sebelum dijalankan. Risiko sepenuhnya di tangan Anda.
