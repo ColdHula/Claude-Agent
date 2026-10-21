@@ -26,10 +26,10 @@ PORT_IK="${PORT_IK:-11435}"
 CTX="${CTX:-4096}"
 THREADS="${THREADS:-6}"
 APP_DIR="${APP_DIR:-/home/user/kantor-pga}"
-# Flag kinerja ik_llama (CPU): flash-attn, fused-MoE (kencang untuk MoE), batch prompt,
-# --no-mmap = muat SELURUH model ke RAM saat start (residen; wajib di HDD agar tak ada paging).
-# Bawaan "auto": flag DIDETEKSI dari 'llama-server --help' (format flag berubah antar versi,
-# mis. -fa kini butuh nilai 'on'). Bisa dipaksa manual: IK_FLAGS="-c 4096 -t 6 -fa on --no-mmap".
+# Flag kinerja ik_llama (CPU): flash-attn, fused-MoE, batch prompt -ub 512 (hemat RAM; 2048 makan
+# ±0.5-1 GB lebih — penting bila rig juga menjalankan bot), --no-mmap = model residen penuh di RAM
+# (wajib di HDD), alias nama model 'hvm-qwen3-coder'. Bawaan "auto": tiap flag DIUJI langsung ke
+# binary, yang ditolak dilewati. Paksa manual: IK_FLAGS="-c 4096 -t 6 -fa on --no-mmap".
 IK_FLAGS="${IK_FLAGS:-auto}"
 LOG=/home/user/ik-build.log
 
@@ -81,7 +81,7 @@ FL="${IK_FLAGS}"
 if [ "\$FL" = "auto" ]; then
   FL="-c ${CTX} -t ${THREADS}"
   if flag_ok "\$FL -fa on"; then FL="\$FL -fa on"; elif flag_ok "\$FL -fa"; then FL="\$FL -fa"; fi
-  for opt in "-fmoe" "-ub 2048" "--no-mmap"; do
+  for opt in "-fmoe" "-ub 512" "--no-mmap" "-a hvm-qwen3-coder"; do
     if flag_ok "\$FL \$opt"; then FL="\$FL \$opt"; else echo "  (flag ditolak, dilewati: \$opt)"; fi
   done
 fi
