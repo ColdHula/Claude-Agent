@@ -32,6 +32,15 @@ const CHUNK = 1100, OVERLAP = 180;
 // tapi di CPU + RAM 16 GB itu memboroskan memori & memperlambat. 4096 paling sehat untuk
 // 16 GB (KV cache kecil, token pertama cepat). Naikkan lewat HVM_NUM_CTX bila punya SSD/RAM lebih.
 const NUM_CTX = Number(process.env.HVM_NUM_CTX || process.env.NUM_CTX || 4096);
+// Parameter sampling (cegah jawaban mengulang-ulang, mis. "juga juga juga…"). Qwen3 non-thinking:
+// temp 0.7, top_p 0.8, top_k 20; repeat_penalty 1.1 + presence_penalty untuk meredam loop.
+const SAMP = {
+  temperature: Number(process.env.HVM_TEMP || 0.7),
+  top_p: Number(process.env.HVM_TOP_P || 0.8),
+  top_k: Number(process.env.HVM_TOP_K || 20),
+  repeat_penalty: Number(process.env.HVM_REPEAT_PENALTY || 1.1),
+  presence_penalty: Number(process.env.HVM_PRESENCE_PENALTY || 1.0),
+};
 // Mesin chat: "ollama" (API Ollama, bawaan) atau "openai" (OpenAI-compatible, mis. ik_llama.cpp
 // llama-server). Embedding RAG SELALU lewat Ollama (OLLAMA). LLM_URL = alamat mesin chat.
 const BACKEND = (process.env.HVM_BACKEND || "ollama").toLowerCase();
@@ -304,14 +313,19 @@ async function backendModels() {
 }
 function openChat(model, messages) {
   if (BACKEND === "openai") {
+    // llama-server (ik_llama) terima parameter OpenAI + repeat_penalty/top_k lewat body.
     return fetch(`${LLM_URL}/v1/chat/completions`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model, messages, stream: true }),
+      body: JSON.stringify({ model, messages, stream: true,
+        temperature: SAMP.temperature, top_p: SAMP.top_p, top_k: SAMP.top_k,
+        repeat_penalty: SAMP.repeat_penalty, presence_penalty: SAMP.presence_penalty }),
     });
   }
   return fetch(`${LLM_URL}/api/chat`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ model, messages, stream: true, options: { num_ctx: NUM_CTX } }),
+    body: JSON.stringify({ model, messages, stream: true, options: {
+      num_ctx: NUM_CTX, temperature: SAMP.temperature, top_p: SAMP.top_p, top_k: SAMP.top_k,
+      repeat_penalty: SAMP.repeat_penalty } }),
   });
 }
 // Normalisasi stream upstream → generator potongan teks (delta), apa pun backend-nya.
@@ -339,6 +353,179 @@ async function* chatDeltas(upstream) {
     }
   }
 }
+
+// --- Tugas terjadwal (⏰): server menjalankan prompt sesuai jadwal, ambil sumber (RSS/JSON/HTML),
+// lalu hasil disimpan sebagai chat baru milik pembuat tugas. Khusus pemilik (atau tanpa OWNER_KEY).
+const TASKS = path.join(DATA, "tasks.json");
+const TZ = process.env.HVM_TZ || "Asia/Jakarta";
+let tasks = [];
+try { tasks = JSON.parse(await fs.readFile(TASKS, "utf8")); } catch {}
+const saveTasks = () => fs.writeFile(TASKS, JSON.stringify(tasks, null, 1)).catch(() => {});
+const canTask = (req) => !OWNER_KEY || ownerOk(req);
+const SRC_BUDGET = Number(process.env.HVM_TASK_CHARS || 7000); // batas karakter data sumber (num_ctx 4096 kecil)
+
+function tzNow(d = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hourCycle: "h23",
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", weekday: "short" })
+    .formatToParts(d).map((x) => [x.type, x.value]));
+  return { date: `${p.year}-${p.month}-${p.day}`, hm: `${p.hour}:${p.minute}`,
+    wd: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(p.weekday) };
+}
+const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+function scheduleLabel(s = {}) {
+  if (s.type === "interval") return `Tiap ${s.hours} jam`;
+  if (s.type === "weekly") return `Tiap ${HARI[s.day] || "?"} ${s.time}`;
+  return `Tiap hari ${s.time}`;
+}
+function isDue(t, now = tzNow(), ms = Date.now()) {
+  const s = t.schedule || {};
+  if (s.type === "interval") return ms - (t.lastRun || t.created || 0) >= Math.max(1, Number(s.hours) || 6) * 3600e3;
+  if (t.lastRunDate === now.date) return false;               // sudah jalan hari ini
+  if (s.type === "weekly" && now.wd !== Number(s.day)) return false;
+  return now.hm >= (s.time || "06:00");                        // terlambat (rig mati) → tetap dijalankan
+}
+function cleanSchedule(s = {}) {
+  const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time || "") ? s.time : "06:00";
+  if (s.type === "interval") return { type: "interval", hours: Math.min(168, Math.max(1, Math.round(Number(s.hours) || 6))) };
+  if (s.type === "weekly") return { type: "weekly", day: Math.min(6, Math.max(0, Number(s.day) || 1)), time };
+  return { type: "daily", time };
+}
+
+// Ambil sumber: RSS/Atom → daftar judul; JSON → potongan teks; HTML → teks polos.
+function blockedHost(u) {
+  try {
+    const h = new URL(u).hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    return h === "localhost" || h.endsWith(".ts.net") || h.endsWith(".local") || h === "::1" ||
+      /^(127|10|0)\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(h) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(h);
+  } catch { return true; }
+}
+const decodeEnt = (s) => String(s).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+  .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, "&");
+const stripTags = (s) => decodeEnt(s).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ")
+  .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+async function fetchSource(u, maxItems = 12) {
+  if (!/^https?:\/\//i.test(u) || blockedHost(u)) return { url: u, error: "alamat tidak diizinkan" };
+  try {
+    const r = await fetch(u, { headers: { "user-agent": "Mozilla/5.0 (X11; Linux x86_64) HvM-AI/1.0", accept: "*/*" },
+      signal: AbortSignal.timeout(20000), redirect: "follow" });
+    if (!r.ok) return { url: u, error: `HTTP ${r.status}` };
+    const ct = r.headers.get("content-type") || "";
+    const body = (await r.text()).slice(0, 3_000_000);
+    if (/json/i.test(ct) || /^\s*[[{]/.test(body)) return { url: u, kind: "json", text: body.replace(/\s+/g, " ").slice(0, 1500) };
+    const items = [...body.matchAll(/<(item|entry)\b[\s\S]*?<\/\1>/gi)].slice(0, maxItems).map((m) => {
+      const x = m[0];
+      const g = (tag) => { const mm = x.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i")); return mm ? stripTags(mm[1]) : ""; };
+      let link = g("link");
+      if (!link) { const lm = x.match(/<link[^>]*href="([^"]+)"/i); if (lm) link = decodeEnt(lm[1]); }
+      const title = g("title");
+      let desc = g("description") || g("summary");
+      if (desc.startsWith(title.slice(0, 30))) desc = "";      // Google News: deskripsi = judul
+      return { title, link, date: (g("pubDate") || g("updated") || g("published")).slice(0, 25), src: g("source"), desc: desc.slice(0, 180) };
+    }).filter((i) => i.title);
+    if (items.length) return { url: u, kind: "rss", items };
+    return { url: u, kind: "html", text: stripTags(body).slice(0, 2500) };
+  } catch (e) { return { url: u, error: e?.name === "TimeoutError" ? "waktu habis" : String(e?.message || e) }; }
+}
+
+async function pickModel(want) {
+  const ms = await backendModels().catch(() => []);
+  if (want && ms.includes(want)) return want;
+  return ms.find((m) => /^hvm/i.test(m)) || ms.find((m) => !/embed/i.test(m)) || ms[0] || want || "";
+}
+
+let taskBusy = null;                 // id tugas yang sedang jalan
+const taskQueue = [];
+function enqueueTask(id) { if (!taskQueue.includes(id) && taskBusy !== id) taskQueue.push(id); pumpTasks(); }
+async function pumpTasks() {
+  if (taskBusy || !taskQueue.length) return;
+  taskBusy = taskQueue.shift();
+  try { await runTask(taskBusy); } catch (e) { console.error("tugas gagal:", e); }
+  taskBusy = null;
+  pumpTasks();
+}
+async function runTask(id) {
+  const t = tasks.find((x) => x.id === id);
+  if (!t) return;
+  const now = tzNow();
+  t.lastRun = Date.now(); t.lastRunDate = now.date; t.lastStatus = "berjalan"; saveTasks();
+
+  // 1) kumpulkan data sumber (berurutan, hemat koneksi)
+  const results = [];
+  for (const u of t.sources || []) results.push(await fetchSource(u));
+  const refs = []; let data = "", n = 0;
+  for (const r of results) {
+    if (r.error) continue;
+    if (r.kind === "rss") for (const it of r.items) {
+      const line = `[${++n}] ${it.title}${it.src ? " — " + it.src : ""}${it.date ? " (" + it.date + ")" : ""}${it.desc ? ": " + it.desc : ""}\n`;
+      if (data.length + line.length > SRC_BUDGET) { n--; break; }
+      data += line; refs.push(it);
+    } else {
+      const block = `[DATA ${r.kind.toUpperCase()} ${new URL(r.url).hostname}] ${r.text}\n`;
+      if (data.length + block.length <= SRC_BUDGET) data += block;
+    }
+  }
+  const fails = results.filter((r) => r.error).map((r) => `- ${r.url.slice(0, 90)} → ${r.error}`);
+
+  const content = `Tanggal: ${now.date} ${now.hm} (${TZ})\nTUGAS: ${t.prompt}\n\n` +
+    (data ? `DATA TERBARU (gunakan HANYA data ini; jangan mengarang fakta, angka, atau tautan; sebut nomor [n] saat memakai berita):\n${data}`
+          : "DATA TERBARU: (kosong — semua sumber gagal diambil). Katakan terus terang bahwa data tidak tersedia; jangan mengarang.\n") +
+    `\nTulis dalam Bahasa Indonesia, rapi dengan poin-poin. Bila menyangkut investasi, tambahkan pengingat singkat bahwa ini bukan saran finansial.`;
+
+  // 2) jalankan model, simpan bertahap seperti chat biasa
+  const model = await pickModel(t.model);
+  const chatId = crypto.randomBytes(6).toString("hex");
+  const title = `⏰ ${t.name} — ${now.date}`;
+  const shown = `⏰ ${t.name} (otomatis, ${scheduleLabel(t.schedule)})\n${t.prompt}\n\n_Data: ${refs.length} berita dari ${results.length - fails.length}/${results.length} sumber._`;
+  let full = "";
+  const persist = (pending) => saveChat({ id: chatId, model, title, scheduled: true, task: t.id,
+    messages: [{ role: "user", content: shown }, { role: "assistant", content: full }],
+    client: t.client, who: t.who || "(terjadwal)", device: "Tugas terjadwal", ip: "rig", pending }).catch(() => {});
+  await persist(true);
+  t.lastChat = chatId; saveTasks();
+  try {
+    const up = await openChat(model, withPersona([{ role: "user", content }]));
+    if (!up.ok || !up.body) throw new Error(`mesin LLM menolak: HTTP ${up.status}`);
+    let last = Date.now();
+    for await (const d of chatDeltas(up)) { full += d; if (Date.now() - last > 3000) { last = Date.now(); persist(true); } }
+    t.lastStatus = "ok";
+  } catch (e) {
+    full += `\n\n⚠️ Gagal menjalankan model: ${e?.message || e}`;
+    t.lastStatus = "gagal: " + String(e?.message || e).slice(0, 120);
+  }
+  // 3) daftar sumber asli (tautan dari data, bukan dari model)
+  if (refs.length) full += "\n\n---\n**Sumber:**\n" + refs.map((r, i) => `${i + 1}. ${r.link ? `[${r.title.replace(/[[\]]/g, "")}](${r.link})` : r.title}`).join("\n");
+  if (fails.length) full += "\n\n_Sumber gagal diambil:_\n" + fails.join("\n");
+  await persist(false);
+  saveTasks();
+}
+setInterval(() => {
+  const now = tzNow(), ms = Date.now();
+  for (const t of tasks) if (t.enabled !== false && taskBusy !== t.id && !taskQueue.includes(t.id) && isDue(t, now, ms)) {
+    t.lastRunDate = now.date; t.lastRun = ms; saveTasks(); enqueueTask(t.id);
+  }
+}, 30_000);
+
+// Paket contoh "pagi": kripto, saham Indonesia, side gig/cuan pakai AI.
+const gnews = (q, lang = "id") => lang === "id"
+  ? `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=id&gl=ID&ceid=ID:id`
+  : `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en`;
+const PRESETS = [
+  { key: "kripto", name: "Berita Kripto Pagi", schedule: { type: "daily", time: "06:00" },
+    sources: ["https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin,ripple&vs_currencies=usd,idr&include_24hr_change=true",
+      gnews("bitcoin OR kripto OR crypto when:1d"), "https://cointelegraph.com/rss"],
+    prompt: "Buat ringkasan pagi pasar kripto: (1) harga & perubahan 24 jam BTC, ETH, SOL, BNB, XRP dari data harga (USD dan IDR); (2) 5–7 berita terpenting beserta dampaknya; (3) sentimen umum (bullish/bearish/netral) dan alasannya; (4) hal yang perlu dipantau hari ini. Singkat dan padat." },
+  { key: "saham", name: "Saham Indonesia Pagi", schedule: { type: "daily", time: "06:10" },
+    sources: ["https://query1.finance.yahoo.com/v8/finance/chart/%5EJKSE?range=5d&interval=1d",
+      gnews("IHSG OR \"Bursa Efek Indonesia\" OR saham when:1d"), "https://www.cnbcindonesia.com/market/rss"],
+    prompt: "Buat ringkasan pagi pasar saham Indonesia: (1) posisi IHSG terakhir & perubahannya bila ada di data (field regularMarketPrice / chartPreviousClose); (2) 5–7 berita emiten/sektor terpenting; (3) faktor penggerak (asing, rupiah, suku bunga, komoditas, global); (4) saham/sektor yang ramai dibahas dan yang perlu dipantau. Jangan mengarang angka." },
+  { key: "cuan", name: "Side Gig & Cuan AI", schedule: { type: "daily", time: "06:20" },
+    sources: [gnews("\"side hustle\" OR \"side income\" AI automation when:7d", "en"),
+      gnews("\"penghasilan tambahan\" OR \"side hustle\" OR cuan AI otomatisasi when:7d"),
+      "https://hnrss.org/newest?q=AI+side+project&points=20"],
+    prompt: "Dari data, rangkum 5 peluang side gig / cara cuan memakai AI & otomatisasi yang sedang tren. Untuk tiap peluang: apa itu, kenapa sedang tren, modal & skill yang dibutuhkan, potensi hasil yang realistis, serta risiko/red flag (waspadai skema cepat kaya & penipuan). Prioritaskan yang bisa dijalankan Rahula dari rumah dengan PC/rig. Tutup dengan 1 rekomendasi konkret untuk dicoba minggu ini." },
+];
 
 // --- Server ---
 const server = http.createServer(async (req, res) => {
@@ -422,7 +609,7 @@ const server = http.createServer(async (req, res) => {
 
     // Siapa saya / status pemilik
     if (url.pathname === "/api/me" && req.method === "GET")
-      return json(res, 200, { ownerAvailable: !!OWNER_KEY, owner: ownerOk(req) });
+      return json(res, 200, { ownerAvailable: !!OWNER_KEY, owner: ownerOk(req), tasks: canTask(req) });
 
     // --- Dashboard pemilik ---
     if (url.pathname === "/api/admin/login" && req.method === "POST") {
@@ -476,6 +663,55 @@ const server = http.createServer(async (req, res) => {
         return c ? (res.writeHead(200, { "content-type": "application/json; charset=utf-8" }), res.end(c)) : json(res, 404, { error: "tidak ada" });
       }
       return json(res, 404, { error: "tidak ada" });
+    }
+
+    // --- Tugas terjadwal (⏰) — khusus pemilik ---
+    if (url.pathname === "/api/tasks" || url.pathname.startsWith("/api/tasks/")) {
+      if (!canTask(req)) return json(res, 403, { error: "Tugas terjadwal khusus pemilik. Masuk dulu lewat ◆ Pemilik." });
+      const view = (t) => ({ ...t, label: scheduleLabel(t.schedule), running: taskBusy === t.id, queued: taskQueue.includes(t.id) });
+      if (url.pathname === "/api/tasks" && req.method === "GET")
+        return json(res, 200, { tasks: tasks.map(view), tz: TZ, now: tzNow() });
+      if (url.pathname === "/api/tasks" && req.method === "POST") {
+        const b = await readBody(req).catch(() => ({}));
+        const who = clientOf(req);
+        const srcs = (Array.isArray(b.sources) ? b.sources : String(b.sources || "").split(/\n+/))
+          .map((s) => String(s).trim()).filter((s) => /^https?:\/\//i.test(s)).slice(0, 8);
+        const name = String(b.name || "").trim().slice(0, 60), prompt = String(b.prompt || "").trim().slice(0, 2000);
+        if (!name || !prompt) return json(res, 400, { error: "Nama dan perintah wajib diisi." });
+        let t = okId(b.id) ? tasks.find((x) => x.id === b.id) : null;
+        if (!t) { t = { id: crypto.randomBytes(6).toString("hex"), created: Date.now(), client: who.cid, who: who.who }; tasks.push(t); }
+        Object.assign(t, { name, prompt, sources: srcs, schedule: cleanSchedule(b.schedule), enabled: b.enabled !== false,
+          model: String(b.model || "").slice(0, 200) });
+        if (!t.client) { t.client = who.cid; t.who = who.who; }
+        await saveTasks();
+        return json(res, 200, { ok: true, task: view(t) });
+      }
+      if (url.pathname === "/api/tasks/preset" && req.method === "POST") {
+        const who = clientOf(req); let added = 0;
+        for (const p of PRESETS) {
+          if (tasks.some((t) => t.preset === p.key && t.client === who.cid)) continue;
+          tasks.push({ id: crypto.randomBytes(6).toString("hex"), created: Date.now(), preset: p.key, client: who.cid, who: who.who,
+            name: p.name, prompt: p.prompt, sources: p.sources, schedule: p.schedule, enabled: true, model: "" });
+          added++;
+        }
+        await saveTasks();
+        return json(res, 200, { ok: true, added });
+      }
+      const tm = url.pathname.match(/^\/api\/tasks\/([a-z0-9]{6,32})(?:\/(run|test))?$/);
+      const t = tm && tasks.find((x) => x.id === tm[1]);
+      if (!t) return json(res, 404, { error: "Tugas tidak ada." });
+      if (!tm[2] && req.method === "DELETE") { tasks = tasks.filter((x) => x.id !== t.id); await saveTasks(); return json(res, 200, { ok: true }); }
+      if (tm[2] === "run" && req.method === "POST") { enqueueTask(t.id); return json(res, 200, { ok: true, queued: true }); }
+      if (tm[2] === "test" && req.method === "POST") {
+        const out = [];
+        for (const u of t.sources || []) {
+          const r = await fetchSource(u, 5);
+          out.push({ url: u, ok: !r.error, error: r.error || null, kind: r.kind || null,
+            count: r.items ? r.items.length : (r.text ? 1 : 0), sample: r.items ? r.items.slice(0, 3).map((i) => i.title) : (r.text ? [r.text.slice(0, 120)] : []) });
+        }
+        return json(res, 200, { results: out });
+      }
+      return json(res, 405, { error: "metode tidak didukung" });
     }
 
     // Daftar / baca / hapus percakapan (tiap orang hanya melihat miliknya sendiri)
