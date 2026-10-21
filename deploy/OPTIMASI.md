@@ -120,14 +120,23 @@ lebih cepat — cocok untuk HDD.
 curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ik-llama.sh | sudo bash
 ```
 Pantau: `cek-ik` (status + health) atau `progress-ik` (log live). Build makan **15–30 menit**
-di HDD + unduh GGUF ±11 GB. Selesai → HvM AI otomatis memakai ik_llama (port 127.0.0.1:11435).
+di HDD + unduh GGUF **±12.7 GB** (IQ3_XS). Selesai → HvM AI otomatis memakai ik_llama (port 11435).
 
-**Cara kerja (RAM aman di 16 GB):** ik_llama memegang model chat (±11 GB). Ollama tetap hidup
-**hanya untuk embedding RAG** (nomic, ±0.3 GB); model chat besar dilepas dari Ollama saat beralih.
+**"Kencang maksimal tapi tetap bagus":** bawaan quant **IQ3_XS ±12.7 GB** (imatrix) — kualitas
+jauh di atas Q2_K, dan **muat penuh di RAM** karena `--no-mmap` memaksa seluruh bobot residen
+(tak ada paging dari HDD saat menjawab). Alternatif: `IQ3_XXS` (±11.9 GB, lebih aman) atau
+`IQ3_M` (±13.6 GB, paling bagus tapi mepet) lewat `MODEL_URL=`.
 
-**Flag kinerja** (di unit, bisa diubah lewat `IK_FLAGS=`): `-fa` flash-attn · `-rtr` repack `_R4`
-(muat penuh RAM, cepat) · `-fmoe` fused-MoE · `-ub 2048` batch prompt. Kalau service gagal start,
-jalankan ulang dengan mis. `IK_FLAGS="-c 4096 -t 6 -fa"` (buang `-rtr -fmoe`).
+**Cara kerja (RAM aman di 16 GB):** ik_llama memegang model chat (±12.7 GB, residen via `--no-mmap`).
+Ollama tetap hidup **hanya untuk embedding RAG** (nomic, ±0.3 GB); model chat besar dilepas dari
+Ollama saat beralih.
+
+**Flag kinerja** (di unit, ubah lewat `IK_FLAGS=`): `-fa` flash-attn · `-fmoe` fused-MoE (kencang
+untuk MoE) · `-ub 2048` batch prompt · `--no-mmap` residen penuh di RAM. Kalau service gagal start,
+sederhanakan: `IK_FLAGS="-c 4096 -t 6 -fa --no-mmap"`.
+
+> **Persona HvM otomatis aktif** di ik_llama: HvM AI menyuntik SYSTEM dari `Modelfile.hvm`
+> (karena GGUF mentah tak punya persona bawaan). Tombol 💻 Coding / 💭 Berpikir tetap jalan.
 
 **Kembali ke Ollama** kapan saja:
 ```bash

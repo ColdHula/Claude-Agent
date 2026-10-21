@@ -2,28 +2,34 @@
 # Pasang ik_llama.cpp (fork llama.cpp, CPU/AVX2 kencang untuk MoE) sebagai mesin chat
 # HvM AI, menggantikan Ollama untuk chat. GPU TIDAK disentuh (build CPU-only).
 #
-# Seluruh proses (pasang build tools → clone → build → unduh model GGUF → bikin service →
-# alihkan HvM AI) berjalan sebagai LAYANAN systemd (unit 'hvm-ik'), jadi Hive Shell / laptop
-# boleh ditutup. Perintah ini kembali dalam beberapa detik.
+# "Kencang maksimal tapi tetap bagus": bawaan = Qwen3-Coder-30B-A3B abliterated (tanpa sensor)
+# quant imatrix IQ3_XS ±12.7 GB — kualitas jauh di atas Q2_K, tetap muat penuh di RAM 16 GB
+# (dipaksa residen dengan --no-mmap, jadi tak ada paging dari HDD saat menjawab).
+#
+# Seluruh proses (build tools → clone → build → unduh GGUF → service → alihkan HvM AI) jalan
+# sebagai LAYANAN systemd (unit 'hvm-ik'), Hive Shell boleh ditutup. Kembali dalam beberapa detik.
 #
 #   curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ik-llama.sh | sudo bash
 #
-# Opsi (tulis di depan 'sudo'):
-#   MODEL_URL=<url .gguf>   GGUF yang diunduh (bawaan: Qwen3-Coder-30B-A3B abliterated Q2_K ±11 GB)
-#   CTX=4096  THREADS=6     konteks & jumlah thread CPU
-#   PORT_IK=11435           port lokal llama-server (OpenAI-compatible)
+# Pilih quant lain lewat MODEL_URL (dari repo i1 mradermacher) — SEMUA soal muat RAM:
+#   IQ3_XXS ±11.9 GB  paling aman (kualitas sedikit di bawah IQ3_XS)
+#   IQ3_XS  ±12.7 GB  BAWAAN — seimbang terbaik untuk 16 GB
+#   IQ3_M   ±13.6 GB  paling bagus yang mungkin muat (PALING MEPET; coba bila RAM lega)
+#   (Q4_K_M ±18.7 GB TIDAK muat di 16 GB — hanya bila ada SSD + mmap)
+# Opsi lain: CTX=4096  THREADS=6  PORT_IK=11435
 set -euo pipefail
 
-MODEL_URL="${MODEL_URL-https://huggingface.co/mradermacher/Huihui-Qwen3-Coder-30B-A3B-Instruct-abliterated-GGUF/resolve/main/Huihui-Qwen3-Coder-30B-A3B-Instruct-abliterated.Q2_K.gguf}"
+MODEL_URL="${MODEL_URL-https://huggingface.co/mradermacher/Huihui-Qwen3-Coder-30B-A3B-Instruct-abliterated-i1-GGUF/resolve/main/Huihui-Qwen3-Coder-30B-A3B-Instruct-abliterated.i1-IQ3_XS.gguf}"
 IK_DIR="${IK_DIR:-/home/user/ik_llama.cpp}"
 MODELS_DIR="${MODELS_DIR:-/home/user/models}"
 PORT_IK="${PORT_IK:-11435}"
 CTX="${CTX:-4096}"
 THREADS="${THREADS:-6}"
 APP_DIR="${APP_DIR:-/home/user/kantor-pga}"
-# Flag kinerja ik_llama: -fa flash-attn, -rtr repack ke _R4 (muat penuh di RAM, cepat),
-# -fmoe fused-MoE, -ub ukuran batch prompt. Kalau service gagal start, kurangi (mis. buang -rtr -fmoe).
-IK_FLAGS="${IK_FLAGS:--c ${CTX} -t ${THREADS} -fa -rtr -fmoe -ub 2048}"
+# Flag kinerja ik_llama (CPU): -fa flash-attn, -fmoe fused-MoE (kencang untuk MoE),
+# -ub batch prompt, --no-mmap = muat SELURUH model ke RAM saat start (residen; wajib di HDD
+# agar tak ada paging). Kalau service gagal start, sederhanakan: IK_FLAGS="-c 4096 -t 6 -fa --no-mmap".
+IK_FLAGS="${IK_FLAGS:--c ${CTX} -t ${THREADS} -fa -fmoe -ub 2048 --no-mmap}"
 LOG=/home/user/ik-build.log
 
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
