@@ -28,6 +28,9 @@ const INLINE_CHARS = 60_000; // berapa karakter isi file teks yang ditempel ke p
 const EMBED_MODEL = process.env.EMBED_MODEL || "nomic-embed-text"; // model embedding untuk RAG
 const RAG_TOPK = Number(process.env.RAG_TOPK || 4); // berapa potongan dokumen diambil per pertanyaan
 const CHUNK = 1100, OVERLAP = 180;
+// Batas jendela konteks (token) yang diminta ke Ollama. Model Qwen3 mengiklankan 256K,
+// tapi di CPU + RAM 16 GB itu memboroskan memori & memperlambat. 8192 jauh lebih sehat.
+const NUM_CTX = Number(process.env.HVM_NUM_CTX || process.env.NUM_CTX || 8192);
 // Kunci pemilik: bila diisi, muncul Dashboard untuk memantau perangkat & chat teman.
 const OWNER_KEY = process.env.HVM_OWNER_KEY || process.env.OWNER_KEY || "";
 const USAGE = path.join(DATA, "usage.jsonl"); // log pertanyaan per perangkat
@@ -314,9 +317,10 @@ const server = http.createServer(async (req, res) => {
         let numCtx = null;
         const pm = (d.parameters || "").match(/num_ctx\s+(\d+)/);
         if (pm) numCtx = Number(pm[1]);
-        // Jendela efektif = num_ctx bila diset (biasanya lebih kecil), jika tidak pakai context_length model.
-        const window = numCtx || ctx || null;
-        return json(res, 200, { name, context_length: ctx, num_ctx: numCtx, window });
+        // Jendela EFEKTIF = yang benar-benar dipakai aplikasi: NUM_CTX, dibatasi context_length model
+        // (dan num_ctx bawaan model bila itu lebih kecil). Bukan 256K iklan modelnya.
+        const cap = Math.min(NUM_CTX, numCtx || NUM_CTX, ctx || NUM_CTX);
+        return json(res, 200, { name, context_length: ctx, num_ctx: numCtx, applied: NUM_CTX, window: cap });
       } catch {
         return json(res, 200, { name, context_length: null, num_ctx: null, window: null });
       }
@@ -500,7 +504,7 @@ const server = http.createServer(async (req, res) => {
         upstream = await fetch(`${OLLAMA}/api/chat`, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ model, messages, stream: true }),
+          body: JSON.stringify({ model, messages, stream: true, options: { num_ctx: NUM_CTX } }),
         });
       } catch {
         return json(res, 502, { error: `Tidak bisa menghubungi Ollama di ${OLLAMA}.` });
