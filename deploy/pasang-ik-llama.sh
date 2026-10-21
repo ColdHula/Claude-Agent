@@ -71,16 +71,19 @@ SRV="${IK_DIR}/build/bin/llama-server"
 [ -x "\$SRV" ] || SRV="${IK_DIR}/build/bin/server"
 [ -x "\$SRV" ] || { echo "GAGAL: binary llama-server tidak ditemukan"; exit 1; }
 
-# Susun flag sesuai yang benar-benar didukung binary ini (hindari "unknown argument").
+# Susun flag dengan MENGUJI langsung ke binary (format flag beda antar versi ik_llama).
+# Uji = jalankan dengan model palsu: flag sah → gagal di "buka model"; flag tak sah → cetak usage.
+flag_ok() {
+  out="\$(timeout 30 "\$SRV" -m /tmp/__tidak_ada__.gguf --host 127.0.0.1 --port 1 \$1 2>&1 | head -c 200000 || true)"
+  ! echo "\$out" | grep -qE -- '--alias|[Uu]sage:'
+}
 FL="${IK_FLAGS}"
 if [ "\$FL" = "auto" ]; then
-  HELP="\$("\$SRV" --help 2>&1 || true)"
   FL="-c ${CTX} -t ${THREADS}"
-  if echo "\$HELP" | grep -qE -- '--flash-attn[[:space:]]+(\[|FA|on|<)'; then FL="\$FL -fa on"
-  elif echo "\$HELP" | grep -qE -- '--flash-attn'; then FL="\$FL -fa"; fi
-  echo "\$HELP" | grep -qE -- '(-fmoe|--fused-moe)' && FL="\$FL -fmoe" || true
-  echo "\$HELP" | grep -qE -- '--ubatch-size' && FL="\$FL -ub 2048" || true
-  echo "\$HELP" | grep -qE -- '--no-mmap' && FL="\$FL --no-mmap" || true
+  if flag_ok "\$FL -fa on"; then FL="\$FL -fa on"; elif flag_ok "\$FL -fa"; then FL="\$FL -fa"; fi
+  for opt in "-fmoe" "-ub 2048" "--no-mmap"; do
+    if flag_ok "\$FL \$opt"; then FL="\$FL \$opt"; else echo "  (flag ditolak, dilewati: \$opt)"; fi
+  done
 fi
 echo "Flag llama-server: \$FL"
 
@@ -139,7 +142,7 @@ tail -n 6 "$LOG" 2>/dev/null
 echo "=== ik-llama.service: \$(systemctl is-active ik-llama 2>/dev/null) ==="
 curl -s http://127.0.0.1:${PORT_IK}/health 2>/dev/null || echo "(llama-server belum siap)"
 echo "--- error terakhir ik-llama (kosong = aman) ---"
-journalctl -u ik-llama -n 300 --no-pager 2>/dev/null | grep -iE "error|invalid|unknown|failed|killed" | tail -n 4
+journalctl -u ik-llama -n 300 --no-pager 2>/dev/null | grep -iE "error:|unknown argument|invalid argument|failed to|killed" | grep -v -- "--" | tail -n 4
 EOF
 chmod +x /usr/local/bin/cek-ik
 cat > /usr/local/bin/progress-ik <<EOF
