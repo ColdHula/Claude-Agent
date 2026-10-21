@@ -10,9 +10,11 @@
 #   RAM_MAX=13G             batas RAM proses Ollama
 set -euo pipefail
 
-# Bawaan: Qwen2.5-Coder 14B versi "abliterated" (tanpa sensor), Q4 ±9 GB, muat di RAM 16 GB.
-# Lebih ringan: qwen2.5-coder-abliterate:7b. Versi biasa (bersensor): qwen2.5-coder:14b.
-# Qwen3-Coder 30B (±19 GB) TIDAK muat di 16 GB — hanya untuk RAM 32 GB+.
+# Bawaan: Qwen2.5-Coder 14B "abliterated" (tanpa sensor), Q4 ±9 GB — MUAT PENUH di RAM 16 GB,
+# jadi aman & mulus walau di HDD (muat sekali, lalu semua di RAM). Baseline paling andal.
+# Untuk model MoE Qwen3-30B-A3B (lebih cepat di CPU) pilih quant yang MUAT: lihat
+# deploy/tarik-model.sh + deploy/OPTIMASI.md. ATURAN HDD: model harus muat penuh di RAM,
+# kalau tidak → paging dari HDD = macet/Ollama tumbang.
 MODEL="${MODEL-huihui_ai/qwen2.5-coder-abliterate:14b}"
 THREADS="${THREADS:-6}"  # i5-10400F punya 6 core fisik; untuk inferensi CPU biasanya paling optimal = core fisik
 RAM_MAX="${RAM_MAX:-13G}"
@@ -57,7 +59,12 @@ Environment="OLLAMA_HOST=127.0.0.1:11434"
 # --- Hemat RAM (penting di 16 GB) ---
 Environment="OLLAMA_FLASH_ATTENTION=1"
 Environment="OLLAMA_KV_CACHE_TYPE=q8_0"
-Environment="OLLAMA_KEEP_ALIVE=30m"
+# KEEP_ALIVE=-1 → model TETAP di RAM (tidak di-unload). Penting di HDD: cold-load dari
+# HDD lambat (menit-menit), jadi muat sekali lalu biarkan residen = pengalaman mulus.
+# (Ganti ke mis. 30m kalau ingin RAM balik saat idle.)
+Environment="OLLAMA_KEEP_ALIVE=-1"
+# Hanya 1 model dimuat → cegah OOM. Catatan: fitur Dokumen (RAG) memakai model embedding
+# kecil; di HDD, berpindah model = reload lambat. Naikkan ke 2 hanya bila sering pakai RAG.
 Environment="OLLAMA_MAX_LOADED_MODELS=1"
 
 # --- Sisakan CPU untuk sistem & miner ---

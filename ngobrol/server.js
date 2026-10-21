@@ -29,8 +29,9 @@ const EMBED_MODEL = process.env.EMBED_MODEL || "nomic-embed-text"; // model embe
 const RAG_TOPK = Number(process.env.RAG_TOPK || 4); // berapa potongan dokumen diambil per pertanyaan
 const CHUNK = 1100, OVERLAP = 180;
 // Batas jendela konteks (token) yang diminta ke Ollama. Model Qwen3 mengiklankan 256K,
-// tapi di CPU + RAM 16 GB itu memboroskan memori & memperlambat. 8192 jauh lebih sehat.
-const NUM_CTX = Number(process.env.HVM_NUM_CTX || process.env.NUM_CTX || 8192);
+// tapi di CPU + RAM 16 GB itu memboroskan memori & memperlambat. 4096 paling sehat untuk
+// 16 GB (KV cache kecil, token pertama cepat). Naikkan lewat HVM_NUM_CTX bila punya SSD/RAM lebih.
+const NUM_CTX = Number(process.env.HVM_NUM_CTX || process.env.NUM_CTX || 4096);
 // Kunci pemilik: bila diisi, muncul Dashboard untuk memantau perangkat & chat teman.
 const OWNER_KEY = process.env.HVM_OWNER_KEY || process.env.OWNER_KEY || "";
 const USAGE = path.join(DATA, "usage.jsonl"); // log pertanyaan per perangkat

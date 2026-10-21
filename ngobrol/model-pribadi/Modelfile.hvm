@@ -1,18 +1,20 @@
 # Model pribadi "HvM" — teman santai yang tetap menyelesaikan tugas.
-# Basis: Qwen3-30B-A3B abliterated (tanpa sensor), MoE — hanya 3B aktif/token,
-# jadi lebih cepat di CPU daripada dense 14B sekaligus lebih pintar. Dibuat dengan:
+# Basis: Qwen3-Coder-30B-A3B abliterated (tanpa sensor), MoE — hanya 3B aktif/token.
+# QUANT Q2_K (±11 GB) dipilih agar MUAT PENUH di RAM 16 GB → mulus walau di HDD
+# (muat sekali, lalu semua di RAM; tidak ada paging dari HDD saat menjawab). Dibuat dengan:
 #   ollama create hvm -f Modelfile.hvm
-# Tarik dulu basisnya: deploy/tarik-model.sh (bawaan q3_K_M ±15 GB, pas untuk RAM 16 GB).
-# Varian lain (ganti baris FROM):
-#   huihui_ai/qwen3-abliterated:30b-a3b-instruct-2507-q4_K_M   (±19 GB, perlu NVMe/mmap)
-#   huihui_ai/qwen2.5-coder-abliterate:14b                     (dense lama, fallback)
-FROM huihui_ai/qwen3-coder-abliterated:30b-a3b-instruct-q3_K_M
+# Tarik dulu basisnya: deploy/tarik-model.sh. Lihat deploy/OPTIMASI.md.
+# Varian lain (ganti baris FROM) — SEMUA soal "muat di RAM atau tidak":
+#   huihui_ai/qwen2.5-coder-abliterate:14b                    (dense ±9 GB, paling andal di HDD)
+#   huihui_ai/qwen3-coder-abliterated:30b-a3b-instruct-q4_K_M (±19 GB, HANYA bila ada SSD/NVMe)
+FROM hf.co/mradermacher/Huihui-Qwen3-Coder-30B-A3B-Instruct-abliterated-GGUF:Q2_K
 
 # Perilaku keluaran
 PARAMETER temperature 0.6
 PARAMETER top_p 0.9
 PARAMETER repeat_penalty 1.1
-PARAMETER num_ctx 8192
+PARAMETER num_ctx 4096
+PARAMETER num_thread 6
 
 SYSTEM """
 Kamu "HvM" — asisten pribadi Rahula. Gayamu santai dan akrab seperti teman yang

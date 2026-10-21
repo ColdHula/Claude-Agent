@@ -3,19 +3,22 @@
 # (unit 'hvm-pull'), sehingga Hive Shell / laptop boleh langsung ditutup — unduhan
 # tetap jalan di rig. Perintah ini kembali dalam beberapa detik.
 #
-# Pakai (bawaan: Qwen3-30B-A3B abliterated / tanpa sensor, coder, Q3_K_M ±15 GB):
+# Pakai (bawaan: Qwen3-Coder-30B-A3B abliterated / tanpa sensor, MoE, Q2_K ±11 GB —
+# MUAT PENUH di RAM 16 GB, jadi mulus walau di HDD):
 #   curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/tarik-model.sh | sudo bash
 #
-# Pilih varian/quant lewat MODEL= (lihat tabel di deploy/LAPTOP.md). Contoh:
-#   ...tarik-model.sh | MODEL=huihui_ai/qwen3-abliterated:30b-a3b-instruct-2507-q4_K_M sudo bash
+# Pilih varian/quant lewat MODEL= (lihat deploy/OPTIMASI.md). Contoh:
+#   ...tarik-model.sh | MODEL=huihui_ai/qwen2.5-coder-abliterate:14b sudo bash
 #
-# Catatan RAM 16 GB (MoE 3B aktif → tetap gesit di CPU):
-#   q2_K      ±11 GB  muat penuh di RAM (paling mulus, kualitas paling rendah)
-#   q3_K_M    ±15 GB  BAWAAN — paling seimbang untuk 16 GB (sedikit mmap dari SSD)
-#   q4_K_M    ±19 GB  kualitas terbaik, TAPI > 16 GB → andalkan NVMe (mmap dari disk)
+# ATURAN HDD + RAM 16 GB: model HARUS muat penuh di RAM. Kalau tidak, bobot dibaca dari
+# HDD terus-menerus → macet parah / Ollama tumbang. Sisakan ±4-5 GB utk OS+miner+KV.
+#   ±9  GB  huihui_ai/qwen2.5-coder-abliterate:14b              dense, PALING ANDAL di HDD
+#   ±11 GB  …Qwen3-Coder-30B-A3B…abliterated-GGUF:Q2_K          BAWAAN, MoE gesit, uncensored
+#   ±12 GB  …:IQ3_XXS (bila ada)                                 sedikit lebih bagus dari Q2_K
+#   ±15-19 GB  q3_K_M / q4_K_M                                   JANGAN di HDD — hanya bila ada SSD/NVMe
 set -euo pipefail
 
-MODEL="${MODEL-huihui_ai/qwen3-coder-abliterated:30b-a3b-instruct-q3_K_M}"
+MODEL="${MODEL-hf.co/mradermacher/Huihui-Qwen3-Coder-30B-A3B-Instruct-abliterated-GGUF:Q2_K}"
 LOG=/home/user/hvm-pull.log
 
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
