@@ -140,7 +140,7 @@ cat > /usr/local/bin/cek-ik <<EOF
 echo "=== build/pasang (hvm-ik): \$(systemctl is-active hvm-ik 2>/dev/null) ==="
 tail -n 6 "$LOG" 2>/dev/null
 echo "=== ik-llama.service: \$(systemctl is-active ik-llama 2>/dev/null) ==="
-curl -s http://127.0.0.1:${PORT_IK}/health 2>/dev/null || echo "(llama-server belum siap)"
+{ curl -s http://127.0.0.1:${PORT_IK}/health 2>/dev/null && echo; } || echo "(llama-server belum siap)"
 echo "--- error terakhir ik-llama (kosong = aman) ---"
 journalctl -u ik-llama -n 300 --no-pager 2>/dev/null | grep -iE "error:|unknown argument|invalid argument|failed to|killed" | grep -v -- "--" | tail -n 4
 EOF
