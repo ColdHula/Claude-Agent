@@ -1,8 +1,12 @@
 # Model pribadi "HvM" — teman santai yang tetap menyelesaikan tugas.
-# Basis: Qwen2.5-Coder abliterated (tanpa sensor). Dibuat dengan:
+# Basis: Qwen3-30B-A3B abliterated (tanpa sensor), MoE — hanya 3B aktif/token,
+# jadi lebih cepat di CPU daripada dense 14B sekaligus lebih pintar. Dibuat dengan:
 #   ollama create hvm -f Modelfile.hvm
-# Ganti baris FROM ke :7b bila ingin lebih ringan/cepat.
-FROM huihui_ai/qwen2.5-coder-abliterate:14b
+# Tarik dulu basisnya: deploy/tarik-model.sh (bawaan q3_K_M ±15 GB, pas untuk RAM 16 GB).
+# Varian lain (ganti baris FROM):
+#   huihui_ai/qwen3-abliterated:30b-a3b-instruct-2507-q4_K_M   (±19 GB, perlu NVMe/mmap)
+#   huihui_ai/qwen2.5-coder-abliterate:14b                     (dense lama, fallback)
+FROM huihui_ai/qwen3-coder-abliterated:30b-a3b-instruct-q3_K_M
 
 # Perilaku keluaran
 PARAMETER temperature 0.6

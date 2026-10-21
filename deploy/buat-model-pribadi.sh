@@ -20,8 +20,15 @@ die() { printf '\n\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 command -v ollama >/dev/null 2>&1 || die "Ollama belum terpasang. Jalankan deploy/pasang-ollama.sh dulu."
 [ -f "${DIR}/${MODELFILE}" ] || die "File ${DIR}/${MODELFILE} tidak ada. Pastikan repo sudah terbaru."
 
-# Pastikan model basis (baris FROM) sudah ada; kalau belum, Ollama akan mengunduhnya.
+# Pastikan model basis (baris FROM) sudah ada. Basis Qwen3 MoE ±15 GB — jangan diunduh
+# inline di sini (berisiko putus di Hive Shell). Kalau belum ada, tarik dulu secara
+# terpisah (tahan putus) lewat tarik-model.sh, baru jalankan skrip ini lagi.
 BASE="$(grep -iE '^FROM ' "${DIR}/${MODELFILE}" | head -1 | awk '{print $2}')"
+if ! OLLAMA_HOST="127.0.0.1:11434" ollama list 2>/dev/null | awk '{print $1}' | grep -qxF "${BASE}"; then
+  die "Model basis '${BASE}' belum ada. Tarik dulu (tahan Hive Shell putus):
+    curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/tarik-model.sh | MODEL='${BASE}' sudo bash
+  Tunggu 'cek-model' menampilkan '${BASE}' selesai, lalu jalankan skrip ini lagi."
+fi
 say "Membuat model '${NAMA}' dari ${MODELFILE} (basis: ${BASE})…"
 OLLAMA_HOST="127.0.0.1:11434" ollama create "${NAMA}" -f "${DIR}/${MODELFILE}"
 
