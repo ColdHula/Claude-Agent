@@ -80,8 +80,8 @@ Lalu di HvM AI pilih model **hvm** (atau model Q2_K) di dropdown.
 3. **KV cache lebih kecil (`q4_0`).** Bila RAM masih sesak, ganti `OLLAMA_KV_CACHE_TYPE=q4_0`
    (dari `q8_0`) → KV separuh, sedikit turun akurasi.
 4. **ik_llama.cpp** — fork llama.cpp khusus CPU: prompt-processing **~2–5× lebih cepat** untuk
-   MoE di AVX2 (persis i5-10400F), plus quant SOTA `IQ_K`/row-interleaved `_R4`. Perlu engine
-   terpisah + adapter ke HvM AI (proyek lanjutan, bisa kita buatkan).
+   MoE di AVX2 (persis i5-10400F), plus quant SOTA `IQ_K`/row-interleaved `_R4`.
+   **Sudah disiapkan** (lihat §ik_llama di bawah).
 5. **Unsloth Dynamic (UD) quant** — kualitas lebih baik per-GB (mis. `UD-Q3_K_XL`), bisa
    ditarik via `ollama pull hf.co/unsloth/…`. Cocok untuk memuat kualitas lebih tinggi
    dalam batas RAM yang sama.
@@ -106,6 +106,38 @@ Lalu di HvM AI pilih model **hvm** (atau model Q2_K) di dropdown.
   background), hasil tersimpan saat selesai.
 
 ---
+
+## 🔧 ik_llama.cpp — mesin chat tercepat di CPU (opsional)
+
+HvM AI bisa memakai **ik_llama.cpp** (bukan Ollama) sebagai mesin chat. Server-nya
+(`llama-server`) memakai API **OpenAI-compatible**; HvM AI sudah punya **adapter** yang
+menormalkan keduanya, jadi UI tetap sama. Dengan `-rtr`, model **dimuat penuh ke RAM** saat
+service start (cold-load HDD cuma sekali), lalu dieksekusi dengan kernel CPU ik_llama yang
+lebih cepat — cocok untuk HDD.
+
+**Pasang** (build + unduh model + alih-kan HvM AI berjalan sebagai layanan, Hive Shell boleh ditutup):
+```bash
+curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/bold-feynman-27cfgv/deploy/pasang-ik-llama.sh | sudo bash
+```
+Pantau: `cek-ik` (status + health) atau `progress-ik` (log live). Build makan **15–30 menit**
+di HDD + unduh GGUF ±11 GB. Selesai → HvM AI otomatis memakai ik_llama (port 127.0.0.1:11435).
+
+**Cara kerja (RAM aman di 16 GB):** ik_llama memegang model chat (±11 GB). Ollama tetap hidup
+**hanya untuk embedding RAG** (nomic, ±0.3 GB); model chat besar dilepas dari Ollama saat beralih.
+
+**Flag kinerja** (di unit, bisa diubah lewat `IK_FLAGS=`): `-fa` flash-attn · `-rtr` repack `_R4`
+(muat penuh RAM, cepat) · `-fmoe` fused-MoE · `-ub 2048` batch prompt. Kalau service gagal start,
+jalankan ulang dengan mis. `IK_FLAGS="-c 4096 -t 6 -fa"` (buang `-rtr -fmoe`).
+
+**Kembali ke Ollama** kapan saja:
+```bash
+sudo rm /etc/systemd/system/ngobrol.service.d/backend.conf
+sudo systemctl daemon-reload && sudo systemctl restart ngobrol
+sudo systemctl disable --now ik-llama
+```
+
+> Switch engine di HvM AI diatur 2 env pada layanan `ngobrol`: `HVM_BACKEND=openai` +
+> `LLM_URL=http://127.0.0.1:11435` (untuk ik_llama), atau kosong/`ollama` untuk Ollama.
 
 ## Sumber riset
 - [CPU-only LLM inference 2026 — bandwidth, model, engine](https://insiderllm.com/guides/cpu-only-llms-what-actually-works/)

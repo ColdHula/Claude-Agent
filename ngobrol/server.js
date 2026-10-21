@@ -32,6 +32,10 @@ const CHUNK = 1100, OVERLAP = 180;
 // tapi di CPU + RAM 16 GB itu memboroskan memori & memperlambat. 4096 paling sehat untuk
 // 16 GB (KV cache kecil, token pertama cepat). Naikkan lewat HVM_NUM_CTX bila punya SSD/RAM lebih.
 const NUM_CTX = Number(process.env.HVM_NUM_CTX || process.env.NUM_CTX || 4096);
+// Mesin chat: "ollama" (API Ollama, bawaan) atau "openai" (OpenAI-compatible, mis. ik_llama.cpp
+// llama-server). Embedding RAG SELALU lewat Ollama (OLLAMA). LLM_URL = alamat mesin chat.
+const BACKEND = (process.env.HVM_BACKEND || "ollama").toLowerCase();
+const LLM_URL = (process.env.LLM_URL || (BACKEND === "openai" ? "http://127.0.0.1:11435" : OLLAMA)).replace(/\/$/, "");
 // Kunci pemilik: bila diisi, muncul Dashboard untuk memantau perangkat & chat teman.
 const OWNER_KEY = process.env.HVM_OWNER_KEY || process.env.OWNER_KEY || "";
 const USAGE = path.join(DATA, "usage.jsonl"); // log pertanyaan per perangkat
@@ -263,20 +267,68 @@ async function mem() {
   return { totalMB, availMB, usedMB: totalMB - availMB, usedPct: Math.round((1 - free / total) * 100) };
 }
 
+// --- Adapter mesin chat (Ollama API ⇄ OpenAI-compatible seperti ik_llama.cpp) ---
+// Keduanya dinormalkan ke format yang sama ke browser: baris NDJSON {message:{content}}.
+async function backendModels() {
+  if (BACKEND === "openai") {
+    const r = await fetch(`${LLM_URL}/v1/models`);
+    const d = await r.json();
+    return (d.data || []).map((m) => m.id).filter(Boolean);
+  }
+  const r = await fetch(`${LLM_URL}/api/tags`);
+  const d = await r.json();
+  return (d.models || []).map((m) => m.name);
+}
+function openChat(model, messages) {
+  if (BACKEND === "openai") {
+    return fetch(`${LLM_URL}/v1/chat/completions`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model, messages, stream: true }),
+    });
+  }
+  return fetch(`${LLM_URL}/api/chat`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ model, messages, stream: true, options: { num_ctx: NUM_CTX } }),
+  });
+}
+// Normalisasi stream upstream → generator potongan teks (delta), apa pun backend-nya.
+async function* chatDeltas(upstream) {
+  const reader = upstream.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf("\n")) >= 0) {
+      let line = buf.slice(0, nl); buf = buf.slice(nl + 1);
+      line = line.trim();
+      if (!line) continue;
+      if (BACKEND === "openai") {
+        if (!line.startsWith("data:")) continue;      // SSE: "data: {...}"
+        const data = line.slice(5).trim();
+        if (data === "[DONE]") return;
+        try { const o = JSON.parse(data); const d = o.choices?.[0]?.delta?.content; if (d) yield d; } catch {}
+      } else {
+        try { const o = JSON.parse(line); const d = o.message?.content; if (d) yield d; } catch {}
+      }
+    }
+  }
+}
+
 // --- Server ---
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://x");
     if (guard && (await guard(req, res, url))) return;
 
-    // Daftar model dari Ollama
+    // Daftar model dari mesin chat (Ollama atau ik_llama.cpp)
     if (url.pathname === "/api/models" && req.method === "GET") {
       try {
-        const r = await fetch(`${OLLAMA}/api/tags`);
-        const d = await r.json();
-        return json(res, 200, { models: (d.models || []).map((m) => m.name) });
+        return json(res, 200, { models: await backendModels() });
       } catch {
-        return json(res, 200, { models: [], error: `Tidak bisa menghubungi Ollama di ${OLLAMA}. Pastikan Ollama berjalan.` });
+        return json(res, 200, { models: [], error: `Tidak bisa menghubungi mesin LLM di ${LLM_URL}. Pastikan layanannya berjalan.` });
       }
     }
 
@@ -287,14 +339,21 @@ const server = http.createServer(async (req, res) => {
       const cores = os.cpus().length || 1;
       let loaded = [];
       try {
-        const r = await fetch(`${OLLAMA}/api/ps`, { signal: AbortSignal.timeout(2500) });
-        const d = await r.json();
-        loaded = (d.models || []).map((m) => ({
-          name: m.name || m.model,
-          sizeMB: m.size ? Math.round(m.size / 1048576) : null,
-          vramMB: m.size_vram ? Math.round(m.size_vram / 1048576) : 0,
-          expires: m.expires_at || null,
-        }));
+        if (BACKEND === "openai") {
+          const r = await fetch(`${LLM_URL}/props`, { signal: AbortSignal.timeout(2500) });
+          const d = await r.json();
+          const nm = (d.model_path || d.default_generation_settings?.model || "model").split("/").pop();
+          loaded = [{ name: nm, sizeMB: null, vramMB: 0, expires: null }];
+        } else {
+          const r = await fetch(`${OLLAMA}/api/ps`, { signal: AbortSignal.timeout(2500) });
+          const d = await r.json();
+          loaded = (d.models || []).map((m) => ({
+            name: m.name || m.model,
+            sizeMB: m.size ? Math.round(m.size / 1048576) : null,
+            vramMB: m.size_vram ? Math.round(m.size_vram / 1048576) : 0,
+            expires: m.expires_at || null,
+          }));
+        }
       } catch {}
       return json(res, 200, {
         cpu: { load1: +load[0].toFixed(2), load5: +load[1].toFixed(2), load15: +load[2].toFixed(2), cores, pct: Math.min(100, Math.round((load[0] / cores) * 100)) },
@@ -306,6 +365,17 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/model-info" && req.method === "GET") {
       const name = url.searchParams.get("name");
       if (!name) return json(res, 400, { error: "butuh ?name=" });
+      // ik_llama.cpp / OpenAI-compatible: ambil n_ctx dari /props
+      if (BACKEND === "openai") {
+        try {
+          const r = await fetch(`${LLM_URL}/props`, { signal: AbortSignal.timeout(4000) });
+          const d = await r.json();
+          const nctx = Number(d.default_generation_settings?.n_ctx || d.n_ctx || NUM_CTX);
+          return json(res, 200, { name, context_length: nctx, num_ctx: nctx, applied: Math.min(NUM_CTX, nctx), window: Math.min(NUM_CTX, nctx) });
+        } catch {
+          return json(res, 200, { name, context_length: null, num_ctx: null, applied: NUM_CTX, window: NUM_CTX });
+        }
+      }
       try {
         const r = await fetch(`${OLLAMA}/api/show`, {
           method: "POST", headers: { "content-type": "application/json" },
@@ -502,17 +572,13 @@ const server = http.createServer(async (req, res) => {
 
       let upstream;
       try {
-        upstream = await fetch(`${OLLAMA}/api/chat`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ model, messages, stream: true, options: { num_ctx: NUM_CTX } }),
-        });
+        upstream = await openChat(model, messages);
       } catch {
-        return json(res, 502, { error: `Tidak bisa menghubungi Ollama di ${OLLAMA}.` });
+        return json(res, 502, { error: `Tidak bisa menghubungi mesin LLM di ${LLM_URL}.` });
       }
       if (!upstream.ok || !upstream.body) {
         const t = await upstream.text().catch(() => "");
-        return json(res, 502, { error: `Ollama menolak: ${upstream.status} ${t.slice(0, 200)}` });
+        return json(res, 502, { error: `Mesin LLM menolak: ${upstream.status} ${t.slice(0, 200)}` });
       }
 
       res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store",
@@ -527,22 +593,18 @@ const server = http.createServer(async (req, res) => {
       }).catch(() => {});
       await persist(true);                    // langsung muncul di riwayat, ditandai "sedang diproses"
 
-      const reader = upstream.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "", lastSave = Date.now();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const text = dec.decode(value, { stream: true });
-        buf += text;
-        let nl;
-        while ((nl = buf.indexOf("\n")) >= 0) {
-          const line = buf.slice(0, nl); buf = buf.slice(nl + 1);
-          if (!line.trim()) continue;
-          try { const o = JSON.parse(line); full += o.message?.content || ""; } catch {}
+      // Tulis ke browser dalam format NDJSON {message:{content}} apa pun backend-nya.
+      const emit = (s) => { if (alive) { try { res.write(JSON.stringify({ message: { content: s } }) + "\n"); } catch { alive = false; } } };
+      let lastSave = Date.now();
+      try {
+        for await (const d of chatDeltas(upstream)) {
+          full += d;
+          emit(d);
+          if (Date.now() - lastSave > 1500) { lastSave = Date.now(); persist(true); } // simpan progres berkala
         }
-        if (alive) { try { res.write(text); } catch { alive = false; } } // soket mati -> abaikan, lanjut proses
-        if (Date.now() - lastSave > 1500) { lastSave = Date.now(); persist(true); } // simpan progres berkala
+      } catch (e) {
+        const m = `\n\n⚠️ ${e?.message || e}`;
+        full += m; emit(m);
       }
       try { if (alive) res.end(); } catch {}
       await persist(false);                   // selesai: simpan final, hapus tanda "sedang diproses"
