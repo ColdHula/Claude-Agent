@@ -186,9 +186,12 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
   #side.open{margin-left:0}
   #burger{display:block}
   /* Header melipat: kontrol di baris atas, status rig di baris bawah (tak meluber) */
-  #top{flex-wrap:wrap}
-  #model{max-width:150px}
+  #top{flex-wrap:wrap;gap:7px;padding:9px 10px}
+  #model{flex:1;min-width:0;max-width:none}
+  #exportBtn{display:none}           /* ekspor jarang dipakai di HP → sembunyikan biar rapi */
+  #mode,#think{padding:7px 10px;font-size:13px}
   #rig{order:5;width:100%;margin-left:0;justify-content:flex-start;flex-wrap:wrap}
+  #side{width:min(82vw,300px);flex-basis:min(82vw,300px);margin-left:calc(-1 * min(82vw,300px))}
 }
 /* Tombol padatkan konteks */
 #compactBtn{flex:0 0 auto;font-size:11px;color:var(--accent2);border:1px solid var(--line);border-radius:999px;padding:3px 9px;white-space:nowrap}
@@ -238,11 +241,17 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 .codewrap{position:relative}
 .codewrap .copycode{position:absolute;top:8px;right:8px;z-index:2;font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:2px 7px;color:var(--dim);opacity:.7}
 .codewrap .copycode:hover{opacity:1;border-color:var(--accent);color:var(--ink)}
+/* Tutup sidebar di HP */
+#sideClose{margin-left:auto;color:var(--dim);font-size:18px;padding:2px 8px;border-radius:8px}
+@media(min-width:721px){#sideClose{display:none}}
+#sideClose:hover{color:var(--ink)}
+#backdrop{position:fixed;inset:0;z-index:29;background:rgba(3,5,12,.55);border:0}
+@media(min-width:721px){#backdrop{display:none!important}}
 </style>
 </head>
 <body>
 <aside id="side">
-  <h1><img src="/icon.svg" width="26" height="26" alt="" style="border-radius:7px"> <b>HvM</b> <i>AI</i></h1>
+  <h1><img src="/icon.svg" width="26" height="26" alt="" style="border-radius:7px"> <b>HvM</b> <i>AI</i><button id="sideClose" title="Tutup">✕</button></h1>
   <button id="baru">＋ Obrolan baru</button>
   <input id="chatSearch" placeholder="🔎 Cari obrolan…" autocomplete="off">
   <div id="chats"></div>
@@ -253,6 +262,7 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
     <button id="ownerBtn" hidden title="Dashboard pemilik">◆ Pemilik</button>
   </footer>
 </aside>
+<div id="backdrop" hidden></div>
 
 <main id="main">
   <div id="top">
@@ -770,8 +780,11 @@ async function viewChat(id, who){
 }
 
 // Sidebar mobile
-$("burger").onclick = ()=> $("side").classList.toggle("open");
-function closeSide(){ $("side").classList.remove("open"); }
+function openSide(){ $("side").classList.add("open"); $("backdrop").hidden=false; }
+function closeSide(){ $("side").classList.remove("open"); $("backdrop").hidden=true; }
+$("burger").onclick = ()=> $("side").classList.contains("open") ? closeSide() : openSide();
+$("sideClose").onclick = closeSide;
+$("backdrop").onclick = closeSide;
 
 // ====== Padatkan konteks ======
 async function compact(auto){
