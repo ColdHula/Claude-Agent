@@ -81,7 +81,7 @@ FL="${IK_FLAGS}"
 if [ "\$FL" = "auto" ]; then
   FL="-c ${CTX} -t ${THREADS}"
   if flag_ok "\$FL -fa on"; then FL="\$FL -fa on"; elif flag_ok "\$FL -fa"; then FL="\$FL -fa"; fi
-  for opt in "-fmoe" "-ub 512" "--no-mmap" "-a hvm-qwen3-coder"; do
+  for opt in "-fmoe" "-ub 512" "--no-mmap" "--repeat-penalty 1.1" "--repeat-last-n 320" "-a hvm-qwen3-coder"; do
     if flag_ok "\$FL \$opt"; then FL="\$FL \$opt"; else echo "  (flag ditolak, dilewati: \$opt)"; fi
   done
 fi

@@ -40,7 +40,9 @@ const SAMP = {
   top_p: Number(process.env.HVM_TOP_P || 0.8),
   top_k: Number(process.env.HVM_TOP_K || 20),
   repeat_penalty: Number(process.env.HVM_REPEAT_PENALTY || 1.1),
-  presence_penalty: Number(process.env.HVM_PRESENCE_PENALTY || 1.0),
+  repeat_last_n: Number(process.env.HVM_REPEAT_LAST_N || 320),
+  presence_penalty: Number(process.env.HVM_PRESENCE_PENALTY || 0.6),
+  frequency_penalty: Number(process.env.HVM_FREQUENCY_PENALTY || 0.6), // standar OpenAI → dihormati endpoint /v1
 };
 // Mesin chat: "ollama" (API Ollama, bawaan) atau "openai" (OpenAI-compatible, mis. ik_llama.cpp
 // llama-server). Embedding RAG SELALU lewat Ollama (OLLAMA). LLM_URL = alamat mesin chat.
@@ -319,14 +321,15 @@ function openChat(model, messages) {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ model, messages, stream: true,
         temperature: SAMP.temperature, top_p: SAMP.top_p, top_k: SAMP.top_k,
-        repeat_penalty: SAMP.repeat_penalty, presence_penalty: SAMP.presence_penalty }),
+        repeat_penalty: SAMP.repeat_penalty, repeat_last_n: SAMP.repeat_last_n,
+        presence_penalty: SAMP.presence_penalty, frequency_penalty: SAMP.frequency_penalty }),
     });
   }
   return fetch(`${LLM_URL}/api/chat`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ model, messages, stream: true, options: {
       num_ctx: NUM_CTX, temperature: SAMP.temperature, top_p: SAMP.top_p, top_k: SAMP.top_k,
-      repeat_penalty: SAMP.repeat_penalty } }),
+      repeat_penalty: SAMP.repeat_penalty, repeat_last_n: SAMP.repeat_last_n, frequency_penalty: SAMP.frequency_penalty } }),
   });
 }
 // Normalisasi stream upstream → generator potongan teks (delta), apa pun backend-nya.
