@@ -69,10 +69,21 @@ if (!PERSONA && (BACKEND === "openai" || process.env.HVM_SYSTEM_FILE)) {
     if (m) PERSONA = m[1].trim();
   } catch {}
 }
+// GGUF Qwen3-Coder dilatih agentic → kadang memuntahkan token pemanggilan tool
+// (<tool_call>…</tool_call>) ke dalam chat biasa walau tak ada tool. HvM AI adalah
+// chat biasa tanpa tool, jadi untuk backend openai (ik_llama) kita larang tegas.
+const NO_TOOLS =
+  "Kamu asisten percakapan biasa TANPA akses alat, tool, fungsi, atau API eksternal apa pun. " +
+  "JANGAN PERNAH mengeluarkan token/tag seperti <tool_call>, </tool_call>, <tools>, <function_call>, " +
+  "atau membuat rencana pemanggilan tool/fungsi. Langsung jawab pertanyaan pengguna secara lengkap " +
+  "dalam teks biasa (pakai Markdown untuk kode). Bila tidak tahu, katakan tidak tahu — jangan pura-pura memanggil tool.";
 // Lipat semua pesan 'system' (persona + mode Coding/Berpikir + RAG) jadi satu system di depan.
 function withPersona(messages) {
-  if (!PERSONA) return messages;
-  const sys = [PERSONA], rest = [];
+  const pre = [];
+  if (BACKEND === "openai") pre.push(NO_TOOLS); // model GGUF mentah suka bocorkan <tool_call>
+  if (PERSONA) pre.push(PERSONA);
+  if (!pre.length) return messages;
+  const sys = [...pre], rest = [];
   for (const m of messages) {
     if (m.role === "system") sys.push(m.content);
     else rest.push({ role: m.role, content: m.content });

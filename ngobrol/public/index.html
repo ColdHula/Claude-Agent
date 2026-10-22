@@ -522,6 +522,10 @@ function mdBody(s){ // blok kode ```, inline `code`, **tebal**, *miring*
 }
 function md(s){ // tangani blok <think>…</think> jadi kotak "proses berpikir"
   s = String(s);
+  // Jaring pengaman: model coder kadang bocorkan sintaks pemanggilan tool ke chat.
+  // Buang blok tertutup seutuhnya, lalu hapus tag yang menggantung agar tak tampil mentah.
+  s = s.replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "")
+       .replace(/<\/?(?:tool_call|tool_response|tools|function_call)>/gi, "");
   const m = s.match(/<think>([\s\S]*?)(<\/think>|$)/i);
   if (m){
     const before = s.slice(0, m.index);
