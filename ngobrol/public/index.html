@@ -494,7 +494,7 @@ async function openChat(id){
   if (!c || c.error) return;
   chatId = c.id; messages = c.messages || [];
   if (c.model) { $("model").value = c.model; }
-  render(); loadChats(); closeSide();
+  render(true); loadChats(); closeSide();
 }
 function newChat(){ chatId=null; messages=[]; attached=[]; render(); renderAttached(); loadChats(); $("ta").focus(); }
 $("baru").onclick = newChat;
@@ -523,7 +523,12 @@ function md(s){ // tangani blok <think>…</think> jadi kotak "proses berpikir"
   }
   return mdBody(s);
 }
-function render(){
+function nearBottom(){ const f=$("feed"); return f.scrollHeight - f.scrollTop - f.clientHeight < 140; }
+function scrollBottom(){ const f=$("feed"); f.scrollTop = f.scrollHeight; }
+function render(toBottom){
+  const feed = $("feed");
+  const keepBottom = toBottom || nearBottom();   // hanya auto-scroll bila user memang di dekat bawah
+  const prevTop = feed.scrollTop;
   const list = $("list");
   if (!messages.length){
     list.innerHTML = `<div class="empty"><img class="mk" src="/icon.svg" alt=""><h2>HvM AI siap membantu</h2><p>Model berjalan lokal di rig Anda — privat & offline.</p>
@@ -546,7 +551,7 @@ function render(){
       <div class="body"><div class="who">${m.role==="user"?"Anda":($("model").value||"model")}</div>
       <div class="txt">${md(m.content)}</div>${files?`<div class="files">${files}</div>`:""}${rag}${acts}</div></div>`;
   }).join("");
-  $("feed").scrollTop = $("feed").scrollHeight;
+  if (keepBottom) feed.scrollTop = feed.scrollHeight; else feed.scrollTop = prevTop;
   updateCtx();
 }
 
@@ -594,7 +599,7 @@ async function send(){
   const userMsg = { role:"user", content, files: attached.map(a=>({name:a.name})) };
   messages.push(userMsg);
   attached = []; renderAttached();
-  $("ta").value=""; resize(); render();
+  $("ta").value=""; resize(); render(true);
   if (curWindow && estTokens() >= curWindow*0.9){ await compact(true); render(); }
   await generate();
 }
@@ -609,7 +614,7 @@ async function generate(){
   const model = $("model").value;
   busy=true; $("send").disabled=false; sendMode("stop");
   const botMsg = { role:"assistant", content:"" };
-  messages.push(botMsg); render();
+  messages.push(botMsg); render(true);
   const txtEl = () => $("list").querySelector(".msg.bot:last-child .txt");
   if (txtEl()) txtEl().classList.add("cursor");
   const t0 = Date.now();
@@ -637,7 +642,7 @@ async function generate(){
       buf += dec.decode(value,{stream:true}); let nl;
       while((nl=buf.indexOf("\n"))>=0){ const line=buf.slice(0,nl); buf=buf.slice(nl+1);
         if(!line.trim())continue; try{ const o=JSON.parse(line); botMsg.content += o.message?.content||""; }catch{} }
-      const el=txtEl(); if(el){ el.innerHTML=md(botMsg.content); } $("feed").scrollTop=$("feed").scrollHeight; updateCtx();
+      const atB=nearBottom(); const el=txtEl(); if(el){ el.innerHTML=md(botMsg.content); } if(atB) scrollBottom(); updateCtx();
     }
   }catch(err){ if(err && err.name==="AbortError"){ if(!botMsg.content) botMsg.content="_⏹ dihentikan._"; } else botMsg.content += `\n\n⚠️ ${err.message}`; }
   clearInterval(thinkTimer);
