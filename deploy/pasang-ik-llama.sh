@@ -82,7 +82,9 @@ FL="${IK_FLAGS}"
 if [ "\$FL" = "auto" ]; then
   FL="-c ${CTX} -t ${THREADS}"
   if flag_ok "\$FL -fa on"; then FL="\$FL -fa on"; elif flag_ok "\$FL -fa"; then FL="\$FL -fa"; fi
-  for opt in "-fmoe" "-ub 512" "--no-mmap" "-ctk q8_0" "-ctv q8_0" "--repeat-penalty 1.1" "--repeat-last-n 320" "-a hvm-qwen3-coder"; do
+  # -np 1 = satu slot → percakapan dapat konteks PENUH -c (tanpa ini, llama-server membagi
+  # -c ke beberapa slot paralel, mis. 8192 ÷ 2 = 4096 per chat; itu bikin response panjang terpotong).
+  for opt in "-np 1" "-fmoe" "-ub 512" "--no-mmap" "-ctk q8_0" "-ctv q8_0" "--repeat-penalty 1.1" "--repeat-last-n 320" "-a hvm-qwen3-coder"; do
     if flag_ok "\$FL \$opt"; then FL="\$FL \$opt"; else echo "  (flag ditolak, dilewati: \$opt)"; fi
   done
 fi
