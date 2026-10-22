@@ -152,6 +152,8 @@ echo "Pantau build (Ctrl+C untuk keluar)…"; tail -f "$LOG"
 EOF
 chmod +x /usr/local/bin/progress-ik
 
+# Bersihkan unit transient lama bila nyangkut (cegah "Unit hvm-ik.service already exists").
+systemctl stop hvm-ik 2>/dev/null || true
 systemctl reset-failed hvm-ik 2>/dev/null || true
 systemd-run --unit=hvm-ik --collect --setenv=HOME=/root --property=Nice=18 --property=IOWeight=20 \
   /bin/bash -c "/usr/local/bin/hvm-ik-setup >> '$LOG' 2>&1"
