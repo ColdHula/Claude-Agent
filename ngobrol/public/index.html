@@ -224,12 +224,27 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 .tk-item .acts .del:hover{color:var(--bad);border-color:var(--bad)}
 .tk-run{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 1.1s ease-in-out infinite;margin-right:4px}
 .ragbadge{font-size:11px;color:var(--accent2);margin-top:4px}
+/* Fitur ringan: cari, ekspor, salin, stop, ulangi, ganti nama */
+#chatSearch{margin:0 12px 8px;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px}
+#chatSearch:focus{outline:none;border-color:var(--accent)}
+#exportBtn{border:1px solid var(--line);border-radius:10px;padding:8px 11px;color:var(--dim);font-weight:700}
+#exportBtn:hover{border-color:var(--accent);color:var(--ink)}
+.chat .rn{opacity:0;color:var(--dim);padding:2px 5px;border-radius:6px}
+.chat:hover .rn{opacity:1}.chat .rn:hover{color:var(--accent);background:var(--accentdim)}
+#send.stopping{background:linear-gradient(180deg,#ff8a8a,var(--bad));color:#2a0d0d}
+.msg .acts{display:flex;gap:6px;margin-top:7px}
+.msg .acts .act{font-size:11.5px;color:var(--dim);border:1px solid var(--line);border-radius:8px;padding:3px 9px}
+.msg .acts .act:hover{border-color:var(--accent);color:var(--ink)}
+.codewrap{position:relative}
+.codewrap .copycode{position:absolute;top:8px;right:8px;z-index:2;font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:2px 7px;color:var(--dim);opacity:.7}
+.codewrap .copycode:hover{opacity:1;border-color:var(--accent);color:var(--ink)}
 </style>
 </head>
 <body>
 <aside id="side">
   <h1><img src="/icon.svg" width="26" height="26" alt="" style="border-radius:7px"> <b>HvM</b> <i>AI</i></h1>
   <button id="baru">＋ Obrolan baru</button>
+  <input id="chatSearch" placeholder="🔎 Cari obrolan…" autocomplete="off">
   <div id="chats"></div>
   <button id="docsBtn" title="Dokumen yang dibaca AI (RAG)">📚 Dokumen <span id="docsCount"></span></button>
   <button id="tasksBtn" hidden title="Tugas terjadwal: HvM mengerjakan sendiri sesuai jadwal">⏰ Tugas terjadwal</button>
@@ -245,6 +260,7 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
     <select id="model" title="Pilih model"></select>
     <button id="mode" title="Mode coding: jawaban fokus kode yang benar + penjelasan singkat">💻 Coding</button>
     <button id="think" title="Tampilkan proses berpikir AI sebelum menjawab">💭 Berpikir</button>
+    <button id="exportBtn" title="Ekspor obrolan ini ke file Markdown">⬇</button>
     <div id="status"></div>
     <div id="rig" title="Keadaan rig AI (diperbarui tiap beberapa detik)"></div>
   </div>
@@ -451,12 +467,15 @@ async function loadChats(){
   box.innerHTML = "";
   let anyPending = false;
   for (const c of d.chats){
+    if (c.id === chatId) lastShownTitle = c.title;
+    if (chatFilter && !(c.title||"").toLowerCase().includes(chatFilter)) continue;
     if (c.pending) anyPending = true;
     const el = document.createElement("div");
     el.className = "chat" + (c.id === chatId ? " on" : "");
-    el.innerHTML = `<span>${c.pending ? '<span class="dot">●</span>' : '💬'}</span><span class="t">${esc(c.title)}</span><button class="x" title="Hapus">✕</button>`;
-    el.querySelector(".t").onclick = el.firstChild.onclick = () => openChat(c.id);
-    el.onclick = (e) => { if (e.target.classList.contains("x")) return; openChat(c.id); };
+    el.innerHTML = `<span>${c.pending ? '<span class="dot">●</span>' : '💬'}</span><span class="t">${esc(c.title)}</span><button class="rn" title="Ganti nama">✎</button><button class="x" title="Hapus">✕</button>`;
+    el.querySelector(".t").onclick = () => openChat(c.id);
+    el.onclick = (e) => { if (e.target.classList.contains("x")||e.target.classList.contains("rn")) return; openChat(c.id); };
+    el.querySelector(".rn").onclick = (e) => { e.stopPropagation(); renameChat(c.id, c.title); };
     el.querySelector(".x").onclick = async (e) => { e.stopPropagation(); await fetch("/api/chats/"+c.id,{method:"DELETE"}); if (c.id===chatId) newChat(); loadChats(); };
     box.appendChild(el);
   }
@@ -485,7 +504,7 @@ function esc(s){ return String(s).replace(/[&<>]/g, (c)=>({"&":"&amp;","<":"&lt;
 function mdBody(s){ // blok kode ```, inline `code`, **tebal**, *miring*
   const parts = esc(s).split(/```/);
   return parts.map((p,i)=> i%2
-    ? `<pre><code>${p.replace(/^[\w+-]*\n/,"")}</code></pre>`
+    ? `<div class="codewrap"><button class="copycode" title="Salin kode">📋</button><pre><code>${p.replace(/^[\w+-]*\n/,"")}</code></pre></div>`
     : p.replace(/`([^`]+)`/g,"<code>$1</code>")
        .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
        .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,"$1<em>$2</em>")
@@ -515,13 +534,17 @@ function render(){
     updateCtx();
     return;
   }
-  list.innerHTML = messages.filter(m=>m.role!=="system").map((m)=>{
+  lastShown = messages.filter(m=>m.role!=="system");
+  list.innerHTML = lastShown.map((m,i)=>{
     const files = (m.files||[]).map(f=>`<span class="pill">📄 ${esc(f.name)}</span>`).join("");
     const rag = m.rag ? `<div class="ragbadge">📚 memakai dokumen: ${esc(m.rag)}</div>` : "";
-    return `<div class="msg ${m.role==="user"?"user":"bot"}">
+    const isBot = m.role!=="user";
+    const canRegen = isBot && i===lastShown.length-1 && !busy;
+    const acts = (isBot && m.content) ? `<div class="acts"><button class="act" data-act="copy">📋 Salin</button>${canRegen?'<button class="act" data-act="regen">🔄 Ulangi</button>':''}</div>` : "";
+    return `<div class="msg ${m.role==="user"?"user":"bot"}" data-i="${i}">
       <div class="av">${m.role==="user"?"You":"<b>H</b>"}</div>
       <div class="body"><div class="who">${m.role==="user"?"Anda":($("model").value||"model")}</div>
-      <div class="txt">${md(m.content)}</div>${files?`<div class="files">${files}</div>`:""}${rag}</div></div>`;
+      <div class="txt">${md(m.content)}</div>${files?`<div class="files">${files}</div>`:""}${rag}${acts}</div></div>`;
   }).join("");
   $("feed").scrollTop = $("feed").scrollHeight;
   updateCtx();
@@ -554,50 +577,55 @@ addEventListener("drop", async (e)=>{ e.preventDefault(); depth=0; $("drop").sty
 function resize(){ const t=$("ta"); t.style.height="auto"; t.style.height=Math.min(200,t.scrollHeight)+"px"; }
 $("ta").oninput = ()=>{ resize(); updateCtx(); };
 $("ta").onkeydown = (e)=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); } };
-$("send").onclick = send;
+$("send").onclick = ()=>{ if(busy) stopGen(); else send(); };
 
+let genAbort = null;
+function sendMode(mode){ const b=$("send"); if(mode==="stop"){ b.textContent="⏹ Stop"; b.classList.add("stopping"); } else { b.textContent="Kirim"; b.classList.remove("stopping"); } }
+function stopGen(){ if(genAbort) genAbort.abort(); if(chatId) fetch("/api/chats/"+chatId+"/stop",{method:"POST"}).catch(()=>{}); }
 async function send(){
   if (busy) return;
   const text = $("ta").value.trim();
   if (!text && !attached.length) return;
   const model = $("model").value;
-  if (!model || model.startsWith("(")) { alert("Belum ada model. Jalankan: ollama pull qwen3-coder:30b"); return; }
-
-  // Susun isi: lampiran teks ditempel sebelum pesan
+  if (!model || model.startsWith("(")) { alert("Belum ada model yang dimuat."); return; }
   let content = text;
   const fileNotes = attached.filter(a=>a.canRead && a.text).map(a=>`\n\n--- Isi file: ${a.name} ---\n${a.text}`).join("");
   if (fileNotes) content = (text||"Lihat file terlampir.") + fileNotes;
-
   const userMsg = { role:"user", content, files: attached.map(a=>({name:a.name})) };
   messages.push(userMsg);
   attached = []; renderAttached();
   $("ta").value=""; resize(); render();
-
-  // Konteks hampir penuh → padatkan otomatis dulu (ringkas pesan lama, simpan di rig), lalu lanjut.
   if (curWindow && estTokens() >= curWindow*0.9){ await compact(true); render(); }
-
-  busy=true; $("send").disabled=true;
-  const botMsg = { role:"assistant", content:"" };
-  messages.push(botMsg);
+  await generate();
+}
+async function regenerate(){
+  if (busy) return;
+  while (messages.length && messages[messages.length-1].role==="assistant") messages.pop();
+  if (!messages.some(m=>m.role==="user")) return;
   render();
+  await generate();
+}
+async function generate(){
+  const model = $("model").value;
+  busy=true; $("send").disabled=false; sendMode("stop");
+  const botMsg = { role:"assistant", content:"" };
+  messages.push(botMsg); render();
   const txtEl = () => $("list").querySelector(".msg.bot:last-child .txt");
   if (txtEl()) txtEl().classList.add("cursor");
-  // Indikator "sedang berpikir" dengan penghitung detik, sampai token pertama tiba
   const t0 = Date.now();
   const thinkTimer = setInterval(()=>{
     if (botMsg.content){ clearInterval(thinkTimer); return; }
     const el=txtEl(); if(el) el.innerHTML = `<span class="think-wait">💭 HvM sedang berpikir… ${Math.round((Date.now()-t0)/1000)}s</span>`;
   }, 500);
-
+  genAbort = new AbortController();
   try{
-    // Bangun payload: buang system lama & assistant kosong; prepend system coding/berpikir bila aktif
     let payload = messages.filter(m => m.role !== "system" && !(m.role==="assistant" && !m.content))
       .map(({role,content}) => ({role,content}));
     const sys = [];
     if (codeMode) sys.push(SYS_CODE);
     if (thinkMode) sys.push(SYS_THINK);
     if (sys.length) payload = [{ role:"system", content: sys.join("\n\n") }, ...payload];
-    const res = await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},
+    const res = await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},signal:genAbort.signal,
       body:JSON.stringify({ model, id:chatId, messages:payload })});
     if (!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error||("HTTP "+res.status)); }
     chatId = res.headers.get("x-chat-id") || chatId;
@@ -611,12 +639,11 @@ async function send(){
         if(!line.trim())continue; try{ const o=JSON.parse(line); botMsg.content += o.message?.content||""; }catch{} }
       const el=txtEl(); if(el){ el.innerHTML=md(botMsg.content); } $("feed").scrollTop=$("feed").scrollHeight; updateCtx();
     }
-  }catch(err){ botMsg.content += `\n\n⚠️ ${err.message}`; }
+  }catch(err){ if(err && err.name==="AbortError"){ if(!botMsg.content) botMsg.content="_⏹ dihentikan._"; } else botMsg.content += `\n\n⚠️ ${err.message}`; }
   clearInterval(thinkTimer);
-  const el=txtEl(); if(el){ el.classList.remove("cursor"); el.innerHTML=md(botMsg.content); }
-  busy=false; $("send").disabled=false; loadChats(); $("ta").focus();
+  busy=false; genAbort=null; sendMode("send"); $("send").disabled=false;
+  render(); loadChats(); $("ta").focus();
 }
-
 // --- Dokumen (RAG) ---
 async function loadDocs(){
   const d = await api("/api/pengetahuan").catch(()=>({docs:[]}));
@@ -841,6 +868,44 @@ $("presetBtn").onclick=async()=>{
 $("tasksBtn").onclick=async()=>{ if(!canTask){ alert("Masuk sebagai Pemilik dulu (◆ Pemilik)."); return; } $("tasksModal").hidden=false; taskFormReset(); await loadTasks(); };
 $("tasksX").onclick=()=> $("tasksModal").hidden=true;
 $("tasksModal").onclick=(e)=>{ if(e.target.id==="tasksModal") $("tasksModal").hidden=true; };
+
+// ====== Fitur ringan: salin, cari, ekspor, ganti nama ======
+let lastShown = [];
+async function copyText(t, btn, label){
+  try{ await navigator.clipboard.writeText(t); }
+  catch{ const ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch{} ta.remove(); }
+  if(btn){ const o=btn.innerHTML; btn.innerHTML="✓"; setTimeout(()=>btn.innerHTML=label||o,1200); }
+}
+$("list").addEventListener("click",(e)=>{
+  const cc=e.target.closest(".copycode");
+  if(cc){ const code=cc.parentElement.querySelector("code"); if(code) copyText(code.textContent,cc,"📋"); return; }
+  const a=e.target.closest(".act"); if(!a) return;
+  const i=+a.closest(".msg").dataset.i;
+  if(a.dataset.act==="copy") copyText((lastShown[i]||{}).content||"", a, "📋 Salin");
+  else if(a.dataset.act==="regen") regenerate();
+});
+// Cari obrolan (saring daftar, nol beban server)
+let chatFilter="";
+$("chatSearch").oninput = (e)=>{ chatFilter=e.target.value.toLowerCase().trim(); loadChats(); };
+// Ekspor obrolan terbuka ke Markdown
+$("exportBtn").onclick = ()=>{
+  const ms = messages.filter(m=>m.role!=="system");
+  if(!ms.length){ alert("Belum ada percakapan untuk diekspor."); return; }
+  const title = (lastShownTitle || "HvM AI");
+  let md = `# ${title}\n\n_Diekspor dari HvM AI — ${new Date().toLocaleString("id")}_\n\n`;
+  for(const m of ms){ md += (m.role==="user"?"## 🧑 Anda\n\n":"## 🤖 HvM\n\n") + (m.content||"") + "\n\n"; }
+  const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});
+  const url=URL.createObjectURL(blob); const a=document.createElement("a");
+  a.href=url; a.download=(title.replace(/[^\w\- ]+/g,"_").slice(0,50)||"chat")+".md";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+};
+let lastShownTitle="";
+async function renameChat(id, curTitle){
+  const t = prompt("Nama baru untuk obrolan ini:", curTitle||"");
+  if(t==null) return; const title=t.trim(); if(!title) return;
+  await fetch("/api/chats/"+id+"/rename",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({title})});
+  loadChats();
+}
 
 if (!WHO) askName();
 syncMode(); loadModels(); loadChats(); loadDocs(); checkOwner(); render(); startStats();

@@ -225,6 +225,7 @@ function ownerOk(req) {
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
+const inflight = new Map(); // id chat → AbortController (untuk tombol Berhenti)
 let devices = {};
 try { devices = JSON.parse(await fs.readFile(DEVICES, "utf8")); } catch {}
 const saveDevices = () => fs.writeFile(DEVICES, JSON.stringify(devices)).catch(() => {});
@@ -314,11 +315,11 @@ async function backendModels() {
   const d = await r.json();
   return (d.models || []).map((m) => m.name);
 }
-function openChat(model, messages) {
+function openChat(model, messages, signal) {
   if (BACKEND === "openai") {
     // llama-server (ik_llama) terima parameter OpenAI + repeat_penalty/top_k lewat body.
     return fetch(`${LLM_URL}/v1/chat/completions`, {
-      method: "POST", headers: { "content-type": "application/json" },
+      method: "POST", headers: { "content-type": "application/json" }, signal,
       body: JSON.stringify({ model, messages, stream: true,
         temperature: SAMP.temperature, top_p: SAMP.top_p, top_k: SAMP.top_k,
         repeat_penalty: SAMP.repeat_penalty, repeat_last_n: SAMP.repeat_last_n,
@@ -326,7 +327,7 @@ function openChat(model, messages) {
     });
   }
   return fetch(`${LLM_URL}/api/chat`, {
-    method: "POST", headers: { "content-type": "application/json" },
+    method: "POST", headers: { "content-type": "application/json" }, signal,
     body: JSON.stringify({ model, messages, stream: true, options: {
       num_ctx: NUM_CTX, temperature: SAMP.temperature, top_p: SAMP.top_p, top_k: SAMP.top_k,
       repeat_penalty: SAMP.repeat_penalty, repeat_last_n: SAMP.repeat_last_n, frequency_penalty: SAMP.frequency_penalty } }),
@@ -767,6 +768,22 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true });
       }
     }
+    // Hentikan generasi yang sedang berjalan untuk sebuah chat
+    const stopM = url.pathname.match(/^\/api\/chats\/([a-z0-9]{6,32})\/stop$/);
+    if (stopM && req.method === "POST") { inflight.get(stopM[1])?.abort(); return json(res, 200, { ok: true }); }
+    // Ganti nama (judul) chat
+    const renM = url.pathname.match(/^\/api\/chats\/([a-z0-9]{6,32})\/rename$/);
+    if (renM && req.method === "POST") {
+      const c = await fs.readFile(chatPath(renM[1]), "utf8").then(JSON.parse).catch(() => null);
+      if (!c) return json(res, 404, { error: "tidak ada" });
+      const { cid } = clientOf(req);
+      if (c.client && cid && c.client !== cid && !ownerOk(req)) return json(res, 403, { error: "Bukan chat Anda." });
+      const { title } = await readBody(req).catch(() => ({}));
+      c.title = String(title || "").trim().slice(0, 80) || c.title;
+      c.renamed = true;
+      await fs.writeFile(chatPath(c.id), JSON.stringify(c));
+      return json(res, 200, { ok: true, title: c.title });
+    }
 
     // Unggah file (disimpan aman di data/berkas/<id>/)
     if (url.pathname === "/api/upload" && req.method === "POST") {
@@ -891,10 +908,14 @@ const server = http.createServer(async (req, res) => {
         } catch {}
       }
 
+      const ac = new AbortController();
+      inflight.get(id)?.abort();           // batalkan generasi lama untuk chat yang sama
+      inflight.set(id, ac);
       let upstream;
       try {
-        upstream = await openChat(model, withPersona(messages));
+        upstream = await openChat(model, withPersona(messages), ac.signal);
       } catch {
+        inflight.delete(id);
         return json(res, 502, { error: `Tidak bisa menghubungi mesin LLM di ${LLM_URL}.` });
       }
       if (!upstream.ok || !upstream.body) {
@@ -907,9 +928,11 @@ const server = http.createServer(async (req, res) => {
       let full = "";
       let alive = true;                       // true selama browser masih terhubung
       res.on("close", () => { alive = false; }); // tab ditutup -> berhenti menulis, TAPI terus proses
-      const title = String(messages.find((m) => m.role === "user")?.content || "Percakapan").replace(/\s+/g, " ").slice(0, 60);
+      const prior = await fs.readFile(chatPath(id), "utf8").then(JSON.parse).catch(() => null);
+      const title = prior?.renamed ? prior.title
+        : String(messages.find((m) => m.role === "user")?.content || "Percakapan").replace(/\s+/g, " ").slice(0, 60);
       const persist = (pending) => saveChat({
-        id, model, title, messages: [...messages, { role: "assistant", content: full }],
+        id, model, title, renamed: prior?.renamed || false, messages: [...messages, { role: "assistant", content: full }],
         client: who.cid, who: who.who, device: who.device, ip: who.ip, pending,
       }).catch(() => {});
       await persist(true);                    // langsung muncul di riwayat, ditandai "sedang diproses"
@@ -924,9 +947,9 @@ const server = http.createServer(async (req, res) => {
           if (Date.now() - lastSave > 1500) { lastSave = Date.now(); persist(true); } // simpan progres berkala
         }
       } catch (e) {
-        const m = `\n\n⚠️ ${e?.message || e}`;
-        full += m; emit(m);
-      }
+        if (e?.name !== "AbortError") { const m = `\n\n⚠️ ${e?.message || e}`; full += m; emit(m); }
+        else { full += "\n\n_⏹ dihentikan._"; }
+      } finally { if (inflight.get(id) === ac) inflight.delete(id); }
       try { if (alive) res.end(); } catch {}
       await persist(false);                   // selesai: simpan final, hapus tanda "sedang diproses"
       return;
