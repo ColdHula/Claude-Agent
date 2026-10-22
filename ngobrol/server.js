@@ -32,7 +32,7 @@ const CHUNK = 1100, OVERLAP = 180;
 // Batas jendela konteks (token) yang diminta ke Ollama. Model Qwen3 mengiklankan 256K,
 // tapi di CPU + RAM 16 GB itu memboroskan memori & memperlambat. 4096 paling sehat untuk
 // 16 GB (KV cache kecil, token pertama cepat). Naikkan lewat HVM_NUM_CTX bila punya SSD/RAM lebih.
-const NUM_CTX = Number(process.env.HVM_NUM_CTX || process.env.NUM_CTX || 4096);
+const NUM_CTX = Number(process.env.HVM_NUM_CTX || process.env.NUM_CTX || 8192);
 // Parameter sampling (cegah jawaban mengulang-ulang, mis. "juga juga juga…"). Qwen3 non-thinking:
 // temp 0.7, top_p 0.8, top_k 20; repeat_penalty 1.1 + presence_penalty untuk meredam loop.
 const SAMP = {

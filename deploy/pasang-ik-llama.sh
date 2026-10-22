@@ -23,11 +23,12 @@ MODEL_URL="${MODEL_URL-https://huggingface.co/mradermacher/Huihui-Qwen3-Coder-30
 IK_DIR="${IK_DIR:-/home/user/ik_llama.cpp}"
 MODELS_DIR="${MODELS_DIR:-/home/user/models}"
 PORT_IK="${PORT_IK:-11435}"
-CTX="${CTX:-4096}"
+CTX="${CTX:-8192}"
 THREADS="${THREADS:-6}"
 APP_DIR="${APP_DIR:-/home/user/kantor-pga}"
 # Flag kinerja ik_llama (CPU): flash-attn, fused-MoE, batch prompt -ub 512 (hemat RAM; 2048 makan
-# ±0.5-1 GB lebih — penting bila rig juga menjalankan bot), --no-mmap = model residen penuh di RAM
+# ±0.5-1 GB lebih — penting bila rig juga menjalankan bot), -ctk/-ctv q8_0 = KV cache dikompres
+# (agar konteks 8192 pakai RAM ~sama dgn 4096 f16), --no-mmap = model residen penuh di RAM
 # (wajib di HDD), alias nama model 'hvm-qwen3-coder'. Bawaan "auto": tiap flag DIUJI langsung ke
 # binary, yang ditolak dilewati. Paksa manual: IK_FLAGS="-c 4096 -t 6 -fa on --no-mmap".
 IK_FLAGS="${IK_FLAGS:-auto}"
@@ -81,7 +82,7 @@ FL="${IK_FLAGS}"
 if [ "\$FL" = "auto" ]; then
   FL="-c ${CTX} -t ${THREADS}"
   if flag_ok "\$FL -fa on"; then FL="\$FL -fa on"; elif flag_ok "\$FL -fa"; then FL="\$FL -fa"; fi
-  for opt in "-fmoe" "-ub 512" "--no-mmap" "--repeat-penalty 1.1" "--repeat-last-n 320" "-a hvm-qwen3-coder"; do
+  for opt in "-fmoe" "-ub 512" "--no-mmap" "-ctk q8_0" "-ctv q8_0" "--repeat-penalty 1.1" "--repeat-last-n 320" "-a hvm-qwen3-coder"; do
     if flag_ok "\$FL \$opt"; then FL="\$FL \$opt"; else echo "  (flag ditolak, dilewati: \$opt)"; fi
   done
 fi
