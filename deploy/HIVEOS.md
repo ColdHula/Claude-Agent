@@ -233,6 +233,11 @@ Perintah harian:
 > Catatan: kualitas model lokal 7B–30B jauh di bawah Claude untuk tugas rumit. Pakai untuk
 > chat ringan, coding kecil, dan latihan. Untuk dokumen PGA yang ditandatangani, tetap Kantor PGA.
 
+## Bonus: Aira, pendamping 3D (aplikasi terpisah)
+
+Pendamping 3D realistis dengan memori, kepribadian, mode bicara langsung, dan Mode Premium di GPU.
+Terisolasi dari Kantor PGA & HvM AI. Tutorial: **[AIRA.md](AIRA.md)**.
+
 ## Pembaruan otomatis
 
 - Timer `kantor-pga-perbarui` memeriksa GitHub tiap 5 menit. Bila ada commit baru di branch

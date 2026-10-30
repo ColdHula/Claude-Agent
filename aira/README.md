@@ -32,6 +32,10 @@ Obrolan biasa ±$0,02/pesan; pesan dengan pencarian web ±$0,05–0,15.
 
 ## Pasang di rig (disarankan)
 
+📘 **Tutorial langkah demi langkah (HiveOS): [deploy/AIRA.md](../deploy/AIRA.md)**, termasuk Mode Premium dan
+tanya-jawab soal LLM/RAM.
+
+
 ```bash
 cd ~/kantor-pga && git pull
 npx -y @anthropic-ai/claude-code setup-token      # sekali; salin tokennya

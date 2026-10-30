@@ -129,7 +129,7 @@ Salin `.env.example` menjadi `.env` bila ingin mengubah bawaan:
 Folder [`aira/`](aira/README.md) berisi pendamping 3D realistis yang bisa diajak ngobrol atau **bicara langsung sambil
 bertatapan** (kamera + mikrofon), punya **memori** dan **kepribadian yang berubah**, bisa mencari info di internet dan
 menyimpan hasil kerja sebagai berkas. Ia **terisolasi**: tidak bisa membaca file rig, menjalankan perintah, atau
-mengakses jaringan lokal (Kantor PGA, Ollama, HvM AI). Pasang: `sudo bash deploy/pasang-aira.sh` → `https://<rig>.ts.net:10000`.
+mengakses jaringan lokal (Kantor PGA, Ollama, HvM AI). Tutorial pasang: [deploy/AIRA.md](deploy/AIRA.md) → `https://<rig>.ts.net:10000`.
 
 ## Pasang di rig HiveOS (bisa dibuka dari HP/laptop mana saja)
 

@@ -2,7 +2,8 @@
 # Mode Premium Aira: wajah foto-realistis yang bicara (Ditto) + suara neural Indonesia, di GPU NVIDIA rig.
 # Jalankan SETELAH deploy/pasang-aira.sh.
 #
-#   sudo bash deploy/pasang-ditto.sh
+#   curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/loving-franklin-gzzt22/deploy/pasang-ditto.sh | sudo bash
+#   (atau dari repo: sudo bash deploy/pasang-ditto.sh)
 #   (opsional) AIRA_GPU=1 AIRA_SUARA=id-ID-GadisNeural DITTO_STEPS=25 sudo -E bash deploy/pasang-ditto.sh
 #
 # Yang dipasang:
@@ -28,7 +29,10 @@ die() { printf '\n\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 [ "$(id -u)" = "0" ] || die "Jalankan dengan sudo."
 command -v nvidia-smi >/dev/null 2>&1 || die "nvidia-smi tidak ada. Driver NVIDIA belum terpasang?"
 id aira >/dev/null 2>&1 || die "Pasang Aira dulu: sudo bash deploy/pasang-aira.sh"
-[ -f "$APP_DIR/aira/ditto/layanan.py" ] || die "Repo belum terbaru (aira/ditto/layanan.py tidak ada). git pull dulu."
+[ -f "$APP_DIR/aira/ditto/layanan.py" ] || APP_DIR="/home/${APP_USER}/aira-src"   # kode dari pasang-aira.sh
+[ -f "$APP_DIR/aira/ditto/layanan.py" ] || die "Kode Aira tidak ditemukan. Jalankan pasang-aira.sh dulu (ia mengambil kodenya)."
+FREE_GB="$(df -BG --output=avail /opt | tail -1 | tr -dc 0-9)"
+[ "${FREE_GB:-0}" -ge 15 ] || die "Sisa disk di /opt hanya ${FREE_GB} GB. Mode Premium butuh ±15 GB (PyTorch, TensorRT, model Ditto)."
 
 say "GPU yang terdeteksi:"
 nvidia-smi --query-gpu=index,name,memory.total,memory.used,compute_cap --format=csv,noheader

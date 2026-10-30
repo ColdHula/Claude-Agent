@@ -7,7 +7,8 @@
 #    maupun ke LAN/Tailscale; hanya internet publik (Claude, pencarian web, halaman publik)
 #  - dibuka lewat Tailscale HTTPS di port 10000, berpassword sendiri
 #
-#   sudo bash deploy/pasang-aira.sh
+#   curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/loving-franklin-gzzt22/deploy/pasang-aira.sh | sudo bash
+#   (atau dari repo: sudo bash deploy/pasang-aira.sh)
 #   (opsional) AIRA_OAUTH_TOKEN=... AIRA_PASSWORD=... AIRA_NAMA=Aira AIRA_PENGGUNA=Rahula sudo -E bash deploy/pasang-aira.sh
 #
 # Jalankan ulang kapan saja untuk memperbarui kode (data, memori, dan model tetap).
@@ -25,7 +26,25 @@ say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 warn() { printf '\033[33m%s\033[0m\n' "$*"; }
 die() { printf '\n\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 [ "$(id -u)" = "0" ] || die "Jalankan dengan sudo."
-[ -d "$APP_DIR/aira" ] || die "Folder $APP_DIR/aira tidak ada. Perbarui repo dulu (git pull) atau set APP_DIR=..."
+id "$APP_USER" >/dev/null 2>&1 || die "Pengguna '$APP_USER' tidak ada. Jalankan ulang dengan APP_USER=<nama> di depan sudo."
+# Kode Aira: pakai folder aira/ di repo Kantor PGA bila sudah ada; bila belum (branch rig belum memuatnya),
+# ambil branch Aira ke ~/aira-src. Menjalankan ulang skrip ini = memperbarui kode (data tetap).
+AIRA_REPO="${AIRA_REPO:-https://github.com/ColdHula/Claude-Agent.git}"
+AIRA_BRANCH="${AIRA_BRANCH:-claude/loving-franklin-gzzt22}"
+KANTOR_ENV="/home/${APP_USER}/kantor-pga/.env"
+if [ ! -d "$APP_DIR/aira" ]; then
+  SRC="/home/${APP_USER}/aira-src"
+  command -v git >/dev/null 2>&1 || apt-get install -y -qq git >/dev/null
+  if [ -d "$SRC/.git" ]; then
+    sudo -u "$APP_USER" git -C "$SRC" fetch -q origin "$AIRA_BRANCH" && sudo -u "$APP_USER" git -C "$SRC" checkout -q "$AIRA_BRANCH" \
+      && sudo -u "$APP_USER" git -C "$SRC" reset -q --hard "origin/$AIRA_BRANCH"
+  else
+    sudo -u "$APP_USER" git clone -q -b "$AIRA_BRANCH" "$AIRA_REPO" "$SRC"
+  fi
+  APP_DIR="$SRC"
+  echo "Kode Aira diambil dari branch $AIRA_BRANCH ke $SRC"
+fi
+[ -d "$APP_DIR/aira" ] || die "Kode Aira tidak ditemukan di $APP_DIR/aira."
 NODE="$(command -v node || true)"
 [ -n "$NODE" ] || die "Node.js belum ada. Pasang Kantor PGA dulu (deploy/pasang-hiveos.sh)."
 [ "$("$NODE" -p 'process.versions.node.split(".")[0]')" -ge 22 ] || die "Butuh Node.js 22+."
@@ -60,10 +79,12 @@ if [ -z "$PW" ]; then
   say "Kata sandi Aira dibuatkan (TERPISAH dari Kantor PGA & HvM AI):"; printf '    \033[1m%s\033[0m\n' "$PW"
 fi
 TOKEN="${AIRA_OAUTH_TOKEN:-$(get CLAUDE_CODE_OAUTH_TOKEN)}"
-if [ -z "$TOKEN" ] && [ -f "$APP_DIR/.env" ]; then
-  TOKEN="$(grep -E '^CLAUDE_CODE_OAUTH_TOKEN=' "$APP_DIR/.env" | head -1 | cut -d= -f2- || true)"
-  [ -n "$TOKEN" ] && say "Memakai CLAUDE_CODE_OAUTH_TOKEN dari .env Kantor PGA."
-fi
+for f in "$APP_DIR/.env" "$KANTOR_ENV"; do
+  if [ -z "$TOKEN" ] && [ -f "$f" ]; then
+    TOKEN="$(grep -E '^CLAUDE_CODE_OAUTH_TOKEN=' "$f" | head -1 | cut -d= -f2- || true)"
+    [ -n "$TOKEN" ] && say "Memakai CLAUDE_CODE_OAUTH_TOKEN dari $f (token yang sama dengan Kantor PGA)."
+  fi
+done
 if [ -z "$TOKEN" ]; then
   warn "Token Claude belum ada. Aira akan menyala dalam MODE DEMO (avatar & suara jalan, jawaban contoh)."
   warn "Buat token sekali (berlaku ±1 tahun):  npx -y @anthropic-ai/claude-code setup-token"
