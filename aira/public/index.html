@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Aira</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#140f1c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+:root{--bg:#140f1c;--panel:rgba(28,20,38,.82);--line:rgba(255,255,255,.1);--ink:#f7f1fa;--dim:#b7a9c4;--pink:#ff8fb1;--violet:#b48cff;--ok:#7ee2a8;--bad:#ff7b7b;--r:18px}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+#latar{position:fixed;inset:0;background:radial-gradient(1200px 800px at 50% 30%,#3a2350 0%,#22162f 45%,#140f1c 80%)}
+#latar::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 70%,rgba(255,143,177,.12),transparent 30%),radial-gradient(circle at 80% 25%,rgba(180,140,255,.14),transparent 35%)}
+#kanvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.bar{position:fixed;left:0;right:0;display:flex;align-items:center;gap:8px;padding:10px max(12px,env(safe-area-inset-right)) 10px max(12px,env(safe-area-inset-left));z-index:5}
+#atas{top:0;padding-top:max(10px,env(safe-area-inset-top))}
+.nama{font-weight:800;font-size:18px;letter-spacing:.3px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);white-space:nowrap}
+.hati{width:64px;height:6px;background:rgba(255,255,255,.12);border-radius:9px;overflow:hidden}.hati i{display:block;height:100%;background:linear-gradient(90deg,var(--pink),var(--violet))}
+.isi{flex:1}
+.ikon{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;font-size:18px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.ikon.on{background:linear-gradient(180deg,#ff9ec0,#e86f98);border-color:transparent;color:#2a0f1a}
+#menu{display:flex;gap:6px}
+#status{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:5;display:none}
+#subjudul{position:fixed;left:50%;transform:translateX(-50%);bottom:150px;width:min(680px,calc(100% - 32px));z-index:4;text-align:center;pointer-events:none}
+#subjudul span{display:inline;background:rgba(20,15,28,.72);box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:4px 10px;border-radius:10px;font-size:17px;line-height:1.75;backdrop-filter:blur(6px)}
+#subjudul.kamu span{color:var(--dim);font-style:italic}
+#bawah{bottom:0;padding-bottom:max(12px,env(safe-area-inset-bottom));flex-direction:column;align-items:stretch}
+#alat{min-height:22px;text-align:center;font-size:13px;color:var(--dim)}
+form#kirim{display:flex;gap:8px;align-items:flex-end;width:min(760px,100%);margin:0 auto}
+textarea{flex:1;resize:none;max-height:140px;min-height:46px;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:11px 14px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+textarea:focus{outline:none;border-color:var(--pink)}
+.besar{width:46px;height:46px;border-radius:14px;border:0;font-size:19px;background:linear-gradient(180deg,#ff9ec0,#e86f98);color:#2a0f1a;flex:none}
+.besar.abu{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+#live{position:fixed;inset:0;z-index:6;display:none;pointer-events:none}
+#live.on{display:block}
+#live .bawah{position:absolute;left:0;right:0;bottom:max(24px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:auto}
+#orb{width:84px;height:84px;border-radius:50%;border:0;background:radial-gradient(circle at 35% 30%,#ffc2d6,#e86f98 60%,#9b4d7a);box-shadow:0 0 0 0 rgba(255,143,177,.6);font-size:30px;color:#2a0f1a}
+#orb.dengar{animation:denyut 1.4s infinite}
+#orb.pikir{background:radial-gradient(circle at 35% 30%,#e3d4ff,#9a74e8 60%,#5d3fa3)}
+#orb.bicara{background:radial-gradient(circle at 35% 30%,#c9ffe3,#53c48b 60%,#2a7a55)}
+@keyframes denyut{0%{box-shadow:0 0 0 0 rgba(255,143,177,.55)}70%{box-shadow:0 0 0 22px rgba(255,143,177,0)}100%{box-shadow:0 0 0 0 rgba(255,143,177,0)}}
+#liveInfo{font-size:14px;color:var(--dim);text-align:center;min-height:21px;padding:0 16px}
+body.mode-live #bawah,body.mode-live #subjudul.kamu{display:none}
+body.mode-live #subjudul{bottom:170px}
+#pip{position:fixed;right:12px;top:68px;width:96px;height:72px;border-radius:12px;object-fit:cover;transform:scaleX(-1);border:1px solid var(--line);z-index:5;display:none;background:#000}
+#pip.on{display:block}
+/* Laci */
+#laci{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:rgba(22,16,30,.96);border-left:1px solid var(--line);z-index:10;transform:translateX(102%);transition:transform .25s ease;display:flex;flex-direction:column;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+#laci.on{transform:none}
+#laci header{display:flex;align-items:center;gap:8px;padding:max(12px,env(safe-area-inset-top)) 14px 10px;border-bottom:1px solid var(--line)}
+#laci header h2{margin:0;font-size:17px;flex:1}
+.tab{display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab button{background:none;border:1px solid transparent;border-radius:10px;padding:6px 10px;white-space:nowrap;color:var(--dim)}
+.tab button.on{background:rgba(255,143,177,.14);border-color:rgba(255,143,177,.35);color:var(--ink)}
+#laciIsi{flex:1;overflow:auto;padding:14px;padding-bottom:max(14px,env(safe-area-inset-bottom))}
+.kartu{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.kartu h3{margin:0 0 8px;font-size:14px;color:var(--pink)}
+.baris{display:flex;align-items:center;gap:8px;margin:6px 0}
+.baris label{flex:0 0 130px;font-size:13px;color:var(--dim)}
+.meter{flex:1;height:8px;background:rgba(255,255,255,.1);border-radius:9px;overflow:hidden}.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--pink),var(--violet))}
+.angka{width:30px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+.kecil{font-size:12.5px;color:var(--dim)}
+.tombol{border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:10px;padding:7px 12px;font-size:13.5px}
+.tombol.utama{background:linear-gradient(180deg,#ff9ec0,#e86f98);color:#2a0f1a;border:0;font-weight:700}
+.tombol.bahaya{color:var(--bad)}
+select,input[type=text],input[type=range]{width:100%;font:inherit;color:var(--ink);background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:10px;padding:8px}
+input[type=range]{padding:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.model{border:2px solid var(--line);border-radius:12px;background:rgba(0,0,0,.25);padding:6px;text-align:center;font-size:12px}
+.model img{width:100%;aspect-ratio:3/4;object-fit:cover;object-position:50% 12%;border-radius:8px;background:#fff1}
+.model.on{border-color:var(--pink)}
+.model.baju{border-style:dashed}
+.model.baju.on{border-color:var(--violet);border-style:solid}
+.pesan{margin:8px 0;padding:9px 12px;border-radius:14px;max-width:92%;word-wrap:break-word}
+.pesan.aku{background:rgba(255,143,177,.16);margin-left:auto;border-bottom-right-radius:4px}
+.pesan.dia{background:rgba(255,255,255,.06);border-bottom-left-radius:4px}
+.pesan pre{background:#0008;padding:8px;border-radius:8px;overflow:auto;font-size:12.5px}
+.pesan code{background:#0006;padding:1px 4px;border-radius:4px;font-size:13px}
+.pesan a{color:#ffb3cb}
+.pesan p{margin:.3em 0}
+.mem{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.mem span{flex:1;font-size:13.5px}
+.mem button{background:none;border:0;color:var(--dim)}
+#toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:rgba(20,15,28,.92);border:1px solid var(--line);padding:8px 14px;border-radius:12px;z-index:20;font-size:14px;display:none;max-width:90%}
+#muat{position:fixed;inset:0;display:grid;place-items:center;z-index:3;pointer-events:none;color:var(--dim)}
+@media (max-width:560px){.chip.mood{display:none}#menu .opsional{display:none}.nama{font-size:16px}}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"/vendor/three/build/three.module.js",
+  "three/addons/":"/vendor/three/examples/jsm/",
+  "@pixiv/three-vrm":"/vendor/three-vrm/three-vrm.module.min.js"
+}}
+</script>
+</head>
+<body>
+<div id="latar"></div>
+<canvas id="kanvas" aria-label="Avatar 3D"></canvas>
+<div id="muat">Memuat avatar…</div>
+<video id="pip" playsinline muted></video>
+
+<div class="bar" id="atas">
+  <span class="nama" id="nama">Aira</span>
+  <span class="chip" title="Kedekatan"><span>💗</span><span class="hati"><i id="hatiBar" style="width:50%"></i></span><span id="tahap" class="kecil"></span></span>
+  <span class="chip mood" id="mood">😊 ceria</span>
+  <span class="isi"></span>
+  <div id="menu">
+    <button class="ikon" id="bKamera" title="Kontak mata (kamera)">📷</button>
+    <button class="ikon" id="bSuara" title="Suara Aira">🔊</button>
+    <button class="ikon opsional" id="bJarak" title="Dekat / setengah badan">🔍</button>
+    <button class="ikon" id="bLaci" title="Menu">☰</button>
+  </div>
+</div>
+<div class="chip" id="status"></div>
+
+<div id="subjudul"><span id="subTeks"></span></div>
+
+<div class="bar" id="bawah">
+  <div id="alat"></div>
+  <form id="kirim" autocomplete="off">
+    <button type="button" class="besar abu" id="bLive" title="Bicara langsung (tatap muka)">🎙</button>
+    <textarea id="masuk" rows="1" placeholder="Ketik pesan… (Enter kirim, Shift+Enter baris baru)"></textarea>
+    <button class="besar" id="bKirim" title="Kirim">➤</button>
+  </form>
+</div>
+
+<div id="live">
+  <div class="bawah">
+    <div id="liveInfo">Ketuk bola untuk mulai bicara</div>
+    <button id="orb" title="Bicara / sela">🎙</button>
+    <button class="tombol" id="bKeluarLive">Keluar dari mode Live</button>
+  </div>
+</div>
+
+<aside id="laci" aria-label="Menu">
+  <header><h2 id="laciJudul">Menu</h2><button class="ikon" id="bTutup">✕</button></header>
+  <nav class="tab" id="tab">
+    <button data-t="chat">💬 Obrolan</button>
+    <button data-t="lemari">👗 Lemari</button>
+    <button data-t="suara">🎤 Suara</button>
+    <button data-t="hati">💗 Hati</button>
+    <button data-t="memori">🧠 Memori</button>
+    <button data-t="berkas">📁 Berkas</button>
+    <button data-t="atur">⚙️</button>
+  </nav>
+  <div id="laciIsi"></div>
+</aside>
+<div id="toast"></div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

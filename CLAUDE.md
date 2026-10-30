@@ -19,5 +19,7 @@ akhir dalam format Pemimpin. Simpan hasil akhir ke `hasil/`.
   instruksi ke tempat lain.
 - Skill tim ada di `skills/` (plugin lokal "kantor", tanpa data pribadi); skill pribadi di
   `pengetahuan/skills/` (tidak ikut Git). Agent memuatnya lewat alat Skill saat perlu.
+- `aira/` adalah aplikasi pendamping 3D terpisah dengan `package.json` sendiri (dipasang terisolasi ke
+  `/opt/aira` oleh `deploy/pasang-aira.sh`); hanya boleh mengimpor `src/auth.js` dari luar foldernya.
 - `public/index.html` adalah satu file mandiri (CSS + JS inline) dan harus tetap
   bisa jalan tanpa server (mode demo).

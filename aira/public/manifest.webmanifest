@@ -1,0 +1,12 @@
+{
+  "name": "Aira",
+  "short_name": "Aira",
+  "id": "/",
+  "description": "Pendamping 3D dengan memori, kepribadian, dan mode bicara langsung.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#140f1c",
+  "theme_color": "#140f1c",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

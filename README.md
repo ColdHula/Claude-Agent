@@ -124,6 +124,13 @@ Salin `.env.example` menjadi `.env` bila ingin mengubah bawaan:
 | `ENGINE` | `langganan` | Isi `api` untuk memakai `ANTHROPIC_API_KEY` berbayar (opsional) |
 | `PORT` / `HOST` | `3000` / `127.0.0.1` | Alamat server |
 
+## 💗 Aira — pendamping 3D (aplikasi terpisah)
+
+Folder [`aira/`](aira/README.md) berisi pendamping 3D realistis yang bisa diajak ngobrol atau **bicara langsung sambil
+bertatapan** (kamera + mikrofon), punya **memori** dan **kepribadian yang berubah**, bisa mencari info di internet dan
+menyimpan hasil kerja sebagai berkas. Ia **terisolasi**: tidak bisa membaca file rig, menjalankan perintah, atau
+mengakses jaringan lokal (Kantor PGA, Ollama, HvM AI). Pasang: `sudo bash deploy/pasang-aira.sh` → `https://<rig>.ts.net:10000`.
+
 ## Pasang di rig HiveOS (bisa dibuka dari HP/laptop mana saja)
 
 Ikuti tutorial langkah demi langkah di [deploy/HIVEOS.md](deploy/HIVEOS.md): satu perintah memasang aplikasi sebagai

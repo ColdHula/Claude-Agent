@@ -1,0 +1,22 @@
+{
+  "name": "aira",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aira — pendamping 3D (VRM) dengan memori, kepribadian dinamis, akses web, dan mode bicara langsung. Terpisah dari Kantor PGA.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "demo": "AIRA_DEMO=1 node server.js",
+    "check": "node --check server.js && node --check otak.js && node --check memori.js && node --check jaring.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.293",
+    "@mediapipe/tasks-vision": "0.10.14",
+    "@pixiv/three-vrm": "3.4.2",
+    "three": "0.177.0",
+    "zod": "4.6.5"
+  }
+}

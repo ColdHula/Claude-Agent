@@ -8,3 +8,6 @@ pengetahuan/*
 
 # Data chat lokal (tidak ikut Git)
 ngobrol/data/
+
+# Data Aira (memori, riwayat, model 3D) — tidak ikut Git
+aira/data/
