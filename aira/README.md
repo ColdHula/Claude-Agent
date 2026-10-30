@@ -52,7 +52,13 @@ Buka http://127.0.0.1:3002.
 2. Unduh resolusi penuh (≥ 1024 px; seluruh badan ≥ 1600 px tinggi agar wajah tetap tajam saat di-zoom).
 3. 👗 Lemari → unggah foto, isi **Karakter** (mis. "Aira"). Unggah foto orang yang sama dengan baju lain dengan Karakter yang sama → bisa ganti baju (juga oleh Aira sendiri).
 
-Jangan memakai foto orang sungguhan tanpa izinnya. Foto dianalisis di browser (MediaPipe); titik wajah disimpan di browser.
+Jangan memakai foto orang sungguhan tanpa izinnya.
+
+**Peningkatan berikutnya (opsional, butuh GPU NVIDIA):** model talking-head neural seperti
+[Ditto](https://github.com/antgroup/ditto-talkinghead) (Apache-2.0, real-time dengan TensorRT),
+[MuseTalk](https://github.com/TMElyralab/MuseTalk) (MIT, 30 fps+ di V100), atau
+[LivePortrait](https://github.com/KwaiVGI/LivePortrait) (MIT) menghasilkan gerak wajah yang lebih hidup lagi,
+tetapi butuh suara TTS di server dan GPU yang tidak sedang dipakai. Potret Hidup di browser tetap jadi cadangan. Foto dianalisis di browser (MediaPipe); titik wajah disimpan di browser.
 Batasan: kepala hanya bisa menoleh sedikit (ilusi 3D), dan badan tidak bergerak selain napas.
 
 ## Pilihan model (gratis)

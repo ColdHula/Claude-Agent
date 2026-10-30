@@ -201,7 +201,7 @@ export class Panggung {
 
   setEkspresi(e) { this.ekspresi = e in EKSPRESI_ARKIT ? e : "neutral"; this.ekspresiSejak = performance.now(); }
   setAksi(jenis) { this.aksi = { jenis, t: 0 }; }
-  denyut() { this.mulutTarget = 0.85; this.viseme = VISEME[(Math.random() * VISEME.length) | 0]; }
+  denyut() { this.mulutTarget = Math.max(this.mulutTarget, 0.7); }
 
   langkah() {
     const dt = Math.min(this.jam.getDelta(), 0.05), t = this.jam.elapsedTime;
@@ -211,13 +211,17 @@ export class Panggung {
     if (this.ekspresi !== "neutral" && performance.now() - (this.ekspresiSejak || 0) > 9000 && !this.bicara) this.ekspresi = "relaxed";
     // Mulut: saat bicara bergerak acak berirama; denyut dari batas kata TTS
     if (this.bicara) {
-      if (Math.random() < dt * 9) this.denyut();
-      this.mulutTarget = Math.max(0.12, this.mulutTarget - dt * 3.2);
+      // Ritme suku kata ±5/detik dengan variasi, plus denyut dari batas kata TTS
+      this.fase = (this.fase || 0) + dt * (9 + 4 * Math.sin(t * 1.7) + 2 * Math.sin(t * 4.1));
+      const suku = 0.5 + 0.5 * Math.sin(this.fase);
+      if (suku < 0.08 && !this._ganti) { this.viseme = VISEME[(Math.random() * VISEME.length) | 0]; this._ganti = true; }
+      if (suku > 0.5) this._ganti = false;
+      this.mulutTarget = Math.max(this.mulutTarget - dt * 3, 0.08 + 0.62 * suku * suku);
     } else this.mulutTarget = 0;
     this.mulut += (this.mulutTarget - this.mulut) * Math.min(1, dt * 18);
     // Kedip alami (lebih sering saat berpikir)
     this.kedipBerikut -= dt;
-    if (this.kedipBerikut <= 0) { this.kedip = 1; this.kedipBerikut = 2 + Math.random() * 3.5; }
+    if (this.kedipBerikut <= 0) { this.kedip = 1; this.kedipBerikut = Math.random() < 0.15 ? 0.32 : 2 + Math.random() * 4; } // sesekali kedip ganda
     const kedipNilai = this.kedip > 0 ? Math.sin(this.kedip * Math.PI) : 0;
     this.kedip = Math.max(0, this.kedip - dt * 7);
     // Titik tatap: kamera (mata pengguna) + geseran dari pelacak wajah; saat berpikir melirik ke atas
