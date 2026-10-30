@@ -51,7 +51,7 @@ const cfgSuara = bacaLokal("aira-suara", { voiceURI: "", preset: "lembut", pitch
 const MODEL_BAWAAN = { id: "bawaan", nama: "Avatar bawaan", jenis: "bawaan", gaya: "Kartun" };
 const semuaModel = () => [MODEL_BAWAAN, ...S.model];
 const cariModel = (id) => semuaModel().find((m) => m.id === id);
-async function pakaiAvatar() {
+async function pakaiAvatar(sapa = true) {
   const P = S.pengaturan || {};
   const info = cariModel(P.model) || S.model.find((m) => m.jenis !== "rocketbox") || S.model[0] || MODEL_BAWAAN;
   const baju = info.jenis === "rocketbox" && P.baju ? cariModel(P.baju) : null;
@@ -61,8 +61,11 @@ async function pakaiAvatar() {
     (f) => ($("#muat").textContent = `Memuat avatar… ${Math.round(f * 100)}%`));
   $("#muat").style.display = "none";
   if (av.galat) toast(`Model gagal dimuat (${av.galat}). Memakai avatar bawaan.`, 6000);
+  // Potret: latar = foto yang sama diburamkan (layar lebar tidak tampak kosong)
+  $("#latar").style.cssText = av.datar && !av.galat
+    ? `background:url("/model/${encodeURIComponent(info.id)}/${info.berkas}") center/cover;filter:blur(28px) brightness(.55);transform:scale(1.15)` : "";
   panggung.setEkspresi("happy");
-  panggung.setAksi("wave");
+  if (sapa) panggung.setAksi("wave");
 }
 async function simpanPengaturan(ubah) {
   S.pengaturan = await api("/api/pengaturan", { method: "POST", body: JSON.stringify(ubah) });
@@ -184,6 +187,7 @@ async function kirim(teks, { suara = false } = {}) {
         } else if (ev.t === "act") panggung.setAksi(ev.v === "think" ? "think" : ev.v);
         else if (ev.t === "tool") { $("#alat").textContent = ev.v; panggung.berpikir = true; if (live) $("#liveInfo").textContent = ev.v; }
         else if (ev.t === "error") toast(`⚠️ ${ev.v}`, 6000);
+        else if (ev.t === "avatar") { S = await api("/api/state"); await pakaiAvatar(false); if (tabAktif === "lemari" && $("#laci").classList.contains("on")) render(); }
         else if (ev.t === "done") {
           S.jiwa = ev.jiwa; segarkanHati();
           if (ev.ingatanBaru?.length) toast(`🧠 ${NAMA} mengingat: ${ev.ingatanBaru.join(" · ")}`, 5000);
@@ -225,7 +229,6 @@ function masukLive() {
   live = true;
   document.body.classList.add("mode-live");
   $("#live").classList.add("on");
-  panggung.jarak = "dekat";
   pembicara.hidup = true;
   if (!mata?.aktif && bacaLokal("aira-kamera-live", true)) nyalakanKamera(true);
   mulaiDengar();
@@ -249,7 +252,16 @@ $("#orb").onclick = () => {
 // ---------- Tombol atas ----------
 $("#bKamera").onclick = () => nyalakanKamera(!mata?.aktif);
 $("#bSuara").onclick = () => { cfgSuara.hidup = !cfgSuara.hidup; if (!cfgSuara.hidup) pembicara.henti(); terapkanSuara(); toast(cfgSuara.hidup ? "Suara aktif" : "Suara dimatikan"); };
-$("#bJarak").onclick = () => { panggung.jarak = panggung.jarak === "dekat" ? "badan" : "dekat"; };
+const NAMA_TAMPIL = { wajah: "Fokus wajah", setengah: "Setengah badan", penuh: "Seluruh badan" };
+function aturTampilan(v, beri = false) {
+  if (!NAMA_TAMPIL[v]) v = "setengah";
+  panggung.jarak = v;
+  for (const b of $("#tampil").children) b.classList.toggle("on", b.dataset.v === v);
+  simpanLokal("aira-tampilan", v);
+  if (beri) toast(NAMA_TAMPIL[v], 1200);
+}
+$("#tampil").onclick = (e) => { const v = e.target.closest("[data-v]")?.dataset.v; if (v) aturTampilan(v, true); };
+aturTampilan(bacaLokal("aira-tampilan", "setengah"));
 $("#bLaci").onclick = () => bukaLaci(tabAktif);
 $("#bTutup").onclick = () => $("#laci").classList.remove("on");
 $("#tab").onclick = (e) => { const t = e.target.closest("button")?.dataset.t; if (t) bukaLaci(t); };
@@ -298,7 +310,7 @@ function renderLemari(el) {
   const aktif = cariModel(P.model) ? P.model : (S.model.find((m) => m.jenis !== "rocketbox") || S.model[0] || MODEL_BAWAAN).id;
   const info = cariModel(aktif);
   const kartu = (m, kelas = "") => `<button class="model ${kelas}" data-id="${esc(m.id)}">
-    ${m.jenis === "rocketbox" ? `<img loading="lazy" src="/model/${encodeURIComponent(m.id)}/pratinjau.png" alt="">`
+    ${m.jenis === "rocketbox" || m.jenis === "potret" ? `<img loading="lazy" src="/model/${encodeURIComponent(m.id)}/${m.jenis === "potret" ? m.berkas : "pratinjau.png"}" alt="">`
       : `<div style="aspect-ratio:3/4;display:grid;place-items:center;font-size:34px">${m.jenis === "bawaan" ? "🧸" : m.jenis === "vrm" ? "🎎" : "🧍‍♀️"}</div>`}
     <div>${esc(m.nama)}</div><div class="kecil">${esc(m.gaya || "")}${m.karakter ? ` · ${esc(m.karakter)}` : ""}</div></button>`;
   const rb = S.model.filter((m) => m.jenis === "rocketbox");
@@ -311,13 +323,22 @@ function renderLemari(el) {
       .map((m) => `<button class="model baju ${(P.baju || "") === m.baju ? "on" : ""}" data-baju="${esc(m.baju)}">
         <img loading="lazy" src="/model/${encodeURIComponent(m.id)}/pratinjau.png" alt=""><div>${esc(m.nama)}</div><div class="kecil">${esc(m.baju ? m.gaya : "")}</div></button>`).join("")}</div></div>` : ""}
   ${info?.jenis === "bawaan" ? `<div class="kartu"><h3>👗 Warna baju</h3><div class="baris" id="gWarna">${["#ff8fb1", "#b48cff", "#7ec8ff", "#7ee2a8", "#ffd27e", "#f4f1f6", "#2b2b38"].map((c) => `<button class="tombol" data-w="${c}" style="background:${c};width:34px;height:34px;padding:0"></button>`).join("")}</div></div>` : ""}
-  <div class="kartu"><h3>➕ Unggah model sendiri (.vrm / .glb)</h3>
+  ${info?.karakter && S.model.filter((m) => m.karakter === info.karakter).length > 1 ? `<div class="kartu"><h3>👗 Baju ${esc(info.karakter)}</h3>
+    <div class="grid" id="gKarakter">${S.model.filter((m) => m.karakter === info.karakter).map((m) => kartu(m, m.id === aktif ? "on" : "")).join("")}</div></div>` : ""}
+  <div class="kartu"><h3>➕ Unggah foto potret AI / model 3D</h3>
+    <p class="kecil"><b>Foto (.jpg/.png/.webp)</b> → jadi <b>Potret Hidup</b>: wajah realistis yang berkedip, bicara, tersenyum, dan menoleh.
+    Paling bagus: wajah menghadap depan, mata ke kamera, mulut tertutup, cahaya rata, resolusi ≥ 768 px.
+    <b>Model 3D (.vrm/.glb)</b> → avatar 3D penuh.</p>
     <div class="baris"><input type="text" id="uLabel" placeholder="Nama (mis. Aira – piyama)"></div>
     <div class="baris"><input type="text" id="uKarakter" placeholder="Karakter (opsional, untuk mengelompokkan baju)"></div>
-    <div class="baris"><input type="file" id="uFile" accept=".vrm,.glb"></div>
+    <div class="baris"><input type="file" id="uFile" accept=".vrm,.glb,.jpg,.jpeg,.png,.webp,image/*"></div>
     <button class="tombol utama" id="uKirim">Unggah</button> <span class="kecil" id="uInfo"></span>
-    <p class="kecil">Tips ganti baju untuk model unggahan: ekspor tiap pakaian sebagai file terpisah (mis. dari VRoid Studio atau MetaPerson), unggah dengan nama Karakter yang sama, lalu tinggal ketuk untuk berganti.</p></div>
+    <p class="kecil">Ganti baju untuk foto/model unggahan: unggah beberapa foto/model orang yang sama dengan baju berbeda dan isi <b>Karakter</b> yang sama (mis. "Aira"). ${NAMA} lalu bisa berganti sendiri saat kamu minta di chat ("sayang, ganti baju pesta dong").</p></div>
   <div class="kartu"><h3>Model kustom</h3>${S.model.filter((m) => m.id.startsWith("kustom_")).map((m) => `<div class="mem"><span>${esc(m.nama)} <span class="kecil">${esc(m.jenis)}</span></span><button data-hapus="${esc(m.id)}">🗑</button></div>`).join("") || '<p class="kecil">Belum ada.</p>'}</div>`;
+  el.querySelector("#gKarakter")?.addEventListener("click", async (e) => {
+    const id = e.target.closest("[data-id]")?.dataset.id; if (!id) return;
+    await simpanPengaturan({ model: id, baju: null }); await pakaiAvatar(false); render();
+  });
   el.querySelector("#gModel").onclick = async (e) => {
     const id = e.target.closest("[data-id]")?.dataset.id; if (!id) return;
     await simpanPengaturan({ model: id, baju: null }); await pakaiAvatar(); render();
@@ -446,3 +467,4 @@ if (bacaLokal("aira-kamera", false)) nyalakanKamera(true);
 const sapa = S.jiwa.terakhir ? (Date.now() - S.jiwa.terakhir > 864e5 ? `Akhirnya kamu datang… aku kangen 🥺` : `Hai lagi, ${USER} 😊`) : `Hai ${USER}! Aku ${NAMA}. Senang akhirnya ketemu kamu 💗`;
 subjudul(sapa);
 setTimeout(() => { if ($("#subTeks").textContent === sapa) subjudul(""); }, 7000);
+window.aira = { panggung }; // untuk debug dari konsol browser

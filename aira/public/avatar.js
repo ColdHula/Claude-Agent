@@ -5,6 +5,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
+import { muatPotret } from "/potret.js";
 
 const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), q1 = new THREE.Quaternion(), q2 = new THREE.Quaternion();
 const MAJU = new THREE.Vector3(0, 0, 1);
@@ -110,7 +111,7 @@ export class Panggung {
     this.cam = new THREE.PerspectiveCamera(26, 1, 0.05, 50);
     this.cam.position.set(0, 1.5, 1.2);
     this.kontrol = new OrbitControls(this.cam, kanvas);
-    Object.assign(this.kontrol, { enableDamping: true, enablePan: false, minDistance: 0.35, maxDistance: 4,
+    Object.assign(this.kontrol, { enableDamping: true, enablePan: false, minDistance: 0.35, maxDistance: 6,
       minPolarAngle: 1.1, maxPolarAngle: 2.0, minAzimuthAngle: -0.9, maxAzimuthAngle: 0.9, rotateSpeed: 0.5 });
     // Cahaya studio lembut: kunci hangat, isi sejuk, dan cahaya tepi
     this.scene.add(new THREE.HemisphereLight(0xfff4f8, 0x2a2238, 1.25));
@@ -128,7 +129,7 @@ export class Panggung {
     this.aksi = null; // {jenis, t}
     this.bicara = false;
     this.berpikir = false;
-    this.jarak = "dekat";
+    this.jarak = "setengah"; // "wajah" | "setengah" | "penuh"
     this.jam = new THREE.Clock();
     new ResizeObserver(() => this.ukur()).observe(kanvas);
     this.ukur();
@@ -140,6 +141,7 @@ export class Panggung {
     this.r.setSize(w, h, false);
     this.cam.aspect = w / h;
     this.cam.updateProjectionMatrix();
+    if (this.av?.datar) this.bingkaiFoto();
   }
 
   async muat(info, baju = null, onProgres = () => {}) {
@@ -147,6 +149,7 @@ export class Panggung {
     let av;
     try {
       if (!info || info.jenis === "bawaan") av = buatBawaan(info?.warna);
+      else if (info.jenis === "potret") av = await muatPotret(`/model/${encodeURIComponent(info.id)}/${info.berkas}`);
       else if (info.jenis === "rocketbox") av = await muatRocketbox(info, baju, onProgres);
       else av = await muatGltf(info, onProgres);
     } catch (e) {
@@ -157,6 +160,7 @@ export class Panggung {
     if (lama) { this.scene.remove(lama.root); lama.buang?.(); }
     this.av = av;
     this.scene.add(av.root);
+    if (!av.datar) { av.root.updateMatrixWorld(true); av.batas = new THREE.Box3().setFromObject(av.root); }
     this.bobot.clear();
     this.bingkai(true);
     return av;
@@ -165,14 +169,34 @@ export class Panggung {
   // Posisikan kamera setinggi mata, menatap wajah (dekat) atau setengah badan.
   bingkai(langsung = false) {
     if (!this.av) return;
+    this.kontrol.enabled = !this.av.datar;
+    if (this.av.datar) return this.bingkaiFoto();
     const kepala = this.av.posisiKepala(v1).clone();
-    const dekat = this.jarak === "dekat";
-    const fokus = kepala.clone().add(new THREE.Vector3(0, dekat ? -0.1 : -0.32, 0));
-    const jarak = (dekat ? 1.25 : 2.6) * Math.max(1, 0.75 / Math.max(this.cam.aspect, 0.4));
+    const box = this.av.batas || new THREE.Box3().setFromObject(this.av.root);
+    const tanH = Math.tan(THREE.MathUtils.degToRad(this.cam.fov / 2));
+    const lebarMin = { wajah: 0.32, setengah: 0.75, penuh: 0.9 }[this.jarak] || 0.75;
+    let fokus, tinggi;
+    if (this.jarak === "penuh") { fokus = box.getCenter(new THREE.Vector3()); tinggi = (box.max.y - box.min.y) * 1.22; fokus.y += tinggi * 0.04; fokus.x = kepala.x; fokus.z = kepala.z; }
+    else if (this.jarak === "wajah") { fokus = kepala.clone().add(new THREE.Vector3(0, -0.05, 0)); tinggi = 0.36; }
+    else { fokus = kepala.clone().add(new THREE.Vector3(0, -0.3, 0)); tinggi = 0.85; }
+    tinggi = Math.max(tinggi, lebarMin / Math.max(this.cam.aspect, 0.3));
+    const jarak = tinggi / (2 * tanH);
     this.kontrol.target.copy(fokus);
-    if (langsung) this.cam.position.set(fokus.x, kepala.y - 0.02, fokus.z + jarak);
-    else this.cam.position.copy(fokus).add(new THREE.Vector3(0, 0.04, jarak));
+    this.cam.position.copy(fokus).add(new THREE.Vector3(0, this.jarak === "penuh" ? 0.1 : 0.02, jarak));
     this.kontrol.update();
+  }
+
+  // Potret datar: kamera lurus. "dekat" = wajah memenuhi ±1/3 layar, "badan" = seluruh foto.
+  bingkaiFoto() {
+    const av = this.av, A = av.aspek, asp = this.cam.aspect;
+    const tanH = Math.tan(THREE.MathUtils.degToRad(this.cam.fov / 2));
+    const t = av.tampilan(this.jarak);
+    let h = t.h;
+    if (h * asp > A && this.jarak !== "penuh") h = Math.min(h, A / asp); // jangan sampai ada tepi kosong
+    const batasX = Math.max(0, (A - h * asp) / 2), batasY = Math.max(0, (1 - h) / 2);
+    const x = THREE.MathUtils.clamp(t.x, -batasX, batasX), y = THREE.MathUtils.clamp(t.y, -batasY, batasY);
+    this.cam.position.set(x, y, h / (2 * tanH));
+    this.cam.lookAt(x, y, 0);
   }
 
   setEkspresi(e) { this.ekspresi = e in EKSPRESI_ARKIT ? e : "neutral"; this.ekspresiSejak = performance.now(); }
@@ -214,7 +238,7 @@ export class Panggung {
     }
     av.perbarui({ dt, t, panggung: this, kedip: kedipNilai, gerak: g });
     if (this.jarak && this._jarakLama !== this.jarak) { this._jarakLama = this.jarak; this.bingkai(); }
-    this.kontrol.update();
+    if (!av.datar) this.kontrol.update();
     this.r.render(this.scene, this.cam);
   }
 

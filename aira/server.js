@@ -29,7 +29,39 @@ await fs.mkdir(KERJA, { recursive: true });
 await fs.mkdir(MODEL, { recursive: true });
 const mem = buatPenyimpanan(DATA);
 await mem.muat();
-const otak = buatOtak({ mem, dataDir: DATA, kerjaDir: KERJA, demo: DEMO });
+// Lemari: Aira bisa melihat & mengganti pakaian/penampilannya sendiri lewat alat ganti_baju.
+const lemari = {
+  async kini() {
+    const P = await bacaPengaturan(), semua = await daftarModel();
+    const m = semua.find((x) => x.id === P.model) || semua.find((x) => x.jenis !== "rocketbox") || semua[0];
+    const b = m?.jenis === "rocketbox" && P.baju ? semua.find((x) => x.id === P.baju) : null;
+    return { model: m, baju: b, semua };
+  },
+  // Pilihan pakaian yang menjaga wajah tetap sama: baju Rocketbox lain, atau model dengan "karakter" yang sama.
+  async pilihan() {
+    const { model: m, semua } = await this.kini();
+    if (!m) return [];
+    if (m.jenis === "rocketbox") return [{ id: "asli", nama: "Baju asli", gaya: m.gaya },
+      ...semua.filter((x) => x.jenis === "rocketbox" && x.id !== m.id).map((x) => ({ id: x.id, nama: `Baju dari ${x.nama}`, gaya: x.gaya }))];
+    if (m.karakter) return semua.filter((x) => x.karakter === m.karakter).map((x) => ({ id: x.id, nama: x.nama, gaya: x.gaya }));
+    return [];
+  },
+  async ringkas() {
+    const { model: m, baju: b } = await this.kini();
+    if (!m) return "avatar bawaan";
+    return b ? `${m.nama} dengan baju dari ${b.nama} (${b.gaya})` : `${m.nama} (${m.gaya || m.jenis})`;
+  },
+  async pakai(id) {
+    const { model: m } = await this.kini();
+    const opsi = await this.pilihan();
+    if (!opsi.some((o) => o.id === id)) return false;
+    const lama = await bacaPengaturan();
+    const baru = m.jenis === "rocketbox" ? { ...lama, baju: id === "asli" ? null : id } : { ...lama, model: id, baju: null };
+    await fs.writeFile(PENGATURAN, JSON.stringify(baru, null, 1));
+    return true;
+  },
+};
+const otak = buatOtak({ mem, dataDir: DATA, kerjaDir: KERJA, demo: DEMO, lemari });
 
 const guard = makeAuth(PASSWORD, {
   name: NAMA, tagline: `Masuk untuk bertemu ${NAMA}.`, iconHref: "/icon.svg",
@@ -44,6 +76,7 @@ const MIME = {
   ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".json": "application/json; charset=utf-8",
   ".png": "image/png", ".jpg": "image/jpeg", ".webmanifest": "application/manifest+json", ".wasm": "application/wasm",
   ".md": "text/markdown; charset=utf-8", ".txt": "text/plain; charset=utf-8", ".csv": "text/csv; charset=utf-8",
+  ".webp": "image/webp", ".jpeg": "image/jpeg",
   ".fbx": "application/octet-stream", ".vrm": "model/gltf-binary", ".glb": "model/gltf-binary",
 };
 // Pustaka 3D & pelacak wajah dilayani dari node_modules (tanpa CDN; tetap jalan bila internet lambat).
@@ -187,7 +220,8 @@ const server = http.createServer(async (req, res) => {
     if (p === "/api/model" && req.method === "PUT") {
       const nama = String(url.searchParams.get("nama") || "avatar.vrm");
       const ext = path.extname(nama).toLowerCase();
-      if (![".vrm", ".glb"].includes(ext)) return json(res, 400, { error: "Hanya .vrm atau .glb" });
+      const FOTO = [".jpg", ".jpeg", ".png", ".webp"];
+      if (![".vrm", ".glb", ...FOTO].includes(ext)) return json(res, 400, { error: "Hanya .vrm, .glb, atau foto .jpg/.png/.webp" });
       const id = `kustom_${crypto.randomBytes(4).toString("hex")}`;
       const dir = path.join(MODEL, id);
       await fs.mkdir(dir, { recursive: true });
@@ -205,7 +239,7 @@ const server = http.createServer(async (req, res) => {
         id, nama: String(url.searchParams.get("label") || path.basename(nama, ext)).slice(0, 40),
         gaya: String(url.searchParams.get("gaya") || "Kustom").slice(0, 20),
         karakter: String(url.searchParams.get("karakter") || "").slice(0, 40),
-        jenis: ext.slice(1), berkas: `model${ext}`, at: Date.now(),
+        jenis: FOTO.includes(ext) ? "potret" : ext.slice(1), berkas: `model${ext}`, at: Date.now(),
       };
       await fs.writeFile(path.join(dir, "model.json"), JSON.stringify(info, null, 1));
       return json(res, 200, info);

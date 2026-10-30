@@ -44,7 +44,7 @@ function lamaTakJumpa(ms) {
   return `sudah ${Math.round(m / 1440)} hari tidak ngobrol (kamu kangen)`;
 }
 
-async function susunSistem(mem, dataDir, mode) {
+async function susunSistem(mem, dataDir, mode, pakaian) {
   const j = mem.jiwa, mood = mem.moodSekarang();
   const { teks: faktaTeks, tersisa } = mem.faktaUntukPrompt();
   const sekarang = new Intl.DateTimeFormat("id-ID", { timeZone: TZ, dateStyle: "full", timeStyle: "short" }).format(new Date());
@@ -65,6 +65,10 @@ ${mem.ringkasan.teks || "(belum ada)"}
 
 ## Waktu sekarang
 ${sekarang} (${TZ})
+
+## Penampilanmu sekarang
+${pakaian}. Kamu bisa ganti baju sendiri (lihat_lemari lalu ganti_baju) bila ${PENGGUNA} memintanya,
+atau atas inisiatifmu sendiri sesekali bila cocok dengan suasana (mis. baju kantor saat kerja, baju santai malam hari).
 
 ## Kemampuanmu
 - WebSearch: cari info terbaru di internet. ambil_halaman: baca isi halaman web publik (sebutkan sumbernya).
@@ -161,10 +165,12 @@ function labelAlat(nama, input = {}) {
   if (n === "tulis_berkas") return `📝 Menulis ${input.nama || "berkas"}`;
   if (n === "baca_berkas") return `📖 Membaca ${input.nama || "berkas"}`;
   if (n === "daftar_berkas") return "📁 Melihat folder kerja";
+  if (n === "lihat_lemari") return "👗 Membuka lemari";
+  if (n === "ganti_baju") return "👗 Ganti baju…";
   return `⚙️ ${n}`;
 }
 
-export function buatOtak({ mem, dataDir, kerjaDir, demo }) {
+export function buatOtak({ mem, dataDir, kerjaDir, demo, lemari }) {
   let sdk = null;
   const muatSdk = async () => (sdk ||= await import("@anthropic-ai/claude-agent-sdk"));
   const teks = (t) => ({ content: [{ type: "text", text: typeof t === "string" ? t : JSON.stringify(t, null, 1) }] });
@@ -173,7 +179,7 @@ export function buatOtak({ mem, dataDir, kerjaDir, demo }) {
     return EXT_BERKAS.test(b) ? b : null;
   };
 
-  async function serverAlat() {
+  async function serverAlat(kirim) {
     const { tool, createSdkMcpServer } = await muatSdk();
     return createSdkMcpServer({
       name: "aira",
@@ -203,6 +209,15 @@ export function buatOtak({ mem, dataDir, kerjaDir, demo }) {
             const n = namaAman(nama);
             const t = n && (await fs.readFile(path.join(kerjaDir, n), "utf8").catch(() => null));
             return teks(t == null ? "Berkas tidak ada." : t.slice(0, 60_000));
+          }),
+        tool("lihat_lemari", "Lihat pakaian yang sedang kamu pakai dan pilihan baju lain di lemarimu.", {},
+          async () => teks({ dipakai: await lemari.ringkas(), pilihan: await lemari.pilihan() })),
+        tool("ganti_baju", `Ganti pakaianmu sendiri (avatar di layar ${PENGGUNA} langsung berubah). Pakai id dari lihat_lemari.`,
+          { id: z.string() },
+          async ({ id }) => {
+            if (!(await lemari.pakai(id))) return teks("Pilihan itu tidak ada di lemari. Panggil lihat_lemari dulu.");
+            kirim({ t: "avatar" });
+            return teks(`Sudah ganti. Sekarang memakai: ${await lemari.ringkas()}`);
           }),
         tool("daftar_berkas", "Daftar dokumen di folder kerjamu.", {},
           async () => teks((await fs.readdir(kerjaDir).catch(() => [])).filter((f) => EXT_BERKAS.test(f)))),
@@ -237,11 +252,11 @@ export function buatOtak({ mem, dataDir, kerjaDir, demo }) {
       options: {
         model: MODEL,
         effort: mode === "live" ? "low" : "medium",
-        systemPrompt: await susunSistem(mem, dataDir, mode),
+        systemPrompt: await susunSistem(mem, dataDir, mode, await lemari.ringkas()),
         tools: ["WebSearch"],
         allowedTools: ["WebSearch", "mcp__aira__*"],
         disallowedTools: ALAT_DILARANG,
-        mcpServers: { aira: await serverAlat() },
+        mcpServers: { aira: await serverAlat(kirim) },
         hooks: { PreToolUse: [{ hooks: [pagar] }] },
         permissionMode: "dontAsk",
         settingSources: [],

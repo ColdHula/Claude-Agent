@@ -7,8 +7,10 @@ Aplikasi ini **terpisah** dari Kantor PGA dan HvM AI: kata sandi, data, pengguna
 
 | Fitur | Isi |
 |---|---|
+| 📸 Potret Hidup | **Foto wajah realistis hasil AI** (mis. wanita Asia) dianimasikan di browser: berkedip, bicara (mulut & gigi), tersenyum, alis, menoleh 3D semu, mengikuti wajah Anda |
 | 🧍‍♀️ Avatar 3D | Model **realistis gratis** (Microsoft Rocketbox, MIT) dengan 52 blendshape ARKit, atau **VRM/GLB** milik Anda (VRoid Studio, MetaPerson, Avaturn), atau avatar bawaan |
-| 👗 Lemari | Ganti model; **ganti baju** Rocketbox (wajah & rambut tetap, badan/baju dari model lain); unggah beberapa VRM/GLB sebagai "baju" satu karakter |
+| 🎥 Tampilan | 🙂 Fokus wajah · 👤 Setengah badan · 🧍 Seluruh badan (tombol di kanan atas, diingat per perangkat) |
+| 👗 Lemari | Ganti model; **ganti baju** Rocketbox (wajah & rambut tetap, badan/baju dari model lain); unggah beberapa foto/model satu karakter sebagai "baju". **Aira bisa ganti baju sendiri** saat diminta di chat |
 | 🎙 Mode Live | Bicara tanpa mengetik (pengenalan suara id-ID), Aira menjawab dengan suara, bibir bergerak, berekspresi, dan bisa disela |
 | 👀 Kontak mata | Kamera depan dibaca **di browser** (MediaPipe): mata & kepala Aira mengikuti wajah Anda, tahu bila Anda tersenyum/menoleh. Video tidak dikirim ke mana pun |
 | 🧠 Memori | Fakta penting disimpan otomatis (lihat/hapus/tambah di panel 🧠), ringkasan obrolan lama, pencarian di seluruh riwayat |
@@ -40,6 +42,18 @@ node ambil-model.mjs pilihan       # unduh 8 model realistis (±7 MB/model setel
 npm start                          # dengan Claude (login: npm run login di folder utama, atau CLAUDE_CODE_OAUTH_TOKEN)
 ```
 Buka http://127.0.0.1:3002.
+
+## Potret Hidup (wajah realistis dari foto AI)
+
+1. Buat foto orang **fiktif** dengan generator gambar AI (mis. Canva, Ideogram, Leonardo). Prompt contoh:
+   *"Photorealistic portrait photo of a fictional young Indonesian woman, facing the camera, eyes looking into the lens,
+   mouth closed with a slight smile, even soft lighting, plain background, 85mm"*. Untuk tampilan seluruh badan:
+   *"full-body photo … standing facing the camera, arms at her sides, head to shoes visible"*.
+2. Unduh resolusi penuh (≥ 1024 px; seluruh badan ≥ 1600 px tinggi agar wajah tetap tajam saat di-zoom).
+3. 👗 Lemari → unggah foto, isi **Karakter** (mis. "Aira"). Unggah foto orang yang sama dengan baju lain dengan Karakter yang sama → bisa ganti baju (juga oleh Aira sendiri).
+
+Jangan memakai foto orang sungguhan tanpa izinnya. Foto dianalisis di browser (MediaPipe); titik wajah disimpan di browser.
+Batasan: kepala hanya bisa menoleh sedikit (ilusi 3D), dan badan tidak bergerak selain napas.
 
 ## Pilihan model (gratis)
 
@@ -91,7 +105,8 @@ aira/
   jaring.js        akses web publik yang dipagari
   ambil-model.mjs  pengunduh & pengonversi model Rocketbox (TGA → PNG tanpa dependensi)
   persona.md       watak dasar (bisa diubah)
-  public/          index.html, app.js (UI), avatar.js (three.js + three-vrm), suara.js (TTS/STT), kamera.js (MediaPipe)
+  public/          index.html, app.js (UI), avatar.js (three.js + three-vrm), potret.js (Potret Hidup),
+                   suara.js (TTS/STT), kamera.js (MediaPipe)
 ```
 
 Proyek yang dipelajari/dipakai: [pixiv/three-vrm](https://github.com/pixiv/three-vrm) (MIT),
