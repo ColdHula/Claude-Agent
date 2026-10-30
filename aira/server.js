@@ -9,14 +9,16 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { makeAuth } from "../src/auth.js";
-import { buatPenyimpanan, tahapHubungan, SIFAT } from "./memori.js";
-import { buatOtak, NAMA, PENGGUNA } from "./otak.js";
+import { tahapHubungan, SIFAT } from "./memori.js";
+import { buatOtak, PENGGUNA, ADEGAN } from "./otak.js";
+import { buatKarakter, ARKETIPE } from "./karakter.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.resolve(process.env.AIRA_DATA || path.join(here, "data"));
 const KERJA = path.join(DATA, "ruang-kerja");
 const MODEL = path.join(DATA, "model");
-const PENGATURAN = path.join(DATA, "pengaturan.json");
+const NAMA_APP = process.env.AIRA_NAMA || "Aira";
+const TZ = process.env.AIRA_TZ || "Asia/Jakarta";
 const PUBLIC = path.join(here, "public");
 const NM = path.join(here, "node_modules");
 const PORT = Number(process.env.PORT || 3002);
@@ -24,11 +26,37 @@ const HOST = process.env.HOST || "127.0.0.1";
 const PASSWORD = process.env.AIRA_PASSWORD || "";
 const DEMO = process.env.AIRA_DEMO === "1";
 const MAX_MODEL = 80 * 1024 * 1024;
+// Mode Premium: layanan GPU Ditto lewat Unix socket (deploy/pasang-ditto.sh). Kosong = mati.
+const DITTO_SOCK = process.env.AIRA_DITTO_SOCK || "";
+
+function ditto(method, p, body = null, tipe = "application/json") {
+  return new Promise((resolve, reject) => {
+    const r = http.request({ socketPath: DITTO_SOCK, path: p, method, timeout: 120_000,
+      headers: body ? { "content-type": tipe, "content-length": body.length } : {} }, (res) => {
+      const bag = [];
+      res.on("data", (c) => bag.push(c));
+      res.on("end", () => resolve({ status: res.statusCode, tipe: res.headers["content-type"] || "", data: Buffer.concat(bag) }));
+    });
+    r.on("timeout", () => r.destroy(new Error("waktu habis")));
+    r.on("error", reject);
+    if (body) r.write(body);
+    r.end();
+  });
+}
 
 await fs.mkdir(KERJA, { recursive: true });
 await fs.mkdir(MODEL, { recursive: true });
-const mem = buatPenyimpanan(DATA);
-await mem.muat();
+const K = buatKarakter(DATA);
+await K.migrasi();
+// Karakter aktif: profil, penyimpanan (memori/kepribadian/riwayat), otak, dan file pengaturannya
+let aktif = null;
+async function muatAktif() {
+  const id = await K.idAktif();
+  const profil = await K.profil(id);
+  const mem = await K.penyimpanan(id);
+  aktif = { id, profil, mem, fileAtur: path.join(K.dir(id), "pengaturan.json") };
+  aktif.otak = buatOtak({ mem, dataDir: DATA, kerjaDir: KERJA, demo: DEMO, lemari, nama: profil.nama, tambahan: K.personaTambahan(profil) });
+}
 // Lemari: Aira bisa melihat & mengganti pakaian/penampilannya sendiri lewat alat ganti_baju.
 const lemari = {
   async kini() {
@@ -57,14 +85,23 @@ const lemari = {
     if (!opsi.some((o) => o.id === id)) return false;
     const lama = await bacaPengaturan();
     const baru = m.jenis === "rocketbox" ? { ...lama, baju: id === "asli" ? null : id } : { ...lama, model: id, baju: null };
-    await fs.writeFile(PENGATURAN, JSON.stringify(baru, null, 1));
+    await simpanPengaturan(baru);
     return true;
   },
+  // Album foto karakter: potret yang ditandai dengan nama/tag karakter ini (plus avatar yang sedang dipakai)
+  async album() {
+    const { model: m, semua } = await this.kini();
+    const tag = String(aktif.profil.tag || aktif.profil.nama).toLowerCase();
+    return semua.filter((x) => x.jenis === "potret" && (x.id === m?.id || String(x.karakter || "").toLowerCase() === tag))
+      .map((x) => ({ id: x.id, nama: x.nama, gaya: x.gaya, url: `/model/${x.id}/${x.berkas}` }));
+  },
+  async adegan() { return (await bacaPengaturan()).adegan || "rumah"; },
+  async aturAdegan(v) { if (ADEGAN[v]) await simpanPengaturan({ ...(await bacaPengaturan()), adegan: v }); },
 };
-const otak = buatOtak({ mem, dataDir: DATA, kerjaDir: KERJA, demo: DEMO, lemari });
+await muatAktif();
 
 const guard = makeAuth(PASSWORD, {
-  name: NAMA, tagline: `Masuk untuk bertemu ${NAMA}.`, iconHref: "/icon.svg",
+  name: NAMA_APP, tagline: `Masuk untuk bertemu ${NAMA_APP}.`, iconHref: "/icon.svg",
   themeColor: "#140f1c", dark: true, accent: "#ff8fb1",
 });
 if (!PASSWORD && HOST !== "127.0.0.1" && HOST !== "localhost") {
@@ -107,8 +144,9 @@ const di = (dasar, rel) => { // path aman di dalam folder dasar
 };
 
 async function bacaPengaturan() {
-  try { return JSON.parse(await fs.readFile(PENGATURAN, "utf8")); } catch { return {}; }
+  try { return JSON.parse(await fs.readFile(aktif.fileAtur, "utf8")); } catch { return {}; }
 }
+const simpanPengaturan = (d) => fs.writeFile(aktif.fileAtur, JSON.stringify(d, null, 1));
 async function daftarModel() {
   const out = [];
   for (const d of await fs.readdir(MODEL).catch(() => [])) {
@@ -118,7 +156,7 @@ async function daftarModel() {
 }
 
 function ringkasJiwa() {
-  const j = mem.jiwa;
+  const mem = aktif.mem, j = mem.jiwa;
   return {
     sifat: j.sifat, label: SIFAT, kedekatan: j.kedekatan, tahap: tahapHubungan(j.kedekatan),
     mood: mem.moodSekarang(), gaya: j.gaya, julukan: j.julukan, interaksi: j.interaksi,
@@ -137,20 +175,22 @@ const server = http.createServer(async (req, res) => {
 
     if (p === "/api/state" && req.method === "GET") {
       return json(res, 200, {
-        nama: NAMA, pengguna: PENGGUNA, demo: DEMO, jiwa: ringkasJiwa(), memori: mem.fakta.length,
-        biaya: mem.biaya, pengaturan: await bacaPengaturan(), model: await daftarModel(),
+        nama: aktif.profil.nama, pengguna: PENGGUNA, demo: DEMO, jiwa: ringkasJiwa(), memori: aktif.mem.fakta.length,
+        biaya: aktif.mem.biaya, pengaturan: await bacaPengaturan(), model: await daftarModel(),
+        karakter: { aktif: aktif.profil, semua: await K.daftar(), arketipe: Object.fromEntries(Object.entries(ARKETIPE).map(([k, v]) => [k, v.label])) },
+        adegan: ADEGAN,
       });
     }
     if (p === "/api/pengaturan" && req.method === "POST") {
       const b = await readJson(req);
       const lama = await bacaPengaturan();
       const baru = { ...lama, ...b };
-      await fs.writeFile(PENGATURAN, JSON.stringify(baru, null, 1));
+      await simpanPengaturan(baru);
       return json(res, 200, baru);
     }
     if (p === "/api/riwayat" && req.method === "GET") {
       const n = Math.min(200, Number(url.searchParams.get("n") || 60));
-      return json(res, 200, { riwayat: mem.riwayat.slice(-n) });
+      return json(res, 200, { riwayat: aktif.mem.riwayat.slice(-n) });
     }
 
     if (p === "/api/chat" && req.method === "POST") {
@@ -165,6 +205,8 @@ const server = http.createServer(async (req, res) => {
       let hidup = true;
       res.on("close", () => { hidup = false; if (!res.writableFinished) ac.abort(); });
       const kirim = (ev) => { if (hidup) try { res.write(JSON.stringify(ev) + "\n"); } catch { hidup = false; } };
+      const { mem, otak } = aktif;
+      const tahapLama = ringkasJiwa().tahap;
       await mem.catat("aku", pesan, { mode });
       let hasil = { teks: "", meta: null, biaya: 0 };
       try {
@@ -174,18 +216,75 @@ const server = http.createServer(async (req, res) => {
       }
       if (berjalan === ac) berjalan = null;
       const dipotong = ac.signal.aborted;
-      if (hasil.teks) await mem.catat(NAMA, hasil.teks + (dipotong ? " …(disela)" : ""), { mode });
+      if (hasil.teks || hasil.foto?.length) await mem.catat(aktif.profil.nama, (hasil.teks || "") + (dipotong ? " …(disela)" : ""), { mode, ...(hasil.foto?.length ? { foto: hasil.foto } : {}) });
       let efek = { ubah: {}, baru: [] };
       if (hasil.meta && !dipotong) efek = await mem.terapkanMeta(hasil.meta);
       else if (hasil.teks) efek = await mem.terapkanMeta({});
       if (hasil.biaya) await mem.tambahBiaya(hasil.biaya);
-      kirim({ t: "done", jiwa: ringkasJiwa(), ubah: efek.ubah, ingatanBaru: efek.baru.map((f) => f.teks), biaya: hasil.biaya });
+      const jiwaBaru = ringkasJiwa();
+      kirim({ t: "done", jiwa: jiwaBaru, ubah: efek.ubah, ingatanBaru: efek.baru.map((f) => f.teks), biaya: hasil.biaya,
+        ...(jiwaBaru.tahap !== tahapLama ? { level: { dari: tahapLama, ke: jiwaBaru.tahap } } : {}) });
       try { res.end(); } catch {}
       otak.ringkasBilaPerlu().catch((e) => console.warn("ringkas:", e?.message || e));
       return;
     }
+    if (p === "/api/premium" && req.method === "GET") {
+      if (!DITTO_SOCK) return json(res, 200, { ada: false });
+      try { const r = await ditto("GET", "/status"); return json(res, 200, { ada: true, ...JSON.parse(r.data) }); }
+      catch (e) { return json(res, 200, { ada: true, siap: false, galat: String(e.message || e) }); }
+    }
+    if (p === "/api/klip" && req.method === "POST") {
+      if (!DITTO_SOCK) return json(res, 404, { error: "Mode premium belum dipasang." });
+      const b = await readJson(req);
+      const { model: m } = await lemari.kini();
+      if (m?.jenis !== "potret") return json(res, 400, { error: "Mode premium butuh avatar Potret (foto)." });
+      const minta = Buffer.from(JSON.stringify({ teks: String(b.teks || "").slice(0, 400), foto: m.id, emosi: b.emosi, suara: b.suara, laju: b.laju, nada: b.nada }));
+      let r = await ditto("POST", "/klip", minta);
+      if (r.status === 404) { // foto belum dikirim ke layanan GPU
+        await ditto("PUT", `/foto/${m.id}`, await fs.readFile(path.join(MODEL, m.id, m.berkas)), "application/octet-stream");
+        r = await ditto("POST", "/klip", minta);
+      }
+      res.writeHead(r.status, { "content-type": r.tipe, "cache-control": "no-store" });
+      return res.end(r.data);
+    }
     if (p === "/api/stop" && req.method === "POST") { berjalan?.abort(); return json(res, 200, { ok: true }); }
 
+    // --- Karakter ---
+    if (p === "/api/karakter" && req.method === "POST") {
+      const b = await readJson(req);
+      const pr = await K.buat(b);
+      if (b.pilih !== false) { await K.pilih(pr.id); berjalan?.abort(); await muatAktif(); }
+      return json(res, 200, pr);
+    }
+    if (p === "/api/karakter/pilih" && req.method === "POST") {
+      await K.pilih((await readJson(req)).id); berjalan?.abort(); await muatAktif();
+      return json(res, 200, { ok: true });
+    }
+    if (p === "/api/karakter/ubah" && req.method === "POST") {
+      const b = await readJson(req);
+      const pr = await K.ubah(b.id || aktif.id, b);
+      if ((b.id || aktif.id) === aktif.id) await muatAktif();
+      return json(res, 200, pr);
+    }
+    if (p.startsWith("/api/karakter/") && req.method === "DELETE") {
+      await K.hapus(p.slice(14)); await muatAktif();
+      return json(res, 200, { ok: true });
+    }
+    // --- Pesan proaktif & buku harian ---
+    if (p === "/api/notif" && req.method === "GET") {
+      const sejak = Number(url.searchParams.get("sejak") || 0);
+      return json(res, 200, { pesan: aktif.mem.riwayat.filter((m) => m.proaktif && m.at > sejak), sekarang: Date.now() });
+    }
+    if (p === "/api/diari" && req.method === "GET") return json(res, 200, { diari: (await bacaDiari()).slice().reverse() });
+    if (p === "/api/diari" && req.method === "POST") {
+      const tgl = aktif.mem.tanggal(Date.now());
+      const teks = await aktif.otak.diari(tgl);
+      if (!teks) return json(res, 400, { error: "Belum ada obrolan hari ini." });
+      await simpanDiari(tgl, teks);
+      return json(res, 200, { tgl, teks });
+    }
+
+    const mem = aktif.mem;
     if (p === "/api/memori" && req.method === "GET") return json(res, 200, { memori: [...mem.fakta].sort((a, b) => b.at - a.at) });
     if (p === "/api/memori" && req.method === "POST") {
       const b = await readJson(req);
@@ -270,6 +369,55 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// --- Buku harian (per karakter) ---
+const fileDiari = () => path.join(K.dir(aktif.id), "diari.json");
+async function bacaDiari() { try { return JSON.parse(await fs.readFile(fileDiari(), "utf8")); } catch { return []; } }
+async function simpanDiari(tgl, teks) {
+  const d = (await bacaDiari()).filter((x) => x.tgl !== tgl);
+  d.push({ tgl, teks, at: Date.now() });
+  d.sort((a, b) => a.tgl.localeCompare(b.tgl));
+  await fs.writeFile(fileDiari(), JSON.stringify(d.slice(-400), null, 1));
+}
+
+// --- Penjadwal: karakter menyapa lebih dulu (pagi, malam, kangen) & menulis buku harian ---
+// Hanya karakter aktif; matikan lewat Pengaturan (proaktif: false). Memakai model ringan (biaya kecil).
+async function penjadwal() {
+  try {
+    const P = await bacaPengaturan();
+    const mem = aktif.mem, r = mem.riwayat;
+    if (!r.length) return;
+    const now = Date.now(), hari = mem.tanggal(now);
+    const [jam, menit] = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()).split(":").map(Number);
+    const m = jam * 60 + menit;
+    const terakhirAku = [...r].reverse().find((x) => x.peran === "aku")?.at || 0;
+    const terakhirProaktif = [...r].reverse().find((x) => x.proaktif)?.at || 0;
+    if (P.proaktif !== false) {
+      let jenis = null;
+      if (m >= 390 && m <= 570 && P.sapaPagi !== hari && now - terakhirAku > 2 * 3.6e6) jenis = "pagi";
+      else if (m >= 1260 && m <= 1380 && P.sapaMalam !== hari && now - terakhirAku > 3.6e6) jenis = "malam";
+      else if (now - terakhirAku > 20 * 3.6e6 && now - terakhirProaktif > 20 * 3.6e6 && m >= 600 && m <= 1260) jenis = "kangen";
+      if (jenis) {
+        const teks = await aktif.otak.sapa(jenis);
+        if (teks) {
+          await mem.catat(aktif.profil.nama, teks, { proaktif: true, jenis });
+          await simpanPengaturan({ ...(await bacaPengaturan()), ...(jenis === "pagi" ? { sapaPagi: hari } : jenis === "malam" ? { sapaMalam: hari } : {}) });
+        }
+      }
+    }
+    // Buku harian kemarin (bila ada obrolan & belum ditulis), atau hari ini setelah 23:15
+    const kemarin = mem.tanggal(now - 864e5);
+    const ada = new Set((await bacaDiari()).map((x) => x.tgl));
+    for (const tgl of m >= 1395 ? [kemarin, hari] : [kemarin]) {
+      if (!ada.has(tgl) && mem.pesanTanggal(tgl).some((x) => x.peran === "aku")) {
+        const teks = await aktif.otak.diari(tgl);
+        if (teks) await simpanDiari(tgl, teks);
+      }
+    }
+  } catch (e) { console.warn("penjadwal:", e?.message || e); }
+}
+setInterval(penjadwal, 5 * 60 * 1000);
+setTimeout(penjadwal, 20 * 1000);
+
 server.listen(PORT, HOST, () => {
-  console.log(`💗 ${NAMA} di http://${HOST}:${PORT}  · data: ${DATA}  · ${DEMO ? "MODE DEMO" : "otak: Claude (langganan)"}  · kata sandi: ${PASSWORD ? "aktif" : "tidak ada (hanya aman di 127.0.0.1)"}`);
+  console.log(`💗 ${NAMA_APP} (${aktif.profil.nama}) di http://${HOST}:${PORT}  · data: ${DATA}  · ${DEMO ? "MODE DEMO" : "otak: Claude (langganan)"}  · kata sandi: ${PASSWORD ? "aktif" : "tidak ada (hanya aman di 127.0.0.1)"}`);
 });

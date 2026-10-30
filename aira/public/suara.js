@@ -42,6 +42,8 @@ export class Pembicara {
     this.cfg = { voiceURI: "", pitch: 1.1, rate: 1, volume: 1 };
     this.hidup = true; // saklar suara
     this.alirSelesai = true;
+    this.premium = null; // mesin klip video (premium.js); null = suara browser biasa
+    this.gen = 0;
   }
   atur(cfg) { Object.assign(this.cfg, cfg); }
   suara() {
@@ -63,7 +65,10 @@ export class Pembicara {
   tambah(kal) {
     const t = bersihkan(kal);
     if (!t || !/[\p{L}\p{N}]/u.test(t)) return;
-    this.antre.push({ t, emo: this.emo });
+    const item = { t, emo: this.emo };
+    if (this.premium?.bisa()) item.janji = this.premium.siapkan(t, item.emo || this.emoTerakhir);
+    if (this.emo) this.emoTerakhir = this.emo;
+    this.antre.push(item);
     this.emo = null;
     if (!this.aktif) this.berikut();
   }
@@ -72,6 +77,18 @@ export class Pembicara {
     const item = this.antre.shift();
     if (!item) { this.aktif = false; if (this.alirSelesai) this.on.onSelesaiSemua?.(); return; }
     this.aktif = true;
+    if (item.janji) {
+      const gen = this.gen;
+      item.janji.then(async (url) => {
+        if (gen !== this.gen) return;
+        if (url) {
+          this.on.onMulai?.({ ...item, premium: true });
+          await this.premium.putar(url);
+          if (gen === this.gen) this.berikut();
+        } else { delete item.janji; this.antre.unshift(item); this.berikut(); } // gagal → suara browser
+      });
+      return;
+    }
     const u = new SpeechSynthesisUtterance(item.t);
     const v = this.suara();
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "id-ID";
@@ -83,8 +100,10 @@ export class Pembicara {
   }
   get bicara() { return this.aktif || speechSynthesis.speaking; }
   henti() {
-    this.antre = []; this.buf = ""; this.aktif = false; this.alirSelesai = true;
+    this.gen++;
+    this.antre = []; this.buf = ""; this.aktif = false; this.alirSelesai = true; this.emoTerakhir = null;
     speechSynthesis.cancel();
+    this.premium?.henti();
   }
   contoh(teks = CONTOH) {
     this.henti();

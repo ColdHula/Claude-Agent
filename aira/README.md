@@ -16,6 +16,15 @@ Aplikasi ini **terpisah** dari Kantor PGA dan HvM AI: kata sandi, data, pengguna
 | 🧠 Memori | Fakta penting disimpan otomatis (lihat/hapus/tambah di panel 🧠), ringkasan obrolan lama, pencarian di seluruh riwayat |
 | 💗 Kepribadian | 6 sifat + kedekatan + suasana hati, berubah pelan (maks ±2 per pesan) dan tercatat alasannya di panel 💗 |
 | 🌐 Kerja | Pencarian web, baca halaman publik, tulis berkas `.md/.txt/.csv/.json/.html` di folder kerjanya (unduh dari 📁) |
+| 👩 Multi-karakter | Buat beberapa pendamping (nama, watak: manis/ceria/dewasa/pemalu/gengsian/profesional, latar belakang, avatar). Masing-masing punya memori, kepribadian, riwayat, lemari, dan buku harian sendiri |
+| 📸 Kirim foto | Minta "kirim fotomu dong": ia memilih foto dari albumnya (potret dengan Karakter = namanya) dan mengirimnya ke chat |
+| 🌆 Kencan | 9 suasana (kafe, pantai senja, makan malam, bioskop, hujan, malam berbintang, …) dengan latar & rona cahaya; ia bersikap sesuai suasana dan bisa memindahkan suasana sendiri |
+| 🎁 Hadiah | 10 hadiah virtual (mawar, kopi, cokelat, boneka, surat cinta, …) yang memengaruhi suasana hatinya |
+| 💌 Menyapa duluan | Ucapan pagi & malam, dan pesan "kangen" bila lama tidak menyapa; notifikasi browser (bisa dimatikan) |
+| 📔 Buku harian | Tiap malam ia menulis catatan pribadi tentang hari kalian (bisa diintip di tab Diari) |
+| 🔊 Voice note | Tombol ▶ di setiap pesannya untuk memutar ulang dengan suara |
+| 💞 Level hubungan | Perayaan saat tahap hubungan naik (baru kenal → teman akrab → PDKT → pacaran → sangat dekat) |
+| 🎬 Mode Premium | Wajah bicara foto-realistis (Ditto) + suara neural Indonesia di GPU NVIDIA rig (lihat di bawah) |
 | 🔒 Isolasi | Tidak ada alat shell/file sistem; web hanya alamat publik; di rig berjalan sebagai pengguna `aira` dengan sandbox systemd + firewall |
 
 Otaknya Claude lewat **Claude Agent SDK** (kredit langganan, sama seperti Kantor PGA). Rem biaya per pesan: `AIRA_MAX_USD` (bawaan $0,60).
@@ -60,6 +69,23 @@ Jangan memakai foto orang sungguhan tanpa izinnya.
 [LivePortrait](https://github.com/KwaiVGI/LivePortrait) (MIT) menghasilkan gerak wajah yang lebih hidup lagi,
 tetapi butuh suara TTS di server dan GPU yang tidak sedang dipakai. Potret Hidup di browser tetap jadi cadangan. Foto dianalisis di browser (MediaPipe); titik wajah disimpan di browser.
 Batasan: kepala hanya bisa menoleh sedikit (ilusi 3D), dan badan tidak bergerak selain napas.
+
+## Mode Premium (GPU NVIDIA): wajah bicara foto-realistis
+
+```bash
+sudo bash deploy/pasang-ditto.sh              # GPU indeks 0; pakai AIRA_GPU=1 untuk GPU lain
+```
+
+Memasang [Ditto](https://github.com/antgroup/ditto-talkinghead) (Apache-2.0) sebagai layanan terpisah `aira-ditto`
+(pengguna `aira-gpu`, hanya Unix socket, firewall tanpa localhost/LAN). Di aplikasi: 🎤 Suara → **Mode Premium**.
+Tiap kalimat jawaban → suara neural (Edge TTS: Gadis/Ardi/Yasmin/Siti/Tuti) → video bicara dari foto potret → diputar
+tepat di atas potret; kalimat berikutnya dibuat sambil kalimat ini diputar. Bila GPU sibuk/gagal, otomatis kembali ke
+Potret Hidup + suara browser.
+
+- Butuh ±6–8 GB VRAM bebas (hentikan mining di GPU itu). GPU RTX 30/40 (Ampere+) memakai mesin TensorRT bawaan;
+  GPU lebih tua dibuatkan mesin khusus saat pemasangan (10–30 menit).
+- Kecepatan: `DITTO_STEPS` (bawaan 25; 10 = cepat, 50 = paling halus).
+- Suara Edge TTS memakai layanan Microsoft (teks kalimat dikirim ke sana). Label emosi Ditto bisa disetel lewat `DITTO_EMO`.
 
 ## Pilihan model (gratis)
 
@@ -107,11 +133,13 @@ Pengenalan suara memakai layanan bawaan browser (Chrome/Edge mengirim audio ke G
 aira/
   server.js        HTTP + stream NDJSON, kata sandi, unggah model, berkas
   otak.js          prompt (persona + kepribadian + memori), Claude Agent SDK, alat, pemilah tag [emosi] & <meta>
-  memori.js        ingatan, kepribadian dinamis, riwayat, ringkasan (JSON di AIRA_DATA)
+  memori.js        ingatan, kepribadian dinamis, riwayat, ringkasan (JSON per karakter)
+  karakter.js      daftar karakter, arketipe watak, migrasi data lama
+  ditto/layanan.py layanan GPU mode Premium (Ditto + Edge TTS, Unix socket)
   jaring.js        akses web publik yang dipagari
   ambil-model.mjs  pengunduh & pengonversi model Rocketbox (TGA → PNG tanpa dependensi)
   persona.md       watak dasar (bisa diubah)
-  public/          index.html, app.js (UI), avatar.js (three.js + three-vrm), potret.js (Potret Hidup),
+  public/          index.html, app.js (UI), avatar.js (three.js + three-vrm), potret.js (Potret Hidup), premium.js,
                    suara.js (TTS/STT), kamera.js (MediaPipe)
 ```
 

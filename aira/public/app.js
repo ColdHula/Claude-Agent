@@ -1,6 +1,7 @@
 // Antarmuka Aira: chat, mode Live (bicara + tatap muka), lemari baju, suara, dan panel hati/memori/berkas.
 import { Panggung } from "/avatar.js";
 import { Pembicara, Pendengar, PRESET, CONTOH, daftarSuara, suaraSiap } from "/suara.js";
+import { Premium } from "/premium.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -36,7 +37,8 @@ async function api(p, opt = {}) {
 // ---------- Keadaan ----------
 let S = await api("/api/state").catch((e) => { $("#muat").textContent = `Gagal memuat: ${e.message}`; throw e; });
 const panggung = new Panggung($("#kanvas"));
-const NAMA = S.nama, USER = S.pengguna;
+let NAMA = S.nama;
+const USER = S.pengguna;
 document.title = NAMA;
 $("#nama").textContent = NAMA;
 $("#masuk").placeholder = `Ngobrol dengan ${NAMA}…`;
@@ -73,12 +75,20 @@ async function simpanPengaturan(ubah) {
 
 // ---------- Suara ----------
 const pembicara = new Pembicara({
-  onMulai: (item) => { panggung.bicara = true; if (item.emo) panggung.setEkspresi(item.emo); setOrb("bicara", "Sentuh bola untuk menyela"); },
+  onMulai: (item) => { panggung.bicara = !item.premium; if (item.emo) panggung.setEkspresi(item.emo); setOrb("bicara", "Sentuh bola untuk menyela"); },
   onKata: () => panggung.denyut(),
   onSelesaiSemua: () => { panggung.bicara = false; if (live && !arus) mulaiDengar(); },
 });
+const premium = new Premium($("#klip"), panggung);
+let statusPremium = { ada: false };
+premium.status().then((st) => { statusPremium = st; terapkanSuara(); });
 function terapkanSuara() {
   pembicara.atur({ voiceURI: cfgSuara.voiceURI, pitch: cfgSuara.pitch, rate: cfgSuara.rate });
+  premium.aktif = !!(cfgSuara.premium && statusPremium.siap);
+  premium.atur = { suara: cfgSuara.suaraPremium || "id-ID-GadisNeural",
+    laju: `${cfgSuara.rate >= 1 ? "+" : ""}${Math.round((cfgSuara.rate - 1) * 100)}%`,
+    nada: `${cfgSuara.pitch >= 1 ? "+" : ""}${Math.round((cfgSuara.pitch - 1) * 40)}Hz` };
+  pembicara.premium = premium;
   pembicara.hidup = cfgSuara.hidup || live;
   $("#bSuara").textContent = cfgSuara.hidup ? "🔊" : "🔇";
   simpanLokal("aira-suara", cfgSuara);
@@ -187,12 +197,19 @@ async function kirim(teks, { suara = false } = {}) {
         } else if (ev.t === "act") panggung.setAksi(ev.v === "think" ? "think" : ev.v);
         else if (ev.t === "tool") { $("#alat").textContent = ev.v; panggung.berpikir = true; if (live) $("#liveInfo").textContent = ev.v; }
         else if (ev.t === "error") toast(`⚠️ ${ev.v}`, 6000);
+        else if (ev.t === "foto") {
+          if (!log) { panggung.berpikir = false; log = tambahLog({ peran: NAMA, teks: "", at: Date.now() }); }
+          (log.foto ||= []).push({ url: ev.url, ket: ev.ket }); perbaruiLog(log);
+          tampilFoto(ev.url, ev.ket);
+        }
+        else if (ev.t === "adegan") { S.pengaturan.adegan = ev.v; terapkanAdegan(); toast(`🌆 Suasana: ${namaAdegan(ev.v)}`); }
         else if (ev.t === "avatar") { S = await api("/api/state"); await pakaiAvatar(false); if (tabAktif === "lemari" && $("#laci").classList.contains("on")) render(); }
         else if (ev.t === "done") {
           S.jiwa = ev.jiwa; segarkanHati();
           if (ev.ingatanBaru?.length) toast(`🧠 ${NAMA} mengingat: ${ev.ingatanBaru.join(" · ")}`, 5000);
           const u = ev.ubah || {};
           if (u.kedekatan > 0) panggung.setAksi("nod");
+          if (ev.level) rayakanLevel(ev.level);
         }
       }
     }
@@ -273,7 +290,7 @@ function bukaLaci(t) {
   for (const b of $("#tab").children) b.classList.toggle("on", b.dataset.t === t);
   render();
 }
-const JUDUL = { chat: "Obrolan", lemari: "Lemari & Model", suara: "Suara", hati: "Hati & Kepribadian", memori: "Memori", berkas: "Berkas Kerja", atur: "Pengaturan" };
+const JUDUL = { karakter: "Karakter", kencan: "Kencan & Hadiah", diari: "Buku Harian", chat: "Obrolan", lemari: "Lemari & Model", suara: "Suara", hati: "Hati & Kepribadian", memori: "Memori", berkas: "Berkas Kerja", atur: "Pengaturan" };
 async function render() {
   const el = $("#laciIsi");
   $("#laciJudul").textContent = JUDUL[tabAktif];
@@ -286,14 +303,41 @@ async function render() {
   else if (tabAktif === "hati") renderHati(el);
   else if (tabAktif === "memori") renderMemori(el);
   else if (tabAktif === "berkas") renderBerkas(el);
+  else if (tabAktif === "karakter") renderKarakter(el);
+  else if (tabAktif === "kencan") renderKencan(el);
+  else if (tabAktif === "diari") renderDiari(el);
   else renderAtur(el);
+}
+function htmlPesan(m) {
+  const foto = (m.foto || []).map((f) => `<img class="fotochat" src="${esc(f.url)}" alt="${esc(f.ket || "foto")}" loading="lazy">${f.ket ? `<div class="kecil">${esc(f.ket)}</div>` : ""}`).join("");
+  const putar = m.peran !== "aku" && m.teks ? `<button class="vn" title="Putar suara">▶ <span>${Math.max(1, Math.round(m.teks.length / 14))}″</span></button>` : "";
+  return `${m.proaktif ? '<div class="kecil">💌 dikirim saat kamu pergi</div>' : ""}${m.teks ? md(m.teks) : ""}${foto}${putar}`;
 }
 function elPesan(m) {
   const d = document.createElement("div");
   d.className = `pesan ${m.peran === "aku" ? "aku" : "dia"}`;
-  d.innerHTML = md(m.teks);
+  d.innerHTML = htmlPesan(m);
+  d.addEventListener("click", (e) => {
+    if (e.target.closest(".vn")) { pembicara.hidup = true; pembicara.contoh(m.teks); }
+    const img = e.target.closest(".fotochat"); if (img) tampilFoto(img.src, img.alt);
+  });
   m.el = d;
   return d;
+}
+function tampilFoto(url, ket = "") {
+  const d = document.createElement("div");
+  d.className = "lightbox";
+  d.innerHTML = `<img src="${esc(url)}" alt=""><div>${esc(ket)}</div>`;
+  d.onclick = () => d.remove();
+  document.body.append(d);
+}
+function rayakanLevel({ dari, ke }) {
+  panggung.setEkspresi("shy"); panggung.setAksi("nod");
+  const d = document.createElement("div");
+  d.className = "level";
+  d.innerHTML = `<div>💞</div><b>Hubungan kalian berkembang!</b><span>${esc(dari)} → <b>${esc(ke)}</b></span>`;
+  document.body.append(d);
+  setTimeout(() => d.remove(), 4200);
 }
 function tambahLog(m) {
   chatLog.push(m);
@@ -302,7 +346,7 @@ function tambahLog(m) {
   return m;
 }
 function perbaruiLog(m) {
-  if (m.el?.isConnected) { m.el.innerHTML = md(m.teks); const L = $("#laciIsi"); if (L.scrollHeight - L.scrollTop - L.clientHeight < 120) L.scrollTop = 1e9; }
+  if (m.el?.isConnected) { m.el.innerHTML = htmlPesan(m); const L = $("#laciIsi"); if (L.scrollHeight - L.scrollTop - L.clientHeight < 120) L.scrollTop = 1e9; }
 }
 
 function renderLemari(el) {
@@ -377,6 +421,13 @@ function renderSuara(el) {
     ${vs.slice(0, 40).map((v) => `<div class="mem"><span>${v.voiceURI === cfgSuara.voiceURI ? "✅ " : ""}${esc(v.name)} <span class="kecil">${esc(v.lang)}${/natural|online|neural/i.test(v.name) ? " · neural" : ""}</span></span>
       <button class="tombol" data-coba="${esc(v.voiceURI)}">▶ Coba</button><button class="tombol" data-pilih="${esc(v.voiceURI)}">Pilih</button></div>`).join("")}
   </div>
+  <div class="kartu"><h3>🎬 Mode Premium (GPU)</h3>
+    ${statusPremium.ada ? `<p class="kecil">${statusPremium.siap ? `✅ Siap di ${esc(statusPremium.gpu)}` : `⏳ ${esc(statusPremium.galat || "Model sedang dimuat…")}`}</p>
+    <label class="baris"><input type="checkbox" id="pPakai" ${cfgSuara.premium ? "checked" : ""} ${statusPremium.siap ? "" : "disabled"}> Wajah bicara foto-realistis (Ditto) + suara neural</label>
+    <div class="baris"><label>Suara premium</label><select id="pSuara">${[["id-ID-GadisNeural", "Gadis (wanita, Indonesia)"], ["id-ID-ArdiNeural", "Ardi (pria, Indonesia)"], ["ms-MY-YasminNeural", "Yasmin (wanita, Melayu)"], ["jv-ID-SitiNeural", "Siti (wanita, Jawa)"], ["su-ID-TutiNeural", "Tuti (wanita, Sunda)"]]
+      .map(([v, l]) => `<option value="${v}" ${(cfgSuara.suaraPremium || "id-ID-GadisNeural") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+    <p class="kecil">Hanya untuk avatar Potret (foto). Tiap kalimat dibuat jadi video di GPU rig; nada & kecepatan di bawah juga berlaku.</p>`
+    : `<p class="kecil">Belum dipasang. Di rig jalankan <code>sudo bash deploy/pasang-ditto.sh</code> (butuh GPU NVIDIA).</p>`}</div>
   <div class="kartu"><h3>Gaya suara</h3>
     <div class="baris" style="flex-wrap:wrap">${Object.entries(PRESET).map(([k, p]) => `<button class="tombol ${cfgSuara.preset === k ? "utama" : ""}" data-preset="${k}">${p.label}</button>`).join("")}</div>
     <div class="baris"><label>Nada (${cfgSuara.pitch.toFixed(2)})</label><input type="range" id="sPitch" min="0.6" max="1.8" step="0.05" value="${cfgSuara.pitch}"></div>
@@ -399,6 +450,8 @@ function renderSuara(el) {
     if (b.dataset.preset) { const p = PRESET[b.dataset.preset]; Object.assign(cfgSuara, { preset: b.dataset.preset, pitch: p.pitch, rate: p.rate }); simpan(); pembicara.hidup = true; pembicara.contoh(); }
     if (b.id === "sCoba") { pembicara.hidup = true; pembicara.contoh(); }
   };
+  el.querySelector("#pPakai")?.addEventListener("change", (e) => { cfgSuara.premium = e.target.checked; terapkanSuara(); });
+  el.querySelector("#pSuara")?.addEventListener("change", (e) => { cfgSuara.suaraPremium = e.target.value; terapkanSuara(); });
   el.querySelector("#sPitch").onchange = (e) => { cfgSuara.pitch = Number(e.target.value); cfgSuara.preset = ""; simpan(); };
   el.querySelector("#sRate").onchange = (e) => { cfgSuara.rate = Number(e.target.value); cfgSuara.preset = ""; simpan(); };
   el.querySelector("#sHidup").onchange = (e) => { cfgSuara.hidup = e.target.checked; terapkanSuara(); };
@@ -416,6 +469,110 @@ function renderHati(el) {
   <div class="kartu"><h3>🧬 Kepribadian (berubah dari interaksi)</h3>${Object.entries(j.sifat).map(([k, v]) => bar(nama[k] || k, v)).join("")}</div>
   <div class="kartu"><h3>🎓 Yang ${NAMA} pelajari tentang gayamu</h3>${j.gaya.length ? j.gaya.map((g) => `<div class="kecil">• ${esc(g)}</div>`).join("") : '<p class="kecil">Belum ada.</p>'}</div>
   <div class="kartu"><h3>📈 Perubahan terakhir</h3>${j.perubahan.length ? j.perubahan.map((p) => `<div class="kecil">• ${new Date(p.at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })} — ${Object.entries(p.ubah).map(([k, v]) => `${nama[k] || k} ${v > 0 ? "+" : ""}${v}`).join(", ")}${p.alasan ? ` <i>(${esc(p.alasan)})</i>` : ""}</div>`).join("") : '<p class="kecil">Belum ada.</p>'}</div>`;
+}
+
+// ---------- Karakter ----------
+async function gantiKarakter() {
+  pembicara.henti(); arus?.abort();
+  S = await api("/api/state");
+  NAMA = S.nama; document.title = NAMA; $("#nama").textContent = NAMA;
+  $("#masuk").placeholder = `Ngobrol dengan ${NAMA}…`;
+  const { riwayat } = await api("/api/riwayat?n=80");
+  chatLog = riwayat.map((m) => ({ ...m }));
+  notifSejak = Date.now();
+  segarkanHati(); terapkanAdegan();
+  await pakaiAvatar();
+  subjudul(`Hai ${USER}! Aku ${NAMA} 💗`);
+}
+function renderKarakter(el) {
+  const K = S.karakter;
+  const opsiArk = Object.entries(K.arketipe).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join("");
+  const opsiModel = [MODEL_BAWAAN, ...S.model].map((m) => `<option value="${esc(m.id)}">${esc(m.nama)}${m.karakter ? ` (${esc(m.karakter)})` : ""}</option>`).join("");
+  el.innerHTML = `
+  <div class="kartu"><h3>Karaktermu</h3>${K.semua.map((k) => `<div class="mem"><span><b>${esc(k.nama)}</b> ${k.id === K.aktif.id ? "✅" : ""}<br><span class="kecil">${esc(K.arketipe[k.arketipe] || "")}</span></span>
+    ${k.id === K.aktif.id ? "" : `<button class="tombol" data-pilih="${esc(k.id)}">Temui</button>`}<button data-hapus="${esc(k.id)}" title="Hapus">🗑</button></div>`).join("")}</div>
+  <div class="kartu"><h3>✏️ Ubah ${esc(K.aktif.nama)}</h3>
+    <div class="baris"><label>Watak</label><select id="kArk">${opsiArk}</select></div>
+    <div class="baris"><label>Tag album/baju</label><input type="text" id="kTag" value="${esc(K.aktif.tag || K.aktif.nama)}"></div>
+    <textarea id="kDes" rows="4" placeholder="Latar belakang, hobi, pekerjaan, cara bicara…" style="width:100%">${esc(K.aktif.deskripsi || "")}</textarea>
+    <button class="tombol utama" id="kSimpan">Simpan</button></div>
+  <div class="kartu"><h3>➕ Buat karakter baru</h3>
+    <div class="baris"><label>Nama</label><input type="text" id="bNama" placeholder="mis. Nadia"></div>
+    <div class="baris"><label>Watak</label><select id="bArk">${opsiArk}</select></div>
+    <div class="baris"><label>Avatar</label><select id="bModel">${opsiModel}</select></div>
+    <div class="baris"><label>Kedekatan awal</label><input type="range" id="bDekat" min="0" max="80" value="35"></div>
+    <textarea id="bDes" rows="4" placeholder="Ceritakan dia: umur, pekerjaan, hobi, sifat unik, cara kalian bertemu…" style="width:100%"></textarea>
+    <button class="tombol utama" id="bBuat">Buat & temui</button>
+    <p class="kecil">Tiap karakter punya memori, kepribadian, riwayat, lemari, dan buku harian sendiri. Untuk album foto, unggah potret dengan Karakter = nama/tag-nya.</p></div>`;
+  $("#kArk").value = K.aktif.arketipe || "manis";
+  el.onclick = async (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    try {
+      if (b.dataset.pilih) { await api("/api/karakter/pilih", { method: "POST", body: JSON.stringify({ id: b.dataset.pilih }) }); await gantiKarakter(); render(); }
+      if (b.dataset.hapus && confirm("Hapus karakter ini beserta memori & riwayatnya?")) { await api(`/api/karakter/${b.dataset.hapus}`, { method: "DELETE" }); await gantiKarakter(); render(); }
+      if (b.id === "kSimpan") { await api("/api/karakter/ubah", { method: "POST", body: JSON.stringify({ arketipe: $("#kArk").value, deskripsi: $("#kDes").value, tag: $("#kTag").value }) }); S = await api("/api/state"); toast("Tersimpan"); }
+      if (b.id === "bBuat") {
+        await api("/api/karakter", { method: "POST", body: JSON.stringify({ nama: $("#bNama").value, arketipe: $("#bArk").value, deskripsi: $("#bDes").value, kedekatanAwal: Number($("#bDekat").value), model: $("#bModel").value }) });
+        await gantiKarakter(); render();
+      }
+    } catch (err) { toast(`⚠️ ${err.message}`); }
+  };
+}
+
+// ---------- Kencan: suasana & hadiah ----------
+const IKON_ADEGAN = { rumah: "🏠", kafe: "☕", pantai: "🌅", taman: "🌳", makan_malam: "🕯️", bioskop: "🎬", hujan: "🌧️", kantor: "💼", malam_bintang: "🌌" };
+const NAMA_ADEGAN = { rumah: "Rumah", kafe: "Kafe", pantai: "Pantai senja", taman: "Piknik di taman", makan_malam: "Makan malam", bioskop: "Bioskop", hujan: "Hujan berdua", kantor: "Kantor", malam_bintang: "Malam berbintang" };
+const namaAdegan = (k) => `${IKON_ADEGAN[k] || ""} ${NAMA_ADEGAN[k] || k}`;
+const HADIAH = [["🌹", "bunga mawar"], ["☕", "kopi susu gula aren"], ["🍫", "cokelat"], ["🧸", "boneka beruang"], ["🍰", "kue stroberi"], ["💌", "surat cinta"], ["🎧", "playlist lagu favorit"], ["💐", "buket bunga"], ["🍜", "semangkuk ramen"], ["⭐", "bintang dari langit (gombal)"]];
+function terapkanAdegan() {
+  const a = S.pengaturan?.adegan || "rumah";
+  document.body.dataset.adegan = a;
+  $("#chipAdegan").textContent = namaAdegan(a);
+}
+function renderKencan(el) {
+  const a = S.pengaturan?.adegan || "rumah";
+  el.innerHTML = `
+  <div class="kartu"><h3>🌆 Ajak ${esc(NAMA)} ke…</h3><div class="grid">${Object.keys(IKON_ADEGAN).map((k) =>
+    `<button class="model ${k === a ? "on" : ""}" data-adegan="${k}"><div style="font-size:30px">${IKON_ADEGAN[k]}</div><div>${NAMA_ADEGAN[k]}</div></button>`).join("")}</div>
+    <p class="kecil">${esc(NAMA)} bersikap sesuai suasana, dan bisa mengusulkan suasana sendiri.</p></div>
+  <div class="kartu"><h3>🎁 Beri hadiah</h3><div class="grid">${HADIAH.map(([i, n]) =>
+    `<button class="model" data-hadiah="${esc(i + " " + n)}"><div style="font-size:30px">${i}</div><div>${esc(n)}</div></button>`).join("")}</div>
+    <div class="baris"><input type="text" id="hPesan" placeholder="Pesan untuk hadiahnya (opsional)"></div></div>`;
+  el.onclick = async (e) => {
+    const ad = e.target.closest("[data-adegan]")?.dataset.adegan;
+    if (ad) {
+      await simpanPengaturan({ adegan: ad }); terapkanAdegan(); render();
+      $("#laci").classList.remove("on");
+      kirim(`(Aku mengajakmu: ${NAMA_ADEGAN[ad].toLowerCase()} ${IKON_ADEGAN[ad]})`);
+    }
+    const h = e.target.closest("[data-hadiah]")?.dataset.hadiah;
+    if (h) {
+      const pesan = $("#hPesan").value.trim();
+      $("#laci").classList.remove("on");
+      hujanEmoji(h.split(" ")[0]);
+      kirim(`🎁 (Aku memberimu hadiah: ${h})${pesan ? ` ${pesan}` : ""}`);
+    }
+  };
+}
+function hujanEmoji(e) {
+  for (let i = 0; i < 18; i++) {
+    const s = document.createElement("span");
+    s.className = "hujan"; s.textContent = e;
+    s.style.left = `${Math.random() * 100}%`; s.style.animationDelay = `${Math.random() * 0.8}s`;
+    document.body.append(s); setTimeout(() => s.remove(), 3200);
+  }
+}
+
+// ---------- Buku harian ----------
+async function renderDiari(el) {
+  el.innerHTML = `<div class="kartu"><h3>📔 Buku harian ${esc(NAMA)}</h3><p class="kecil">Ditulis ${esc(NAMA)} sendiri tiap malam tentang hari kalian. Boleh kamu intip 🤫</p>
+    <button class="tombol utama" id="dTulis">Tulis untuk hari ini sekarang</button></div><div id="dIsi">Memuat…</div>`;
+  const muat = async () => {
+    const { diari } = await api("/api/diari");
+    $("#dIsi").innerHTML = diari.map((d) => `<div class="kartu"><h3>${new Date(d.tgl + "T12:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</h3><div class="diari">${md(d.teks)}</div></div>`).join("") || '<p class="kecil">Belum ada catatan.</p>';
+  };
+  $("#dTulis").onclick = async () => { $("#dTulis").textContent = "Menulis…"; try { await api("/api/diari", { method: "POST" }); } catch (e) { toast(e.message); } $("#dTulis").textContent = "Tulis untuk hari ini sekarang"; muat(); };
+  muat();
 }
 
 async function renderMemori(el) {
@@ -440,6 +597,9 @@ function renderAtur(el) {
   const b = S.biaya || {};
   el.innerHTML = `
   <div class="kartu"><h3>Pemakaian</h3><p class="kecil">${S.demo ? "Mode DEMO (tanpa Claude)." : `Perkiraan kredit Agent SDK bulan ini: <b>$${(b.bulanIni || 0).toFixed(2)}</b> · total $${(b.total || 0).toFixed(2)}`}</p></div>
+  <div class="kartu"><h3>💌 Pesan dari ${esc(NAMA)}</h3>
+    <label class="baris"><input type="checkbox" id="aProaktif" ${S.pengaturan?.proaktif !== false ? "checked" : ""}> ${esc(NAMA)} boleh menyapa duluan (pagi, malam, saat kangen)</label>
+    <button class="tombol" id="aNotif">🔔 Izinkan notifikasi browser</button> <span class="kecil">${"Notification" in window ? Notification.permission : "tidak didukung"}</span></div>
   <div class="kartu"><h3>Keamanan</h3><p class="kecil">${NAMA} berjalan terpisah: tanpa akses file/perintah di rig, tanpa akses jaringan lokal. Ia hanya bisa mencari di internet, membaca halaman publik, mengingat, dan menulis berkas di folder kerjanya sendiri.</p></div>
   <div class="kartu"><h3>Mulai ulang</h3>
     <div class="baris" style="flex-wrap:wrap">
@@ -448,6 +608,8 @@ function renderAtur(el) {
       <button class="tombol" data-r="kepribadian">Reset kepribadian</button>
       <button class="tombol bahaya" data-r="semua">Reset semuanya</button></div></div>
   <div class="kartu"><a class="tombol" href="/logout" style="text-decoration:none;color:inherit">Keluar</a></div>`;
+  el.querySelector("#aProaktif").onchange = (e) => simpanPengaturan({ proaktif: e.target.checked });
+  el.querySelector("#aNotif").onclick = async () => { if ("Notification" in window) { await Notification.requestPermission(); renderAtur(el); } };
   el.onclick = async (e) => {
     const r = e.target.closest("[data-r]")?.dataset.r; if (!r) return;
     if (!confirm(`Yakin? (${r}) Tidak bisa dibatalkan.`)) return;
@@ -458,8 +620,29 @@ function renderAtur(el) {
   };
 }
 
+// ---------- Pesan proaktif (dia menyapa duluan) ----------
+let notifSejak = bacaLokal(`aira-notif-${S.karakter.aktif.id}`, Date.now() - 3 * 864e5);
+async function cekNotif() {
+  try {
+    const { pesan, sekarang } = await api(`/api/notif?sejak=${notifSejak}`);
+    for (const m of pesan) {
+      if (!chatLog.some((x) => x.at === m.at && x.teks === m.teks)) tambahLog({ ...m });
+      subjudul(m.teks); toast(`💌 ${NAMA}: ${m.teks}`, 6000);
+      if (document.hidden && "Notification" in window && Notification.permission === "granted") new Notification(NAMA, { body: m.teks, icon: "/icon.svg" });
+    }
+    notifSejak = sekarang; simpanLokal(`aira-notif-${S.karakter.aktif.id}`, notifSejak);
+  } catch {}
+}
+setInterval(cekNotif, 60_000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) cekNotif(); });
+$("#nama").onclick = () => bukaLaci("karakter");
+$("#chipAdegan").onclick = () => bukaLaci("kencan");
+$("#bHadiah").onclick = () => bukaLaci("kencan");
+
 // ---------- Mulai ----------
 segarkanHati();
+terapkanAdegan();
+cekNotif();
 api("/api/riwayat?n=80").then(({ riwayat }) => { chatLog = riwayat.map((m) => ({ ...m })); if (tabAktif === "chat" && $("#laci").classList.contains("on")) render(); });
 await pakaiAvatar();
 if (S.demo) toast("Mode demo: avatar & suara bisa dicoba, jawaban masih contoh.", 5000);
@@ -467,4 +650,4 @@ if (bacaLokal("aira-kamera", false)) nyalakanKamera(true);
 const sapa = S.jiwa.terakhir ? (Date.now() - S.jiwa.terakhir > 864e5 ? `Akhirnya kamu datang… aku kangen 🥺` : `Hai lagi, ${USER} 😊`) : `Hai ${USER}! Aku ${NAMA}. Senang akhirnya ketemu kamu 💗`;
 subjudul(sapa);
 setTimeout(() => { if ($("#subTeks").textContent === sapa) subjudul(""); }, 7000);
-window.aira = { panggung }; // untuk debug dari konsol browser
+window.aira = { panggung, pembicara, premium }; // untuk debug dari konsol browser

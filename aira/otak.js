@@ -12,24 +12,35 @@ import { ambilHalaman } from "./jaring.js";
 import { SIFAT, tahapHubungan } from "./memori.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-export const NAMA = process.env.AIRA_NAMA || "Aira";
 export const PENGGUNA = process.env.AIRA_PENGGUNA || "Rahula";
 const MODEL = process.env.AIRA_MODEL || "claude-sonnet-5-5";
 const MODEL_RINGAN = process.env.AIRA_MODEL_RINGAN || "claude-haiku-5-5";
 const MAX_USD = Number(process.env.AIRA_MAX_USD || 0.6); // rem pengaman per pesan
 const TZ = process.env.AIRA_TZ || "Asia/Jakarta";
 const JENDELA = Number(process.env.AIRA_JENDELA || 24); // pesan terakhir yang dikirim utuh
+// Suasana/latar kencan yang bisa dipilih pengguna atau oleh karakter sendiri
+export const ADEGAN = {
+  rumah: "santai di rumah",
+  kafe: "kencan di kafe yang hangat, aroma kopi, musik pelan",
+  pantai: "jalan-jalan di pantai saat senja, angin sepoi-sepoi",
+  taman: "piknik di taman yang sejuk dan rindang",
+  makan_malam: "makan malam romantis dengan lilin",
+  bioskop: "nonton film berdua di bioskop",
+  hujan: "berteduh berdua saat hujan, suasana syahdu",
+  kantor: "menemani kerja di kantor; fokus membantu pekerjaan",
+  malam_bintang: "melihat bintang di atap pada malam hari",
+};
 export const EKSPRESI = ["neutral", "happy", "sad", "angry", "surprised", "relaxed", "shy"];
 const AKSI = ["nod", "shake", "tilt", "wave", "think"];
 const ALAT_DILARANG = ["Bash", "BashOutput", "KillShell", "Read", "Write", "Edit", "MultiEdit", "Glob", "Grep",
   "WebFetch", "Agent", "Task", "NotebookEdit", "Skill", "TodoWrite", "SlashCommand", "ExitPlanMode"];
 const EXT_BERKAS = /\.(md|txt|csv|json|html)$/i;
 
-async function bacaPersona(dataDir) {
+async function bacaPersona(dataDir, NAMA, tambahan) {
   const cand = [process.env.AIRA_PERSONA_FILE, path.join(dataDir, "persona.md"), path.join(here, "persona.md")].filter(Boolean);
   for (const f of cand) {
     const t = await fs.readFile(f, "utf8").catch(() => "");
-    if (t.trim()) return t.replaceAll("{{NAMA}}", NAMA).replaceAll("{{PENGGUNA}}", PENGGUNA).trim();
+    if (t.trim()) return (t.replaceAll("{{NAMA}}", NAMA).replaceAll("{{PENGGUNA}}", PENGGUNA).trim() + (tambahan ? `\n\n${tambahan}` : ""));
   }
   return `Kamu adalah ${NAMA}, pacar virtual dan asisten ${PENGGUNA}.`;
 }
@@ -44,12 +55,12 @@ function lamaTakJumpa(ms) {
   return `sudah ${Math.round(m / 1440)} hari tidak ngobrol (kamu kangen)`;
 }
 
-async function susunSistem(mem, dataDir, mode, pakaian) {
+async function susunSistem(mem, dataDir, mode, pakaian, NAMA, tambahan, adegan) {
   const j = mem.jiwa, mood = mem.moodSekarang();
   const { teks: faktaTeks, tersisa } = mem.faktaUntukPrompt();
   const sekarang = new Intl.DateTimeFormat("id-ID", { timeZone: TZ, dateStyle: "full", timeStyle: "short" }).format(new Date());
   const sifat = Object.entries(SIFAT).map(([k, d]) => `- ${d}: ${j.sifat[k]}/100 (${tingkat(j.sifat[k])})`).join("\n");
-  return `${await bacaPersona(dataDir)}
+  return `${await bacaPersona(dataDir, NAMA, tambahan)}
 
 ## Kepribadianmu SAAT INI (berubah pelan-pelan dari interaksi; bertindaklah sesuai angka ini)
 ${sifat}
@@ -66,6 +77,10 @@ ${mem.ringkasan.teks || "(belum ada)"}
 ## Waktu sekarang
 ${sekarang} (${TZ})
 
+## Suasana sekarang
+${ADEGAN[adegan] || ADEGAN.rumah}. Bawakan diri sesuai suasana ini. Kamu boleh mengusulkan suasana lain
+(alat ganti_suasana; pilihan: ${Object.keys(ADEGAN).join(", ")}) bila ${PENGGUNA} mengajak atau cocok.
+
 ## Penampilanmu sekarang
 ${pakaian}. Kamu bisa ganti baju sendiri (lihat_lemari lalu ganti_baju) bila ${PENGGUNA} memintanya,
 atau atas inisiatifmu sendiri sesekali bila cocok dengan suasana (mis. baju kantor saat kerja, baju santai malam hari).
@@ -73,6 +88,8 @@ atau atas inisiatifmu sendiri sesekali bila cocok dengan suasana (mis. baju kant
 ## Kemampuanmu
 - WebSearch: cari info terbaru di internet. ambil_halaman: baca isi halaman web publik (sebutkan sumbernya).
 - cari_memori: cari ingatan & obrolan lama. lupakan_memori: hapus ingatan yang salah/diminta dilupakan.
+- lihat_album / kirim_foto: kirim foto dirimu ke ${PENGGUNA} (mis. saat ia minta foto/selfie atau kamu ingin pamer baju).
+  Hanya foto yang ada di albummu; jangan mengaku mengirim foto yang tidak ada.
 - tulis_berkas / baca_berkas / daftar_berkas: catatan dan dokumen kerja di folder kerjamu sendiri
   (${PENGGUNA} bisa mengunduhnya dari panel 📁). Pakai untuk hasil kerja panjang: draf, rangkuman riset, tabel CSV.
 - Kamu TIDAK punya akses ke rig, jaringan lokal, file, email, atau sistem ${PENGGUNA} lainnya, dan tidak bisa
@@ -93,7 +110,7 @@ ${mode === "live"
   - gaya_baru: satu pelajaran soal cara bicara yang ia suka/tidak suka, bila ada. julukan: isi bila kalian sepakat panggilan baru.`;
 }
 
-function susunPrompt(mem, pesan, isyarat) {
+function susunPrompt(mem, pesan, isyarat, NAMA) {
   const r = mem.riwayat.slice(-JENDELA - 1, -1); // pesan baru sudah dicatat → kecualikan
   let jatah = 14000;
   const baris = [];
@@ -166,11 +183,14 @@ function labelAlat(nama, input = {}) {
   if (n === "baca_berkas") return `📖 Membaca ${input.nama || "berkas"}`;
   if (n === "daftar_berkas") return "📁 Melihat folder kerja";
   if (n === "lihat_lemari") return "👗 Membuka lemari";
+  if (n === "lihat_album") return "🖼️ Membuka album foto";
+  if (n === "kirim_foto") return "📸 Mengirim foto…";
+  if (n === "ganti_suasana") return `🌆 Pindah suasana: ${input.adegan || ""}`;
   if (n === "ganti_baju") return "👗 Ganti baju…";
   return `⚙️ ${n}`;
 }
 
-export function buatOtak({ mem, dataDir, kerjaDir, demo, lemari }) {
+export function buatOtak({ mem, dataDir, kerjaDir, demo, lemari, nama: NAMA = "Aira", tambahan = "" }) {
   let sdk = null;
   const muatSdk = async () => (sdk ||= await import("@anthropic-ai/claude-agent-sdk"));
   const teks = (t) => ({ content: [{ type: "text", text: typeof t === "string" ? t : JSON.stringify(t, null, 1) }] });
@@ -219,6 +239,20 @@ export function buatOtak({ mem, dataDir, kerjaDir, demo, lemari }) {
             kirim({ t: "avatar" });
             return teks(`Sudah ganti. Sekarang memakai: ${await lemari.ringkas()}`);
           }),
+        tool("lihat_album", "Lihat foto-foto dirimu yang bisa dikirim.", {},
+          async () => teks(await lemari.album())),
+        tool("kirim_foto", `Kirim satu foto dirimu ke chat ${PENGGUNA}. Pakai id dari lihat_album.`,
+          { id: z.string(), keterangan: z.string().optional() },
+          async ({ id, keterangan }) => {
+            const f = (await lemari.album()).find((x) => x.id === id);
+            if (!f) return teks("Foto itu tidak ada di album.");
+            kirim({ t: "foto", url: f.url, ket: keterangan || "" });
+            fotoTerkirim.push({ url: f.url, ket: keterangan || "" });
+            return teks("Foto terkirim.");
+          }),
+        tool("ganti_suasana", "Ganti suasana/latar kencan kalian (layar ikut berubah).",
+          { adegan: z.enum(Object.keys(ADEGAN)) },
+          async ({ adegan }) => { await lemari.aturAdegan(adegan); kirim({ t: "adegan", v: adegan }); return teks(`Suasana sekarang: ${ADEGAN[adegan]}`); }),
         tool("daftar_berkas", "Daftar dokumen di folder kerjamu.", {},
           async () => teks((await fs.readdir(kerjaDir).catch(() => [])).filter((f) => EXT_BERKAS.test(f)))),
       ],
@@ -243,16 +277,18 @@ export function buatOtak({ mem, dataDir, kerjaDir, demo, lemari }) {
   };
 
   // Satu giliran percakapan. kirim(event) dipanggil untuk tiap event NDJSON.
+  let fotoTerkirim = [];
   async function jawab({ pesan, mode, isyarat, kirim, abortController }) {
     const pemilah = buatPemilah(kirim);
+    fotoTerkirim = [];
     if (demo) return jawabDemo(pesan, pemilah, abortController);
     const { query } = await muatSdk();
     const q = query({
-      prompt: susunPrompt(mem, pesan, isyarat),
+      prompt: susunPrompt(mem, pesan, isyarat, NAMA),
       options: {
         model: MODEL,
         effort: mode === "live" ? "low" : "medium",
-        systemPrompt: await susunSistem(mem, dataDir, mode, await lemari.ringkas()),
+        systemPrompt: await susunSistem(mem, dataDir, mode, await lemari.ringkas(), NAMA, tambahan, await lemari.adegan()),
         tools: ["WebSearch"],
         allowedTools: ["WebSearch", "mcp__aira__*"],
         disallowedTools: ALAT_DILARANG,
@@ -291,7 +327,36 @@ export function buatOtak({ mem, dataDir, kerjaDir, demo, lemari }) {
       }
     }
     if (!adaTeks && cadangan) pemilah.dorong(cadangan);
-    return { ...pemilah.selesai(), biaya };
+    return { ...pemilah.selesai(), biaya, foto: fotoTerkirim };
+  }
+
+  // Panggilan singkat tanpa alat (model ringan): sapaan proaktif & buku harian
+  async function tanyaRingan(prompt, sistem) {
+    const { query } = await muatSdk();
+    let hasil = "";
+    for await (const m of query({ prompt, options: { model: MODEL_RINGAN, tools: [], settingSources: [], persistSession: false,
+      maxTurns: 1, permissionMode: "dontAsk", cwd: kerjaDir, env: envAnak(), systemPrompt: sistem } })) {
+      if (m.type === "result") { if (m.subtype === "success") hasil = m.result || ""; await mem.tambahBiaya(m.total_cost_usd || 0); }
+    }
+    return hasil.trim();
+  }
+  // Pesan yang dikirim karakter lebih dulu (selamat pagi, selamat malam, kangen)
+  async function sapa(jenis) {
+    if (demo) return { pagi: `Selamat pagi, ${PENGGUNA}! ☀️ Jangan lupa sarapan ya.`, malam: `Udah malam nih… jangan begadang ya 🌙`, kangen: `Kamu ke mana aja? Aku kangen 🥺` }[jenis];
+    const lima = mem.riwayat.slice(-12).map((m) => `${m.peran === "aku" ? PENGGUNA : NAMA}: ${m.teks.slice(0, 300)}`).join("\n");
+    const tujuan = { pagi: "ucapan selamat pagi yang hangat", malam: "ucapan selamat malam yang manis", kangen: `pesan karena kangen setelah ${PENGGUNA} lama tidak menyapa` }[jenis];
+    const sistem = (await bacaPersona(dataDir, NAMA, tambahan)) + `\n\nIngatanmu:\n${mem.faktaUntukPrompt(3000).teks}\n\nRingkasan:\n${mem.ringkasan.teks}`;
+    const t = await tanyaRingan(`Obrolan terakhir:\n${lima || "(belum ada)"}\n\nTulis SATU pesan chat singkat (1–2 kalimat) dari ${NAMA} kepada ${PENGGUNA}: ${tujuan}. Boleh menyinggung hal yang kamu ingat tentangnya. Tanpa tanda kutip, tanpa tag.`, sistem);
+    return t.replace(/<meta>[\s\S]*?<\/meta>|\[[a-z_]{2,12}\]/gi, "").trim();
+  }
+  // Buku harian: catatan pribadi karakter tentang hari itu
+  async function diari(tgl) {
+    const pesan = mem.pesanTanggal(tgl);
+    if (!pesan.length) return "";
+    if (demo) return `Hari ini aku ngobrol ${pesan.length} kali sama ${PENGGUNA}. Senang banget rasanya 💗`;
+    const isi = pesan.map((m) => `${m.peran === "aku" ? PENGGUNA : NAMA}: ${m.teks.slice(0, 500)}`).join("\n").slice(-30000);
+    return tanyaRingan(`Obrolan tanggal ${tgl}:\n${isi}\n\nTulis buku harian ${NAMA} untuk hari itu (100–180 kata, orang pertama, jujur dan hangat): apa yang terjadi, perasaanmu tentang ${PENGGUNA}, dan harapanmu untuk besok. Hanya isi buku hariannya.`,
+      await bacaPersona(dataDir, NAMA, tambahan));
   }
 
   // Ringkas obrolan yang sudah keluar jendela agar ingatan jangka panjang tetap ringkas.
@@ -313,7 +378,7 @@ export function buatOtak({ mem, dataDir, kerjaDir, demo, lemari }) {
     if (hasil.trim()) await mem.simpanRingkasan(hasil.trim(), batas);
   }
 
-  return { jawab, ringkasBilaPerlu };
+  return { jawab, ringkasBilaPerlu, sapa, diari };
 }
 
 // Mode demo (tanpa login Claude): balasan contoh agar avatar, suara, dan UI bisa dicoba.

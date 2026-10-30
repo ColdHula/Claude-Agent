@@ -30,7 +30,7 @@ export function tahapHubungan(k) {
   return "pasangan yang sangat dekat";
 }
 
-export function buatPenyimpanan(dir) {
+export function buatPenyimpanan(dir, awal = {}) {
   const F = {
     fakta: path.join(dir, "memori.json"),
     jiwa: path.join(dir, "kepribadian.json"),
@@ -48,8 +48,8 @@ export function buatPenyimpanan(dir) {
   };
 
   const jiwaAwal = () => ({
-    sifat: { ...SIFAT_AWAL },
-    kedekatan: clamp(process.env.AIRA_KEDEKATAN_AWAL ?? 55),
+    sifat: { ...SIFAT_AWAL, ...(awal.sifat || {}) },
+    kedekatan: clamp(awal.kedekatan ?? process.env.AIRA_KEDEKATAN_AWAL ?? 55),
     mood: { nama: "ceria", ...MOOD_DASAR },
     gaya: [],
     julukan: "",
@@ -65,7 +65,7 @@ export function buatPenyimpanan(dir) {
     await fs.mkdir(dir, { recursive: true });
     fakta = await baca(F.fakta, []);
     jiwa = { ...jiwaAwal(), ...(await baca(F.jiwa, {})) };
-    jiwa.sifat = { ...SIFAT_AWAL, ...jiwa.sifat };
+    jiwa.sifat = { ...SIFAT_AWAL, ...(awal.sifat || {}), ...jiwa.sifat };
     ringkasan = await baca(F.ringkasan, ringkasan);
     biaya = await baca(F.biaya, biaya);
     const raw = await fs.readFile(F.riwayat, "utf8").catch(() => "");
@@ -199,8 +199,12 @@ export function buatPenyimpanan(dir) {
     if (apa === "kepribadian" || apa === "semua") { jiwa = jiwaAwal(); await fs.rm(F.jiwa, { force: true }); }
   }
 
+  // Pesan pada tanggal tertentu (YYYY-MM-DD, zona lokal server)
+  const tanggal = (ms) => new Date(ms).toLocaleDateString("sv-SE", { timeZone: process.env.AIRA_TZ || "Asia/Jakarta" });
+  const pesanTanggal = (tgl) => riwayat.filter((m) => tanggal(m.at) === tgl);
+
   return {
-    muat, ingat, lupakan, cari, catat, terapkanMeta, simpanRingkasan, tambahBiaya, reset,
+    muat, ingat, tanggal, pesanTanggal, lupakan, cari, catat, terapkanMeta, simpanRingkasan, tambahBiaya, reset,
     faktaUntukPrompt, moodSekarang,
     get fakta() { return fakta; },
     get jiwa() { return jiwa; },
