@@ -6,6 +6,8 @@
 <title>Studio</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Studio">
 <meta name="theme-color" content="#262624">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -263,8 +265,29 @@ a{color:var(--blue)}
 .code textarea{flex:1;border:0;outline:none;resize:none;background:none;padding:8px 10px;white-space:pre;overflow:auto;tab-size:2;font:inherit;color:var(--ink)}
 .edempty{flex:1;display:grid;place-items:center;color:var(--faint);font-size:13px;padding:20px;text-align:center}
 
+/* lembar bawah (HP) + panel server */
+.pop-scrim{position:fixed;inset:0;z-index:29;background:rgba(0,0,0,.4)}
+.pop.sheet{left:0!important;right:0!important;top:auto!important;bottom:0;max-width:none;width:100%;min-width:0;border-radius:18px 18px 0 0;max-height:78dvh;padding:8px 8px calc(10px + env(safe-area-inset-bottom));z-index:31;animation:sheetup .18s ease-out}
+@keyframes sheetup{from{transform:translateY(40px);opacity:.4}}
+.meter{height:7px;border-radius:4px;background:var(--card2);overflow:hidden;margin-top:3px}.meter i{display:block;height:100%;border-radius:4px;transition:width .4s}
+.svc{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.svc .d{font-size:12.5px;color:var(--faint)}
+.logbox{font:11.5px/1.5 var(--mono);white-space:pre-wrap;word-break:break-all;max-height:50vh;overflow:auto;background:var(--side);border-radius:8px;padding:8px 10px;margin:6px 0 0}
+.tn .inc{margin-left:auto;padding:0 8px;opacity:.55}
+.syncpill.rig{font-variant-numeric:tabular-nums}
+
 /* ponsel */
 @media (max-width:860px){
+  input,textarea,select{font-size:16px!important}
+  .pop .opt{padding:13px 12px}
+  .cb{height:42px;min-width:42px}
+  .send{width:44px;height:44px;border-radius:12px}
+  .acts button{padding:8px 10px}
+  .wsb{flex-direction:column}
+  .tree{width:auto;max-height:36%;border-right:0;border-bottom:1px solid var(--line)}
+  .ebar{flex-wrap:wrap}
+  .tabsv button{white-space:nowrap}
+  .svc .btn2{padding:8px 14px}
   .side{position:fixed;inset:0 auto 0 0;z-index:20;margin-left:-280px;width:280px;box-shadow:0 0 40px rgba(0,0,0,.4)}
   .app.mside .side{margin-left:0}
   .app.mside .scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:19}
@@ -294,6 +317,7 @@ a{color:var(--blue)}
     <button class="navb" id="searchBtn">🔍 Cari chat <span class="sp"></span><span class="kbd hide-m">Ctrl K</span></button>
     <div class="list" id="list"></div>
     <div class="foot">
+      <button class="syncpill rig" id="rigPill" title="Status server — ketuk untuk mengelola"></button>
       <button class="syncpill" id="syncPill" title="Penyimpanan chat"></button>
       <button class="me" id="meBtn"><span class="av" id="av">R</span><span><div class="n" id="meName">Rahula</div><div class="s" id="meSub">Pengaturan</div></span></button>
     </div>
@@ -319,6 +343,7 @@ a{color:var(--blue)}
   </main>
 </div>
 <input type="file" id="fileIn" multiple hidden>
+<input type="file" id="camIn" accept="image/*" capture="environment" hidden>
 
 <script>
 "use strict";
@@ -452,6 +477,7 @@ async function loadSessions() {
   try {
     const r = await api("/api/sessions");
     S.sessions = r.sessions; S.sync = r.sync;
+    S.busyIds = new Set([...r.sessions.filter((x) => x.busy).map((x) => x.id), ...(S.live?.sid ? [S.live.sid] : [])]);
   } catch (e) { return; }
   renderList(); renderSync();
 }
@@ -513,6 +539,14 @@ function popover(anchor, html, { align = "left", up = true } = {}) {
   closePop();
   const p = document.createElement("div");
   p.className = "pop"; p.innerHTML = html; p.id = "pop";
+  if (isMobile()) {
+    // HP: tampil sebagai lembar dari bawah layar, mudah dijangkau jempol.
+    const sc = document.createElement("div"); sc.className = "pop-scrim"; sc.id = "popScrim";
+    p.classList.add("sheet");
+    document.body.append(sc, p);
+    setTimeout(() => document.addEventListener("pointerdown", outside, true), 0);
+    return p;
+  }
   document.body.append(p);
   const r = anchor.getBoundingClientRect();
   const w = p.offsetWidth, h = p.offsetHeight;
@@ -526,7 +560,7 @@ function popover(anchor, html, { align = "left", up = true } = {}) {
   return p;
 }
 function outside(e) { const p = $("#pop"); if (p && !p.contains(e.target)) closePop(); }
-function closePop() { $("#pop")?.remove(); document.removeEventListener("pointerdown", outside, true); }
+function closePop() { $("#pop")?.remove(); $("#popScrim")?.remove(); document.removeEventListener("pointerdown", outside, true); }
 
 async function openModelPicker(anchor) {
   const groups = ["langganan", "gratis", "api"];
@@ -563,6 +597,7 @@ async function openModelPicker(anchor) {
 
 function openPlusMenu(anchor) {
   const h = `<button class="opt" data-a="up">📎 <span><div>Unggah berkas atau foto</div><div class="d">Gambar, PDF, teks, CSV, kode… (maks 60 MB)</div></span></button>
+    <button class="opt" data-a="cam">📷 <span><div>Ambil foto</div><div class="d">Langsung dari kamera HP</div></span></button>
     ${S.mode === "code" && S.active ? `<button class="opt" data-a="cur">📄 <span><div>Sertakan berkas yang dibuka</div><div class="d">${esc(S.active)}</div></span></button>` : ""}
     ${S.mode === "code" ? `<button class="opt" data-a="ws">📁 <span>Pilih berkas workspace…</span></button>` : ""}
     <hr><div class="ttl">Proyek (pengetahuan)</div>
@@ -574,6 +609,7 @@ function openPlusMenu(anchor) {
   $$(".opt[data-a]", p).forEach((b) => (b.onclick = () => {
     closePop();
     if (b.dataset.a === "up") $("#fileIn").click();
+    if (b.dataset.a === "cam") $("#camIn").click();
     if (b.dataset.a === "cur") addWsFile(S.active);
     if (b.dataset.a === "ws") { openWs(true); toast("Klik kanan / tahan berkas di pohon untuk menyertakannya, atau buka lalu pakai menu +."); }
     if (b.dataset.a === "proj") openSettings("impor");
@@ -617,6 +653,7 @@ function renderPending() {
   updateSend();
 }
 $("#fileIn").onchange = (e) => { uploadFiles([...e.target.files]); e.target.value = ""; };
+$("#camIn").onchange = (e) => { uploadFiles([...e.target.files]); e.target.value = ""; };
 document.addEventListener("paste", (e) => {
   const files = [...(e.clipboardData?.files || [])];
   if (files.length && !e.target.closest?.(".code")) { e.preventDefault(); uploadFiles(files); }
@@ -635,6 +672,7 @@ function composerHtml(big) {
         <button class="cb" id="plusBtn" title="Lampiran & skill">＋</button>
         <button class="cb" id="thinkBtn" title="Berpikir lebih dalam (lebih lambat, lebih teliti)">💡<span class="hide-m">Berpikir</span></button>
         <button class="cb" id="permBtn" title="Izin mode Code"></button>
+        <button class="cb" id="micBtn" title="Ketik dengan suara" style="display:none">🎤</button>
         <span class="sp"></span>
         <button class="cb plain" id="modelBtn" title="Pilih model"></button>
         <button class="send" id="sendBtn" title="Kirim (Enter)" disabled>↑</button>
@@ -658,8 +696,22 @@ function bindComposer() {
   $("#plusBtn").onclick = (e) => openPlusMenu(e.currentTarget);
   $("#modelBtn").onclick = (e) => openModelPicker(e.currentTarget);
   $("#permBtn").onclick = (e) => openPermMenu(e.currentTarget);
+  const mic = $("#micBtn");
+  if (SpeechRec) { mic.style.display = ""; mic.classList.toggle("on", Boolean(S.rec)); mic.onclick = toggleMic; }
   $("#thinkBtn").onclick = () => { S.think = !S.think; LS.set("think", S.think); renderComposerBar(); };
   renderComposerBar(); renderPending();
+}
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+function toggleMic() {
+  if (S.rec) { S.rec.stop(); return; }
+  const ta = $("#prompt");
+  const r = new SpeechRec();
+  r.lang = "id-ID"; r.interimResults = true; r.continuous = true;
+  const base = ta.value ? ta.value.replace(/\s*$/, " ") : "";
+  r.onresult = (e) => { let t = ""; for (const x of e.results) t += x[0].transcript; ta.value = base + t; S.draft = ta.value; autoGrow(); updateSend(); };
+  r.onerror = (e) => { if (e.error !== "no-speech" && e.error !== "aborted") toast(e.error === "not-allowed" ? "Izin mikrofon ditolak. Aktifkan di pengaturan browser." : `Mikrofon: ${e.error}`); };
+  r.onend = () => { S.rec = null; $("#micBtn")?.classList.remove("on"); };
+  try { r.start(); S.rec = r; $("#micBtn").classList.add("on"); } catch (e) { toast("Mikrofon tidak bisa dimulai."); }
 }
 function autoGrow() { const ta = $("#prompt"); if (!ta) return; ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, innerHeight * 0.42) + "px"; }
 function renderComposerBar() {
@@ -842,13 +894,14 @@ function newChat(mode) {
 }
 async function openSession(source, id) {
   try {
-    const { session } = await api(`/api/sessions/${source}/${encodeURIComponent(id)}`);
+    const { session, running } = await api(`/api/sessions/${source}/${encodeURIComponent(id)}`);
     S.cur = session; S.editAt = undefined; S.draft = ""; S.project = session.project || null; S.projectTouched = false;
     if (source === "studio") {
       if (session.mode) setMode(session.mode, true);
       if (session.provider && prov(session.provider)) { S.provider = session.provider; S.model = session.model || ""; }
     } else if (source === "claude") setMode("code", true);
     render(); renderList();
+    if (source === "studio" && running) attachRunning(session); // masih dikerjakan server (mis. dimulai dari perangkat lain)
   } catch (e) { toast(e.message); }
 }
 async function continueSession() {
@@ -872,6 +925,9 @@ function setMode(m, quiet) {
   renderComposerBar();
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const freshMsg = (m) => ({ role: "assistant", text: "", thinking: "", provider: m.provider, model: m.model, steps: [], perms: [], notes: [], meta: {}, waitText: "" });
+
 async function send(override) {
   if (S.live) return toast("Tunggu jawaban sebelumnya selesai, atau hentikan dulu.");
   const text = override ? override.text : ($("#prompt")?.value || "").trim();
@@ -888,36 +944,96 @@ async function send(override) {
   c.messages.push({ role: "user", text, attachments, files });
   const body = { sessionId: c.id, provider: S.provider, model: currentModel(), text, attachments, files, skills: [...S.skillsOn], mode: S.mode, perm: S.perm, think: S.think, truncateAt, ...(S.projectTouched || !c.id ? { project: S.project } : {}) };
   S.projectTouched = false;
-  S.live = { sid: c.id, msg: { role: "assistant", text: "", thinking: "", provider: S.provider, model: body.model, steps: [], perms: [], notes: [], meta: {}, waitText: "" }, ac: new AbortController() };
+  S.live = { sid: c.id, msg: freshMsg({ provider: S.provider, model: body.model }), ac: new AbortController(), streamAc: null, last: Date.now() };
   S.pending = []; S.wsFiles = []; S.draft = ""; S.editAt = undefined;
   render();
   const live = S.live;
-  try {
-    const r = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: live.ac.signal });
-    if (r.status === 401) { location.href = "/login"; return; }
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
-    const reader = r.body.getReader(), dec = new TextDecoder();
-    let buf = "";
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      let k;
-      while ((k = buf.indexOf("\n\n")) >= 0) {
-        const chunk = buf.slice(0, k); buf = buf.slice(k + 2);
-        if (!chunk.startsWith("data: ")) continue;
-        handleEvent(c, live, JSON.parse(chunk.slice(6)));
-      }
+  await runStream(c, live, (sig) => fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: sig }), false);
+  finishLive(c, live);
+}
+
+// Membaca aliran jawaban. Bila koneksi putus (HP terkunci, pindah aplikasi, sinyal hilang), jawaban tetap
+// dikerjakan server; di sini kita menyambung lagi lewat /attach sampai selesai.
+async function runStream(c, live, firstFetch, isAttach) {
+  let fetcher = firstFetch, attaching = isAttach;
+  for (let attempt = 0; attempt < 400; attempt++) {
+    if (live.ac.signal.aborted) break;
+    live.streamAc = new AbortController();
+    const sig = AbortSignal.any([live.ac.signal, live.streamAc.signal]);
+    try {
+      const r = await fetcher(sig);
+      if (r.status === 401) { location.href = "/login"; return; }
+      if (!attaching && !r.ok) throw Object.assign(new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`), { fatal: true });
+      if ((r.headers.get("content-type") || "").includes("application/json")) { await refreshCur(c, live); return; } // sudah selesai
+      if (attaching) live.msg = freshMsg(live.msg); // isi lama diputar ulang dari awal
+      live.last = Date.now(); status("");
+      if (await consume(r, c, live)) return;
+    } catch (e) {
+      if (e.fatal) { c.messages.push({ role: "assistant", text: `⚠️ ${e.message}`, error: true, provider: live.msg.provider, model: live.msg.model }); if (S.live === live) S.live = null; return; }
+      if (live.ac.signal.aborted) break;
     }
-  } catch (e) {
-    if (S.live === live) c.messages.push({ role: "assistant", text: live.ac.signal.aborted ? (live.msg.text || "") + "\n\n_(dihentikan)_" : `⚠️ ${e.message}`, error: !live.ac.signal.aborted, provider: live.msg.provider, model: live.msg.model, steps: live.msg.steps, thinking: live.msg.thinking });
+    if (!c.id) { c.messages.push({ role: "assistant", text: "⚠️ Koneksi terputus sebelum pesan terkirim. Coba kirim lagi.", error: true }); if (S.live === live) S.live = null; return; }
+    attaching = true;
+    fetcher = (sig) => fetch(`/api/chat/${c.id}/attach`, { signal: sig });
+    if (S.cur === c) status("Koneksi terputus — menyambung ulang…");
+    await sleep(Math.min(700 + attempt * 600, 5000));
   }
+  if (live.ac.signal.aborted && S.live === live) {
+    c.messages.push({ role: "assistant", text: `${live.msg.text || ""}${live.msg.text ? "\n\n" : ""}_(dihentikan)_`, provider: live.msg.provider, model: live.msg.model, steps: live.msg.steps, thinking: live.msg.thinking });
+    S.live = null;
+  } else if (S.live === live) await refreshCur(c, live);
+}
+async function consume(r, c, live) {
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    live.last = Date.now();
+    buf += dec.decode(value, { stream: true });
+    let k;
+    while ((k = buf.indexOf("\n\n")) >= 0) {
+      const chunk = buf.slice(0, k); buf = buf.slice(k + 2);
+      if (!chunk.startsWith("data: ")) continue;
+      handleEvent(c, live, JSON.parse(chunk.slice(6)));
+    }
+  }
+  return S.live !== live; // true = peristiwa selesai/galat sudah diterima
+}
+async function refreshCur(c, live) {
+  try { const { session } = await api(`/api/sessions/studio/${encodeURIComponent(c.id)}`); c.messages = session.messages; c.title = session.title; } catch {}
+  if (S.live === live) S.live = null;
+}
+function finishLive(c, live) {
   if (S.live === live) S.live = null;
   S.busyIds.delete(c.id);
-  if (S.cur === c) render();
+  if (S.cur === c) { render(); status("Siap"); }
   loadSessions();
   if (S.mode === "code") { S.tabs.forEach((t) => reloadFile(t.path, true)); S.tree = {}; drawTree(); }
 }
+function attachRunning(c) {
+  if (S.live) return;
+  S.live = { sid: c.id, msg: freshMsg({ provider: c.provider, model: c.model }), ac: new AbortController(), streamAc: null, last: Date.now() };
+  S.busyIds.add(c.id);
+  render();
+  const live = S.live;
+  runStream(c, live, (sig) => fetch(`/api/chat/${c.id}/attach`, { signal: sig }), true).then(() => finishLive(c, live));
+}
+// Kembali ke aplikasi / sinyal pulih → paksa sambung ulang bila aliran sudah lama diam.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  const l = S.live;
+  if (l && Date.now() - l.last > 4000) l.streamAc?.abort();
+  else if (!l) { loadSessions(); pollRig(); }
+});
+addEventListener("online", () => S.live?.streamAc?.abort());
+function status(t) {
+  let el = $("#netBar");
+  if (!t || t === "Siap") { el?.remove(); return; }
+  if (!el) { el = document.createElement("div"); el.id = "netBar"; el.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:50;background:var(--warn);color:#241a00;text-align:center;font-size:13px;padding:4px 8px"; document.body.append(el); }
+  el.textContent = t;
+}
+
 function handleEvent(c, live, e) {
   const m = live.msg;
   switch (e.type) {
@@ -1020,7 +1136,7 @@ function openSettings(tab = "profil") {
   $(".modal")?.remove();
   const m = document.createElement("div");
   m.className = "modal";
-  const tabs = [["profil", "👤 Profil"], ["akun", "🔑 Akun Claude"], ["model", "🤖 Model & penyedia"], ["impor", "📥 Impor & proyek"], ["simpan", "☁️ Penyimpanan chat"], ["skill", "🧰 Skill"], ["tampilan", "🎨 Tampilan"], ["bantuan", "❔ Bantuan"]];
+  const tabs = [["profil", "👤 Profil"], ["akun", "🔑 Akun Claude"], ["model", "🤖 Model & penyedia"], ["impor", "📥 Impor & proyek"], ["server", "🖥 Server"], ["simpan", "☁️ Penyimpanan chat"], ["skill", "🧰 Skill"], ["tampilan", "🎨 Tampilan"], ["bantuan", "❔ Bantuan"]];
   m.innerHTML = `<div class="box"><div class="mh"><h2>Pengaturan</h2><button class="ib" data-x>✕</button></div><div class="mb"><nav class="tabsv">${tabs.map(([k, n]) => `<button data-t="${k}">${n}</button>`).join("")}</nav><div class="pane" id="pane"></div></div></div>`;
   document.body.append(m);
   m.onclick = (e) => { if (e.target === m || e.target.closest("[data-x]")) m.remove(); };
@@ -1181,6 +1297,92 @@ PANES.akun = async function (el, inWizard) {
   $("#lgCheck", el).onclick = async () => { $("#lgCheck", el).textContent = "memeriksa…"; await refreshAccount(true); PANES.akun(el, inWizard); };
   if (!a) { await refreshAccount(); PANES.akun(el, inWizard); }
 };
+
+PANES.server = async function (el) {
+  el.innerHTML = `<h3>Server</h3><p class="s">Pantau dan kelola rig/VPS Anda dari sini, termasuk dari HP. Untuk perintah lain, pakai mode <b>Code</b> (tiap perintah minta izin Anda).</p><div id="rigBox"><p class="s">Memuat…</p></div><div id="rigOut"></div>`;
+  const up = (x) => (x >= 86400 ? `${Math.floor(x / 86400)} hari ${Math.floor((x % 86400) / 3600)} jam` : `${Math.floor(x / 3600)} jam ${Math.floor((x % 3600) / 60)} mnt`);
+  const bar = (label, pct, text, warn = 75, bad = 90) => `<div style="margin:9px 0"><div style="display:flex;justify-content:space-between;gap:8px;font-size:13px"><span>${label}</span><span style="color:var(--dim);text-align:right">${text}</span></div><div class="meter"><i style="width:${Math.max(2, Math.min(100, pct))}%;background:${pct >= bad ? "var(--bad)" : pct >= warn ? "var(--warn)" : "var(--ok)"}"></i></div></div>`;
+  let busy = false;
+  const draw = async () => {
+    const box = $("#rigBox", el);
+    if (!box || !el.isConnected || busy) return;
+    let r;
+    try { r = await api("/api/server/status"); } catch (e) { box.innerHTML = `<p style="color:var(--bad)">❌ ${esc(e.message)}</p>`; return; }
+    const used = r.ramTotalGB - r.ramFreeGB, g = r.git;
+    box.innerHTML = `
+      <div class="pcard"><div class="h">🖥 ${esc(r.host)}<span style="margin-left:auto;font-size:12px;font-weight:400;color:var(--faint)">menyala ${up(r.uptimeS)}</span></div>
+        ${bar("CPU (beban)", (r.load / r.cpus) * 100, `${r.load} dari ${r.cpus} inti`)}
+        ${bar("RAM", (used / r.ramTotalGB) * 100, `${used.toFixed(1)} / ${r.ramTotalGB} GB`)}
+        ${r.disks.map((d) => bar(`Disk${r.disks.length > 1 ? " " + esc(d.path.split("/").pop()) : ""}`, ((d.totalGB - d.freeGB) / d.totalGB) * 100, `${d.freeGB} GB bebas dari ${d.totalGB}`, 80, 92)).join("")}
+        ${r.tempC != null ? bar("Suhu CPU", r.tempC, `${r.tempC}°C`, 70, 85) : ""}
+        ${r.gpus.map((x) => bar(`GPU ${esc(x.name)}`, x.temp, `${x.temp}°C · ${x.util}% · ${x.memUsedMB}/${x.memTotalMB} MB${x.powerW ? ` · ${x.powerW} W` : ""}`, 70, 82)).join("")}
+      </div>
+      <div class="pcard"><div class="h">Layanan</div>
+        ${!r.systemd ? `<div class="n">systemd tidak ada di server ini, jadi layanan tidak bisa dikelola dari sini.</div>` : `
+        ${!r.sudoOk ? `<div class="n" style="color:var(--warn)">⚠️ Izin restart belum aktif. Di server jalankan sekali: <code>sudo bash deploy/pasang-studio.sh</code></div>` : ""}
+        ${r.services.map((x) => `<div class="svc" data-s="${esc(x.name)}"><span class="dot ${x.state === "active" ? "ok" : x.state === "failed" ? "bad" : ""}"></span><b>${esc(x.name)}</b><span class="d">${esc(x.state)}</span><span style="flex:1"></span><button class="btn2" data-log>Log</button><button class="btn2" data-rs ${r.sudoOk ? "" : "disabled"}>Restart</button></div>`).join("") || `<div class="n">Tidak ada layanan yang dikenali.</div>`}`}
+      </div>
+      <div class="pcard"><div class="h">⬆️ Pembaruan aplikasi</div>
+        <div class="n">${g ? `Cabang <b>${esc(g.branch)}</b> · ${esc(g.commit)} “${esc(g.subject)}” (${esc(ago(Date.parse(g.when)))})${g.dirty ? ` · ${g.dirty} berkas diubah lokal` : ""}${g.behind ? ` · <b style="color:var(--accent)">${g.behind} pembaruan menunggu</b>` : ""}` : "Folder aplikasi bukan repo Git."}</div>
+        <div class="row"><button class="btn2" id="rgCheck">Cek pembaruan</button><button class="btn" id="rgUpd">Perbarui</button></div></div>
+      <div class="pcard"><div class="h">⚠️ Reboot rig</div><div class="n">Semua layanan berhenti sebentar, termasuk proses lain yang berjalan (mis. penambangan). Anda harus mengetik REBOOT untuk melanjutkan.</div><div class="row"><button class="btn2" id="rgReboot" style="color:var(--bad)">Reboot rig</button></div></div>`;
+  };
+  const out = (html) => { $("#rigOut", el).innerHTML = html ? `<div class="pcard">${html}</div>` : ""; $("#rigOut", el).scrollIntoView({ block: "nearest" }); };
+  const waitBack = async (what, tries) => {
+    toast(`${what}… halaman akan tersambung lagi sendiri.`, 5000);
+    await sleep(3000);
+    for (let i = 0; i < tries; i++) { try { const r = await fetch("/api/info", { cache: "no-store" }); if (r.ok) return location.reload(); } catch {} await sleep(2000); }
+    toast("Server belum kembali. Coba muat ulang sebentar lagi.", 6000);
+  };
+  const showLog = async (name) => {
+    out(`<div class="h">Log ${esc(name)}<span style="margin-left:auto"></span><button class="ib" data-lr="${esc(name)}">↻</button><button class="ib" data-lx>✕</button></div><pre class="logbox">memuat…</pre>`);
+    try { const x = await api(`/api/server/logs?service=${encodeURIComponent(name)}&n=150`); const pre = $("#rigOut .logbox", el); pre.textContent = x.text; pre.scrollTop = pre.scrollHeight; }
+    catch (e) { $("#rigOut .logbox", el).textContent = e.message; }
+  };
+  el.onclick = async (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    const svc = b.closest("[data-s]")?.dataset.s;
+    if (b.hasAttribute("data-log")) return showLog(svc);
+    if (b.dataset.lr) return showLog(b.dataset.lr);
+    if (b.hasAttribute("data-lx")) return out("");
+    if (b.hasAttribute("data-rs")) {
+      if (!confirm(`Mulai ulang layanan ${svc}?${svc === "studio" ? "\n\nStudio akan terputus beberapa detik. Pekerjaan chat yang sedang berjalan ikut berhenti." : ""}`)) return;
+      busy = true; b.disabled = true; b.textContent = "…";
+      try {
+        const x = await api("/api/server/restart", { method: "POST", body: { service: svc } });
+        if (x.self) return waitBack("Studio memulai ulang", 40);
+        toast(x.ok ? `${svc} aktif lagi ✓` : `${svc}: ${x.state}`, 4000);
+      } catch (err) { toast(err.message, 7000); }
+      busy = false; draw(); return;
+    }
+    if (b.id === "rgCheck") {
+      b.textContent = "memeriksa…";
+      try { const x = await api("/api/server/check", { method: "POST" }); out(x.behind ? `<div class="h">${x.behind} pembaruan tersedia</div><pre class="logbox">${esc(x.log.join("\n"))}</pre>` : `<div class="h">✅ Sudah yang terbaru</div>`); }
+      catch (err) { out(`<div style="color:var(--bad)">❌ ${esc(err.message)}</div>`); }
+      b.textContent = "Cek pembaruan"; return;
+    }
+    if (b.id === "rgUpd") {
+      if (!confirm("Tarik pembaruan terbaru dari Git sekarang?")) return;
+      b.disabled = true; b.textContent = "memperbarui…";
+      try {
+        const x = await api("/api/server/update", { method: "POST" });
+        out(`<div class="h">${x.changed ? "✅ Diperbarui" : "✅ Sudah yang terbaru"}</div><pre class="logbox">${esc(x.output || "")}</pre>`);
+        if (x.changed && confirm("Pembaruan terpasang. Mulai ulang Studio sekarang agar berlaku?")) {
+          try { await api("/api/server/restart", { method: "POST", body: { service: "studio" } }); return waitBack("Studio memulai ulang", 40); } catch (err) { toast(err.message, 7000); }
+        }
+      } catch (err) { out(`<div style="color:var(--bad)">❌ ${esc(err.message)}</div>`); }
+      b.disabled = false; b.textContent = "Perbarui"; draw(); return;
+    }
+    if (b.id === "rgReboot") {
+      const t = prompt("Reboot seluruh rig?\n\nKetik REBOOT untuk melanjutkan:");
+      if (t !== "REBOOT") return;
+      try { await api("/api/server/reboot", { method: "POST", body: { confirm: t } }); waitBack("Rig sedang reboot", 150); } catch (err) { toast(err.message, 7000); }
+    }
+  };
+  await draw();
+  const timer = setInterval(() => (el.isConnected ? draw() : clearInterval(timer)), 10000);
+};
 PANES.gratis = function (el) {
   const free = S.providers.filter((p) => p.group === "gratis");
   el.innerHTML = `<h3>Pilih AI gratis</h3><p class="s">Isi satu atau beberapa. Semuanya muncul di tombol model saat mengetik, dan bisa dipakai bergantian dengan Claude. Paling mudah: <b>Gemini</b> atau <b>Groq</b> (cukup kunci gratis). <b>FreeLLMAPI</b> menggabungkan banyak penyedia sekaligus.</p>` +
@@ -1300,6 +1502,15 @@ function renderMe() {
 }
 $("#meBtn").onclick = () => openSettings(S.account && !S.account.loggedIn ? "akun" : "profil");
 $("#syncPill").onclick = () => openSettings("simpan");
+$("#rigPill").onclick = () => openSettings("server");
+async function pollRig() {
+  if (document.visibilityState !== "visible") return;
+  try {
+    const r = await api("/api/server/status?ringan=1");
+    const g = r.gpus?.[0];
+    $("#rigPill").textContent = `🖥 beban ${r.load} · RAM ${(r.ramTotalGB - r.ramFreeGB).toFixed(1)}/${r.ramTotalGB} GB${r.tempC != null ? ` · ${r.tempC}°C` : ""}${g ? ` · GPU ${g.temp}°C` : ""}`;
+  } catch { $("#rigPill").textContent = ""; }
+}
 
 /* ═════════════ workspace (mode Code) ═════════════ */
 function openWs(on, quiet) {
@@ -1325,15 +1536,16 @@ async function drawTree() {
   const walk = (dir, depth) => {
     for (const e of S.tree[dir] || []) {
       const open = S.open.has(e.path);
-      rows.push(`<div class="tn ${S.active === e.path ? "on" : ""}" data-p="${esc(e.path)}" data-dir="${e.dir ? 1 : ""}" style="padding-left:${6 + depth * 12}px" title="${esc(e.path)}${e.dir ? "" : " — klik kanan untuk menyertakan ke pesan"}">${e.dir ? (open ? "▾ 📂" : "▸ 📁") : "　" + ficon(e.name)} ${esc(e.name)}</div>`);
+      rows.push(`<div class="tn ${S.active === e.path ? "on" : ""}" data-p="${esc(e.path)}" data-dir="${e.dir ? 1 : ""}" style="padding-left:${6 + depth * 12}px" title="${esc(e.path)}${e.dir ? "" : " — klik kanan untuk menyertakan ke pesan"}">${e.dir ? (open ? "▾ 📂" : "▸ 📁") : "　" + ficon(e.name)} ${esc(e.name)}${e.dir ? "" : '<button class="ib inc" data-inc title="Sertakan ke pesan">＋</button>'}</div>`);
       if (e.dir && open) walk(e.path, depth + 1);
     }
   };
   walk("", 0);
   $("#tree").innerHTML = rows.join("");
   $$("#tree .tn").forEach((n) => {
-    n.onclick = async () => {
+    n.onclick = async (ev) => {
       const p = n.dataset.p;
+      if (ev.target.closest("[data-inc]")) { addWsFile(p); toast(`${p} disertakan ke pesan berikutnya.`); return; }
       if (n.dataset.dir) { S.open.has(p) ? S.open.delete(p) : S.open.add(p); LS.set("openDirs", [...S.open]); drawTree(); }
       else openFile(p);
     };
@@ -1425,8 +1637,13 @@ addEventListener("beforeunload", (e) => { if (S.tabs.some((t) => t.content !== t
   renderMe(); renderSync();
   setMode(S.mode, true);
   newChat();
-  loadSessions();
+  loadSessions().then(() => {
+    const b = S.sessions.find((x) => x.busy && x.source === "studio");
+    if (b && !S.cur?.messages?.length && !S.live) openSession("studio", b.id); // ada jawaban yang masih dikerjakan → lanjutkan
+  });
+  pollRig();
   setInterval(() => { if (!S.live && document.visibilityState === "visible") loadSessions(); }, 30000);
+  setInterval(pollRig, 60000);
   if (!S.info.onboarded) openWizard();
   refreshAccount();
 })();

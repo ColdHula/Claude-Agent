@@ -20,7 +20,7 @@ import { createProviders } from "./providers.js";
 import { createStorage } from "./storage.js";
 import { createClaudeAccount } from "./akun-claude.js";
 import { createKnowledge } from "./pengetahuan.js";
-import { createResident } from "./penghuni.js";
+import { createRig } from "./rig.js";
 
 const execFileP = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -70,8 +70,7 @@ function cleanEnv() {
 }
 const account = createClaudeAccount({ store, cleanEnv, getSdk });
 const knowledge = createKnowledge(store);
-// Penghuni: agen yang berjalan terus di rig (detak berkala), lihat studio/penghuni.js.
-const resident = createResident({ store, providers, account, cleanEnv, getSdk, appRoot: APP_ROOT, isRunning: (id) => running.has(id) });
+const rig = createRig({ appRoot: APP_ROOT, dataDir: DATA });
 
 // ───────────────────────── utilitas HTTP ─────────────────────────
 function json(res, status, body) {
@@ -250,7 +249,6 @@ async function prepareAttachments(atts = []) {
 
 // ───────────────────────── menjalankan prompt ─────────────────────────
 const running = new Map(); // sessionId -> AbortController
-await resident.init();
 
 function transcript(messages, maxChars) {
   const parts = [];
@@ -477,6 +475,18 @@ async function autoTitle(session) {
   }
 }
 
+// Pekerjaan chat berjalan di server, terpisah dari koneksi browser: bila HP terkunci atau sinyal putus,
+// jawaban tetap dikerjakan dan bisa disambung lagi lewat /api/chat/:id/attach (isi lama diputar ulang).
+const jobs = new Map(); // sessionId -> { events, listeners, done }
+const SSE_HEAD = { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store", connection: "keep-alive", "x-accel-buffering": "no" };
+function jobEmit(job, e) {
+  const last = job.events.at(-1);
+  if ((e.type === "delta" || e.type === "thinking") && last?.type === e.type && last.text.length < 40_000) last.text += e.text;
+  else job.events.push({ ...e });
+  const line = `data: ${JSON.stringify(e)}\n\n`;
+  for (const r of job.listeners) if (!r.writableEnded) r.write(line);
+}
+
 async function handleChat(req, res) {
   const body = await readBody(req, 2 * 1024 * 1024);
   const { sessionId, provider = "langganan", model, text = "", skills = [], files = [], attachments = [], mode = "chat", perm = "tanya", think = false, truncateAt, project } = body;
@@ -522,17 +532,19 @@ async function handleChat(req, res) {
   const settingsNow = store.settings();
   const mem = settingsNow.useMemory === false ? "" : await knowledge.memory();
   const proj = await knowledge.context(session.project);
-  let extra = (mem ? `\n\n<memori_pengguna>\n${mem.slice(0, 8000)}\n</memori_pengguna>` : "") + proj.text;
-  if (session.resident) extra += await resident.chatContext();
+  const extra = (mem ? `\n\n<memori_pengguna>\n${mem.slice(0, 8000)}\n</memori_pengguna>` : "") + proj.text;
 
-  res.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store", connection: "keep-alive", "x-accel-buffering": "no" });
+  res.writeHead(200, SSE_HEAD);
   const ac = new AbortController();
   running.set(session.id, ac);
-  res.on("close", () => ac.abort());
+  const job = { events: [], listeners: new Set([res]), done: false };
+  jobs.set(session.id, job);
+  res.on("close", () => job.listeners.delete(res)); // koneksi putus ≠ batal; pekerjaan jalan terus
   // Rekam langkah (alat, izin, hasil) agar tampil lagi saat chat dibuka ulang.
   const steps = [];
   const stepById = new Map();
   let thinkingLive = "";
+  let textLive = "";
   const emit = (e) => {
     if (e.type === "tool") {
       const s = { kind: "tool", id: e.id, name: e.name, label: e.label, input: e.input, sub: e.sub };
@@ -544,10 +556,11 @@ async function handleChat(req, res) {
       const s = steps.find((x) => x.kind === "perm" && x.id === e.id);
       if (s) s.allow = e.allow;
     } else if (e.type === "thinking") thinkingLive += e.text;
-    if (!res.writableEnded) res.write(`data: ${JSON.stringify(e)}\n\n`);
+    else if (e.type === "delta") textLive += e.text;
+    jobEmit(job, e);
   };
   emit({ type: "session", id: session.id, title: session.title });
-  const keepAlive = setInterval(() => !res.writableEnded && res.write(": ping\n\n"), 20_000);
+  const keepAlive = setInterval(() => { for (const r of job.listeners) if (!r.writableEnded) r.write(": ping\n\n"); }, 20_000);
 
   const t0 = Date.now();
   const firstTurn = session.messages.length === 1;
@@ -597,16 +610,18 @@ async function handleChat(req, res) {
     if (firstTurn) autoTitle(session).catch(() => {});
   } catch (e) {
     const aborted = ac.signal.aborted;
-    const msg = { role: "assistant", text: aborted ? "_(dihentikan)_" : `⚠️ ${friendly(e)}`, thinking: thinkingLive || undefined, at: Date.now(), provider, model: chosenModel, error: !aborted, stopped: aborted || undefined, steps: steps.length ? steps : undefined };
+    const msg = { role: "assistant", text: aborted ? `${textLive}${textLive ? "\n\n" : ""}_(dihentikan)_` : `⚠️ ${friendly(e)}`, thinking: thinkingLive || undefined, at: Date.now(), provider, model: chosenModel, error: !aborted, stopped: aborted || undefined, steps: steps.length ? steps : undefined };
     session.messages.push(msg);
     await store.write(session).catch(() => {});
     emit({ type: "error", error: msg.text, message: msg });
   } finally {
     clearInterval(keepAlive);
     running.delete(session.id);
-    if (session.resident) resident.afterChat().catch(() => {});
     for (const [id, pp] of pendingPerms) if (pp.sessionId === session.id) pp.resolve({ allow: false }), pendingPerms.delete(id);
-    res.end();
+    job.done = true;
+    for (const r of job.listeners) r.end();
+    job.listeners.clear();
+    setTimeout(() => jobs.get(session.id) === job && jobs.delete(session.id), 120_000).unref();
   }
 }
 
@@ -652,7 +667,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         workspace: WORKSPACE, workspaceName: path.basename(WORKSPACE), providers: providers.publicList(), skills: sk.details,
         maxUsd: MAX_USD, auth: Boolean(guard), sync: store.syncStatus(), profile: store.settings().profile || { name: "Rahula" },
-        onboarded: Boolean(store.settings().onboarded), resident: resident.view(), useMemory: store.settings().useMemory !== false, projects: await knowledge.list(), claudeStudioLogin: account.hasStudioToken(),
+        onboarded: Boolean(store.settings().onboarded), useMemory: store.settings().useMemory !== false, projects: await knowledge.list(), claudeStudioLogin: account.hasStudioToken(),
       });
     }
 
@@ -689,33 +704,13 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/api/settings/memory") return json(res, 200, { useMemory: store.settings().useMemory !== false, text: await knowledge.memory() });
 
-    // Penghuni
-    if (p === "/api/penghuni" && req.method === "GET") return json(res, 200, resident.view());
-    if (p === "/api/penghuni" && req.method === "POST") return json(res, 200, await resident.configure(await readBody(req)));
-    if (p === "/api/penghuni/detak" && req.method === "POST") return json(res, 200, { entry: await resident.tick("diminta"), ...resident.view() });
-    if (p === "/api/penghuni/dibaca" && req.method === "POST") {
-      await resident.markRead();
-      return json(res, 200, { ok: true });
-    }
-    if (p === "/api/penghuni/harian") {
-      const d = url.searchParams.get("tanggal") || "";
-      return json(res, 200, { dates: await resident.diaryDates(), text: await resident.diary(d) });
-    }
-    if (p === "/api/penghuni/log") return json(res, 200, { log: await resident.log(80) });
-    if (p === "/api/penghuni/ingatan" && req.method === "GET") return json(res, 200, { memori: await resident.memory(), tujuan: await resident.goals(), berkas: await resident.homeFiles() });
-    if (p === "/api/penghuni/ingatan" && req.method === "POST") {
-      const b = await readBody(req);
-      if (typeof b.memori === "string") await resident.setMemory(b.memori);
-      if (typeof b.tujuan === "string") await resident.setGoals(b.tujuan);
-      return json(res, 200, { ok: true });
-    }
-    if (p === "/api/penghuni/berkas") {
-      try {
-        return json(res, 200, { text: await resident.readHomeFile(url.searchParams.get("path") || "") });
-      } catch (e) {
-        return json(res, 404, { error: e.message });
-      }
-    }
+    // Server / rig (dikelola dari HP)
+    if (p === "/api/server/status") return json(res, 200, await rig.status({ light: url.searchParams.has("ringan") }));
+    if (p === "/api/server/check" && req.method === "POST") return json(res, 200, await rig.check());
+    if (p === "/api/server/restart" && req.method === "POST") return json(res, 200, await rig.restart(String((await readBody(req)).service || "")));
+    if (p === "/api/server/logs") return json(res, 200, { text: await rig.logs(url.searchParams.get("service") || "", Number(url.searchParams.get("n")) || 120) });
+    if (p === "/api/server/update" && req.method === "POST") return json(res, 200, await rig.update());
+    if (p === "/api/server/reboot" && req.method === "POST") return json(res, 200, await rig.reboot((await readBody(req)).confirm));
 
     // Akun Claude (langganan)
     if (p === "/api/claude/status") return json(res, 200, { ...(await account.status({ fresh: url.searchParams.has("fresh") })), studioLogin: account.hasStudioToken() });
@@ -778,11 +773,11 @@ const server = http.createServer(async (req, res) => {
 
     // Sesi
     if (p === "/api/sessions" && req.method === "GET") {
-      const studio = (await store.list()).map((s) => ({ source: "studio", id: s.id, title: s.title, updatedAt: s.updatedAt, provider: s.provider, model: s.model, mode: s.mode || "chat", pinned: Boolean(s.pinned), claudeSessionId: s.claudeSessionId || null, origin: s.origin?.source || null, project: s.project || null, resident: Boolean(s.resident) }));
+      const studio = (await store.list()).map((s) => ({ source: "studio", id: s.id, title: s.title, updatedAt: s.updatedAt, provider: s.provider, model: s.model, mode: s.mode || "chat", pinned: Boolean(s.pinned), claudeSessionId: s.claudeSessionId || null, origin: s.origin?.source || null, project: s.project || null, busy: running.has(s.id) }));
       const [claude, kantor, hvm] = await Promise.all([listClaude(), listKantor(), listHvm()]);
       const linked = new Set(studio.map((s) => s.claudeSessionId).filter(Boolean));
       const all = [...studio, ...claude.filter((c) => !linked.has(c.id)), ...kantor, ...hvm].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-      return json(res, 200, { sessions: all, sync: store.syncStatus(), resident: resident.view() });
+      return json(res, 200, { sessions: all, sync: store.syncStatus() });
     }
     if (p === "/api/search") {
       const q = (url.searchParams.get("q") || "").trim();
@@ -828,6 +823,15 @@ const server = http.createServer(async (req, res) => {
 
     // Chat
     if (p === "/api/chat" && req.method === "POST") return await handleChat(req, res);
+    if ((m = p.match(/^\/api\/chat\/([\w-]+)\/attach$/))) {
+      const job = jobs.get(m[1]);
+      if (!job || job.done) return json(res, 200, { done: true });
+      res.writeHead(200, SSE_HEAD);
+      for (const e of job.events) res.write(`data: ${JSON.stringify(e)}\n\n`);
+      job.listeners.add(res);
+      res.on("close", () => job.listeners.delete(res));
+      return;
+    }
     if ((m = p.match(/^\/api\/chat\/([\w-]+)\/stop$/)) && req.method === "POST") {
       running.get(m[1])?.abort();
       return json(res, 200, { ok: true });

@@ -68,6 +68,26 @@ WantedBy=multi-user.target
 EOF
 chmod 600 /etc/systemd/system/studio.service
 
+# Panel "Server" di aplikasi (kelola rig dari HP): izin SEMPIT untuk me-restart layanan tertentu dan reboot,
+# tanpa wildcard dan tanpa shell. Log dibaca lewat grup systemd-journal (tanpa sudo).
+say "Mengaktifkan kelola server dari aplikasi…"
+SC="$(command -v systemctl)"
+TMPS="$(mktemp)"
+{
+  echo "# Dibuat oleh deploy/pasang-studio.sh: izin sempit untuk panel Server di Studio"
+  for u in studio kantor-pga ngobrol ollama tailscaled freellmapi; do
+    echo "${APP_USER} ALL=(root) NOPASSWD: ${SC} restart ${u}.service"
+  done
+  echo "${APP_USER} ALL=(root) NOPASSWD: ${SC} reboot"
+} > "$TMPS"
+if command -v visudo >/dev/null 2>&1 && visudo -cf "$TMPS" >/dev/null 2>&1; then
+  install -m 0440 -o root -g root "$TMPS" /etc/sudoers.d/studio
+else
+  say "Lewati: berkas sudoers tidak lolos pemeriksaan (tombol Restart/Reboot tidak aktif)."
+fi
+rm -f "$TMPS"
+getent group systemd-journal >/dev/null 2>&1 && usermod -aG systemd-journal "$APP_USER" || true
+
 systemctl daemon-reload
 systemctl enable --now studio
 systemctl restart studio
@@ -86,6 +106,9 @@ cat <<EOF
   Studio berjalan sebagai layanan (nyala lagi otomatis setelah reboot).
   Buka dari HP/laptop (Tailscale aktif):
     https://${HOSTN:-<nama-rig>.ts.net}:${SERVE_PORT}
+
+  Panel Server (⚙️ Pengaturan → 🖥 Server): pantau CPU/RAM/disk/suhu/GPU, restart layanan, baca log,
+  perbarui aplikasi, dan reboot rig, semuanya dari HP.
 
   Saat pertama dibuka, panduan awal membantu:
     1. Masuk dengan akun Claude (langganan Pro/Max) — langsung dari aplikasi.
