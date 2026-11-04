@@ -20,6 +20,7 @@ import { createProviders } from "./providers.js";
 import { createStorage } from "./storage.js";
 import { createClaudeAccount } from "./akun-claude.js";
 import { createKnowledge } from "./pengetahuan.js";
+import { createResident } from "./penghuni.js";
 
 const execFileP = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -69,6 +70,8 @@ function cleanEnv() {
 }
 const account = createClaudeAccount({ store, cleanEnv, getSdk });
 const knowledge = createKnowledge(store);
+// Penghuni: agen yang berjalan terus di rig (detak berkala), lihat studio/penghuni.js.
+const resident = createResident({ store, providers, account, cleanEnv, getSdk, appRoot: APP_ROOT, isRunning: (id) => running.has(id) });
 
 // ───────────────────────── utilitas HTTP ─────────────────────────
 function json(res, status, body) {
@@ -247,6 +250,7 @@ async function prepareAttachments(atts = []) {
 
 // ───────────────────────── menjalankan prompt ─────────────────────────
 const running = new Map(); // sessionId -> AbortController
+await resident.init();
 
 function transcript(messages, maxChars) {
   const parts = [];
@@ -518,7 +522,8 @@ async function handleChat(req, res) {
   const settingsNow = store.settings();
   const mem = settingsNow.useMemory === false ? "" : await knowledge.memory();
   const proj = await knowledge.context(session.project);
-  const extra = (mem ? `\n\n<memori_pengguna>\n${mem.slice(0, 8000)}\n</memori_pengguna>` : "") + proj.text;
+  let extra = (mem ? `\n\n<memori_pengguna>\n${mem.slice(0, 8000)}\n</memori_pengguna>` : "") + proj.text;
+  if (session.resident) extra += await resident.chatContext();
 
   res.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store", connection: "keep-alive", "x-accel-buffering": "no" });
   const ac = new AbortController();
@@ -599,6 +604,7 @@ async function handleChat(req, res) {
   } finally {
     clearInterval(keepAlive);
     running.delete(session.id);
+    if (session.resident) resident.afterChat().catch(() => {});
     for (const [id, pp] of pendingPerms) if (pp.sessionId === session.id) pp.resolve({ allow: false }), pendingPerms.delete(id);
     res.end();
   }
@@ -646,7 +652,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         workspace: WORKSPACE, workspaceName: path.basename(WORKSPACE), providers: providers.publicList(), skills: sk.details,
         maxUsd: MAX_USD, auth: Boolean(guard), sync: store.syncStatus(), profile: store.settings().profile || { name: "Rahula" },
-        onboarded: Boolean(store.settings().onboarded), useMemory: store.settings().useMemory !== false, projects: await knowledge.list(), claudeStudioLogin: account.hasStudioToken(),
+        onboarded: Boolean(store.settings().onboarded), resident: resident.view(), useMemory: store.settings().useMemory !== false, projects: await knowledge.list(), claudeStudioLogin: account.hasStudioToken(),
       });
     }
 
@@ -682,6 +688,34 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { useMemory: store.settings().useMemory !== false, text: await knowledge.memory() });
     }
     if (p === "/api/settings/memory") return json(res, 200, { useMemory: store.settings().useMemory !== false, text: await knowledge.memory() });
+
+    // Penghuni
+    if (p === "/api/penghuni" && req.method === "GET") return json(res, 200, resident.view());
+    if (p === "/api/penghuni" && req.method === "POST") return json(res, 200, await resident.configure(await readBody(req)));
+    if (p === "/api/penghuni/detak" && req.method === "POST") return json(res, 200, { entry: await resident.tick("diminta"), ...resident.view() });
+    if (p === "/api/penghuni/dibaca" && req.method === "POST") {
+      await resident.markRead();
+      return json(res, 200, { ok: true });
+    }
+    if (p === "/api/penghuni/harian") {
+      const d = url.searchParams.get("tanggal") || "";
+      return json(res, 200, { dates: await resident.diaryDates(), text: await resident.diary(d) });
+    }
+    if (p === "/api/penghuni/log") return json(res, 200, { log: await resident.log(80) });
+    if (p === "/api/penghuni/ingatan" && req.method === "GET") return json(res, 200, { memori: await resident.memory(), tujuan: await resident.goals(), berkas: await resident.homeFiles() });
+    if (p === "/api/penghuni/ingatan" && req.method === "POST") {
+      const b = await readBody(req);
+      if (typeof b.memori === "string") await resident.setMemory(b.memori);
+      if (typeof b.tujuan === "string") await resident.setGoals(b.tujuan);
+      return json(res, 200, { ok: true });
+    }
+    if (p === "/api/penghuni/berkas") {
+      try {
+        return json(res, 200, { text: await resident.readHomeFile(url.searchParams.get("path") || "") });
+      } catch (e) {
+        return json(res, 404, { error: e.message });
+      }
+    }
 
     // Akun Claude (langganan)
     if (p === "/api/claude/status") return json(res, 200, { ...(await account.status({ fresh: url.searchParams.has("fresh") })), studioLogin: account.hasStudioToken() });
@@ -744,11 +778,11 @@ const server = http.createServer(async (req, res) => {
 
     // Sesi
     if (p === "/api/sessions" && req.method === "GET") {
-      const studio = (await store.list()).map((s) => ({ source: "studio", id: s.id, title: s.title, updatedAt: s.updatedAt, provider: s.provider, model: s.model, mode: s.mode || "chat", pinned: Boolean(s.pinned), claudeSessionId: s.claudeSessionId || null, origin: s.origin?.source || null, project: s.project || null }));
+      const studio = (await store.list()).map((s) => ({ source: "studio", id: s.id, title: s.title, updatedAt: s.updatedAt, provider: s.provider, model: s.model, mode: s.mode || "chat", pinned: Boolean(s.pinned), claudeSessionId: s.claudeSessionId || null, origin: s.origin?.source || null, project: s.project || null, resident: Boolean(s.resident) }));
       const [claude, kantor, hvm] = await Promise.all([listClaude(), listKantor(), listHvm()]);
       const linked = new Set(studio.map((s) => s.claudeSessionId).filter(Boolean));
       const all = [...studio, ...claude.filter((c) => !linked.has(c.id)), ...kantor, ...hvm].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-      return json(res, 200, { sessions: all, sync: store.syncStatus() });
+      return json(res, 200, { sessions: all, sync: store.syncStatus(), resident: resident.view() });
     }
     if (p === "/api/search") {
       const q = (url.searchParams.get("q") || "").trim();
