@@ -95,6 +95,12 @@ Di bawah kotak tugas ada pilihan **Model** (diingat browser):
   `memori-kantor`, `moneyprinterturbo` (video pendek otomatis: naskah, footage, TTS, subtitle), `claude-mem` (memori antar sesi Claude Code), dan `pembuat-skill`. Agent hanya melihat daftar nama + deskripsinya; isi skill
   baru dimuat saat dipakai. Di kantor, Sim berjalan ke **Rak Skill** dan mengambil buku saat memakai skill.
   Skill pribadi: taruh di `pengetahuan/skills/<nama>/SKILL.md` (ikut paket ZIP, tidak ke GitHub).
+- **Plugin pihak ketiga (khusus sesi Claude Code langsung)**: `.claude/settings.json` memasang 31 plugin dari GitHub
+  (mis. `document-skills`, `human-resources`, `legal`, `humanizer`, `ppt-master`, `superpowers`, `ecc`, `caveman`).
+  Repo yang tidak punya marketplace sendiri (unslop, archify, Deep-Research-skills, MinerU-Skill, pilihan
+  awesome-claude-skills) didaftarkan lewat `plugins-eksternal/.claude-plugin/marketplace.json`. Aplikasi web tidak
+  terpengaruh (`settingSources: []`). Catatan: `ecc` menambah ±48 rb token per sesi, `caveman` mengubah gaya jawaban
+  (`/caveman off`), dan `mineru` mengunggah file ke mineru.net, jadi jangan dipakai untuk dokumen rahasia.
 - **Memori kantor**: bila hasil akhir Bima berisi bagian "## Catatan untuk Diingat", poin-poinnya otomatis disimpan ke
   `pengetahuan/umum/99-memori-kantor.md` dan dipakai di tugas berikutnya (nomor surat terakhir, keputusan, status kasus).
 - **Pengetahuan sesuai kebutuhan**: hanya ±16.000 karakter per agent yang ditempel ke prompt; file lain

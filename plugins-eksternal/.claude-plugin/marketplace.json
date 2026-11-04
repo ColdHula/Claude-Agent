@@ -1,0 +1,80 @@
+{
+  "name": "kantor-eksternal",
+  "owner": {
+    "name": "Rahula Fajar"
+  },
+  "metadata": {
+    "description": "Skill pihak ketiga yang repo aslinya tidak punya marketplace sendiri. Dipasang di proyek Kantor PGA."
+  },
+  "plugins": [
+    {
+      "name": "unslop",
+      "description": "heydamir/unslop: mengubah UI yang terlihat buatan AI menjadi desain yang rapi.",
+      "source": {
+        "source": "github",
+        "repo": "heydamir/unslop"
+      },
+      "strict": false,
+      "skills": [
+        "./skills/unslop"
+      ]
+    },
+    {
+      "name": "archify",
+      "description": "tt-a1i/archify: ide, rencana, atau kode menjadi diagram interaktif.",
+      "source": {
+        "source": "github",
+        "repo": "tt-a1i/archify"
+      },
+      "strict": false,
+      "skills": [
+        "./archify"
+      ]
+    },
+    {
+      "name": "deep-research",
+      "description": "Weizhena/Deep-Research-skills: riset mendalam terstruktur dengan titik persetujuan manusia (versi Inggris).",
+      "source": {
+        "source": "github",
+        "repo": "Weizhena/Deep-Research-skills"
+      },
+      "strict": false,
+      "skills": [
+        "./skills/research-en/research",
+        "./skills/research-en/research-add-items",
+        "./skills/research-en/research-add-fields",
+        "./skills/research-en/research-deep",
+        "./skills/research-en/research-report"
+      ]
+    },
+    {
+      "name": "mineru",
+      "description": "Nebutra/MinerU-Skill: PDF/Office/gambar jadi Markdown. PERINGATAN: file diunggah ke layanan cloud mineru.net. Jangan pakai untuk dokumen rahasia.",
+      "source": {
+        "source": "github",
+        "repo": "Nebutra/MinerU-Skill"
+      }
+    },
+    {
+      "name": "awesome-kantor",
+      "description": "Pilihan skill kantor dari ComposioHQ/awesome-claude-skills (tanpa 832 skill composio-* yang butuh akun Composio).",
+      "source": {
+        "source": "github",
+        "repo": "ComposioHQ/awesome-claude-skills"
+      },
+      "strict": false,
+      "skills": [
+        "./content-research-writer",
+        "./file-organizer",
+        "./internal-comms",
+        "./invoice-organizer",
+        "./meeting-insights-analyzer",
+        "./raffle-winner-picker",
+        "./tailored-resume-generator",
+        "./theme-factory",
+        "./canvas-design",
+        "./image-enhancer"
+      ]
+    }
+  ]
+}

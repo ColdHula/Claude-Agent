@@ -1,0 +1,127 @@
+{
+  "enabledPlugins": {
+    "rea@rea": true,
+    "superpowers@superpowers-dev": true,
+    "ecc@ecc": true,
+    "andrej-karpathy-skills@karpathy-skills": true,
+    "document-skills@anthropic-agent-skills": true,
+    "ponytail@ponytail": true,
+    "caveman@caveman": true,
+    "taste-skill@taste-skill": true,
+    "impeccable@impeccable": true,
+    "ppt-master@ppt-master": true,
+    "last30days@last30days-skill": true,
+    "humanizer@humanizer": true,
+    "human-resources@knowledge-work-plugins": true,
+    "legal@knowledge-work-plugins": true,
+    "productivity@knowledge-work-plugins": true,
+    "operations@knowledge-work-plugins": true,
+    "product-strategy@wondelai-skills": true,
+    "ux-design@wondelai-skills": true,
+    "marketing-cro@wondelai-skills": true,
+    "sales-influence@wondelai-skills": true,
+    "product-innovation@wondelai-skills": true,
+    "strategy-growth@wondelai-skills": true,
+    "team-motivation@wondelai-skills": true,
+    "code-craftsmanship@wondelai-skills": true,
+    "systems-architecture@wondelai-skills": true,
+    "metaskills@wondelai-skills": true,
+    "unslop@kantor-eksternal": true,
+    "archify@kantor-eksternal": true,
+    "deep-research@kantor-eksternal": true,
+    "mineru@kantor-eksternal": true,
+    "awesome-kantor@kantor-eksternal": true
+  },
+  "extraKnownMarketplaces": {
+    "rea": {
+      "source": {
+        "source": "github",
+        "repo": "morluto/rea"
+      }
+    },
+    "superpowers-dev": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers"
+      }
+    },
+    "ecc": {
+      "source": {
+        "source": "github",
+        "repo": "affaan-m/ECC"
+      }
+    },
+    "karpathy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "multica-ai/andrej-karpathy-skills"
+      }
+    },
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    },
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    },
+    "taste-skill": {
+      "source": {
+        "source": "github",
+        "repo": "Leonxlnx/taste-skill"
+      }
+    },
+    "impeccable": {
+      "source": {
+        "source": "github",
+        "repo": "pbakaus/impeccable"
+      }
+    },
+    "ppt-master": {
+      "source": {
+        "source": "github",
+        "repo": "hugohe3/ppt-master"
+      }
+    },
+    "last30days-skill": {
+      "source": {
+        "source": "github",
+        "repo": "mvanhorn/last30days-skill"
+      }
+    },
+    "humanizer": {
+      "source": {
+        "source": "github",
+        "repo": "blader/humanizer"
+      }
+    },
+    "knowledge-work-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/knowledge-work-plugins"
+      }
+    },
+    "wondelai-skills": {
+      "source": {
+        "source": "github",
+        "repo": "wondelai/skills"
+      }
+    },
+    "kantor-eksternal": {
+      "source": {
+        "source": "directory",
+        "path": "/home/user/Claude-Agent/plugins-eksternal"
+      }
+    }
+  }
+}
