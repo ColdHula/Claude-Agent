@@ -1,6 +1,6 @@
 {
   "enabledPlugins": {
-    "rea@rea": true,
+    "rea@rea": false,
     "superpowers@superpowers-dev": true,
     "ecc@ecc": false,
     "andrej-karpathy-skills@karpathy-skills": true,
@@ -8,7 +8,7 @@
     "ponytail@ponytail": true,
     "caveman@caveman": false,
     "taste-skill@taste-skill": true,
-    "impeccable@impeccable": true,
+    "impeccable@impeccable": false,
     "ppt-master@ppt-master": true,
     "last30days@last30days-skill": true,
     "humanizer@humanizer": true,
