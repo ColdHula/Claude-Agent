@@ -11,7 +11,8 @@
     "start": "node --env-file-if-exists=.env server.js",
     "login": "npx -y @anthropic-ai/claude-code",
     "demo": "DEMO=1 node server.js",
-    "check": "node --check src/auth.js && node --check server.js && node --check src/agents.js && node --check src/orchestrator.js && node --check src/orchestrator-sdk.js"
+    "check": "node --check src/auth.js && node --check server.js && node --check src/agents.js && node --check src/orchestrator.js && node --check src/orchestrator-sdk.js && node --check studio/server.js && node --check studio/providers.js && node --check skills/skills/freellmapi/scripts/tanya.mjs",
+    "studio": "node --env-file-if-exists=.env studio/server.js"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.293",

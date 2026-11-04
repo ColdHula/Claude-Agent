@@ -8,3 +8,6 @@ pengetahuan/*
 
 # Data chat lokal (tidak ikut Git)
 ngobrol/data/
+
+# Data Studio: sesi + kunci penyedia (tidak ikut Git)
+studio/data/

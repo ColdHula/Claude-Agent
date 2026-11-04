@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Studio</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#14161c">
+<style>
+:root{
+  --bg:#14161c;--bg2:#181b22;--bg3:#1e222b;--panel:#1a1d24;--line:#2a2f3a;--ink:#e8e6e3;--dim:#9aa0ad;--faint:#6b7280;
+  --accent:#d97757;--accent2:#e8916f;--ok:#4ade80;--warn:#facc15;--bad:#f87171;--blue:#7aa2ff;
+  --free:#4ade80;--sub:#d97757;--api:#7aa2ff;
+  --mono:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+}
+:root[data-theme="light"]{
+  --bg:#f6f5f2;--bg2:#efede8;--bg3:#e6e3dc;--panel:#fbfaf8;--line:#dcd8cf;--ink:#22252b;--dim:#5f6570;--faint:#8a8f99;
+  --accent:#c4613f;--accent2:#d97757;--blue:#3f6fd8;--free:#15803d;--api:#3f6fd8;--sub:#c4613f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.app{display:grid;grid-template-columns:48px 280px 1fr;grid-template-rows:38px 1fr 22px;height:100dvh}
+.app.nosb{grid-template-columns:48px 0 1fr}
+/* bilah judul */
+.top{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--bg2);border-bottom:1px solid var(--line);min-width:0}
+.top .logo{display:flex;align-items:center;gap:8px;font-weight:700}
+.top .logo img{width:20px;height:20px}
+.top .ws{color:var(--dim);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .sp{flex:1}
+.ib{background:none;border:0;color:var(--dim);padding:4px 8px;border-radius:6px;font-size:14px}
+.ib:hover{background:var(--bg3);color:var(--ink)}
+/* bilah aktivitas */
+.act{grid-row:2/3;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding-top:6px;gap:2px}
+.act button{width:40px;height:40px;border:0;background:none;border-radius:8px;font-size:18px;color:var(--dim);position:relative;filter:grayscale(.6);opacity:.75}
+.act button:hover{opacity:1}
+.act button.on{opacity:1;filter:none;background:var(--bg3)}
+.act button.on::before{content:"";position:absolute;left:-4px;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--accent)}
+.act .grow{flex:1}
+/* sidebar */
+.side{grid-row:2/3;background:var(--panel);border-right:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.side h2{margin:0;padding:10px 12px 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:6px}
+.side h2 .sp{flex:1}
+.side .body{overflow:auto;flex:1;padding:0 6px 12px}
+.search{margin:4px 8px 6px;width:calc(100% - 16px);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;outline:none}
+.search:focus{border-color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;padding:0 8px 6px}
+.chip{border:1px solid var(--line);background:none;border-radius:999px;padding:1px 9px;font-size:12px;color:var(--dim)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#1a0d08}
+.grp{font-size:11px;color:var(--faint);padding:8px 8px 2px;text-transform:uppercase;letter-spacing:.06em}
+.item{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border-radius:6px;cursor:pointer;min-width:0}
+.item:hover{background:var(--bg3)}
+.item.on{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.item .ic{flex:none;width:18px;text-align:center}
+.item .tx{min-width:0;flex:1}
+.item .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .s{font-size:11.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tree .item{padding:3px 6px;align-items:center}
+.tree .item .t{font-size:13px}
+.empty{color:var(--faint);padding:14px;font-size:13px;text-align:center}
+/* utama */
+.main{grid-row:2/3;display:flex;min-width:0;min-height:0}
+.editor{flex:1;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}
+.editor.hide{display:none}
+.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--line);overflow-x:auto;flex:none}
+.tab{display:flex;align-items:center;gap:6px;padding:7px 10px;border-right:1px solid var(--line);font-size:13px;color:var(--dim);cursor:pointer;white-space:nowrap}
+.tab.on{background:var(--bg);color:var(--ink);box-shadow:inset 0 2px 0 var(--accent)}
+.tab .x{border:0;background:none;color:var(--faint);padding:0 2px;border-radius:4px}
+.tab .x:hover{background:var(--bg3);color:var(--ink)}
+.tab .dot{width:7px;height:7px;border-radius:50%;background:var(--ink)}
+.ebar{display:flex;align-items:center;gap:6px;padding:4px 10px;font-size:12px;color:var(--dim);border-bottom:1px solid var(--line);flex:none}
+.ebar .sp{flex:1}
+.ebar button{background:var(--bg3);border:1px solid var(--line);border-radius:5px;padding:1px 8px;font-size:12px}
+.code{flex:1;display:flex;min-height:0;font:13px/20px var(--mono)}
+.gutter{padding:8px 8px 8px 12px;text-align:right;color:var(--faint);background:var(--bg);user-select:none;overflow:hidden;white-space:pre;min-width:44px}
+.code textarea{flex:1;border:0;outline:none;resize:none;background:var(--bg);padding:8px 12px;white-space:pre;overflow:auto;tab-size:2;font:inherit;color:var(--ink)}
+/* chat */
+.chat{width:min(480px,46%);display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+.editor.hide + .chat{width:auto;flex:1}
+.chat .head{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--line);background:var(--bg2);min-height:38px}
+.chat .head .title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.badge{font-size:11px;border-radius:999px;padding:0 8px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.b-langganan{color:var(--sub);border-color:color-mix(in srgb,var(--sub) 50%,transparent)}
+.b-gratis{color:var(--free);border-color:color-mix(in srgb,var(--free) 50%,transparent)}
+.b-api{color:var(--api);border-color:color-mix(in srgb,var(--api) 50%,transparent)}
+.msgs{flex:1;overflow:auto;padding:14px 0}
+.msgs .inner{max-width:820px;margin:0 auto;padding:0 16px;display:flex;flex-direction:column;gap:14px}
+.ro{position:sticky;top:-14px;z-index:2;background:var(--bg2);margin:-14px 0 8px;border-radius:0;border-width:0 0 1px;padding:8px 12px;border:1px dashed var(--line);border-radius:8px;color:var(--dim);font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ro button{background:var(--accent);color:#1a0d08;border:0;border-radius:6px;padding:3px 10px;font-weight:600}
+.m{min-width:0}
+.m.user{align-self:flex-end;max-width:88%;background:var(--bg3);border:1px solid var(--line);border-radius:12px 12px 2px 12px;padding:8px 12px;white-space:pre-wrap;word-wrap:break-word}
+.m.user .files{font-size:11.5px;color:var(--dim);margin-top:4px}
+.m.ai .who{font-size:11.5px;color:var(--faint);margin-bottom:2px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.m.ai .md{word-wrap:break-word}
+.m.ai.err .md{color:var(--bad)}
+.tools{display:flex;flex-direction:column;gap:2px;margin:4px 0 6px}
+.tools details{font-size:12px;color:var(--dim)}
+.tools summary{cursor:pointer}
+.tool{font:12px/1.5 var(--mono);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tool::before{content:"⏺ ";color:var(--ok)}
+.md p{margin:.4em 0}.md h1,.md h2,.md h3,.md h4{margin:.8em 0 .3em;line-height:1.3}.md h1{font-size:1.3em}.md h2{font-size:1.15em}.md h3{font-size:1.05em}
+.md ul,.md ol{margin:.3em 0;padding-left:1.4em}
+.md code{font:12.5px var(--mono);background:var(--bg3);padding:1px 5px;border-radius:4px}
+.md pre{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow:auto;position:relative}
+.md pre code{background:none;padding:0;font-size:12.5px;line-height:1.55}
+.md pre .cp{position:absolute;top:6px;right:6px;font-size:11px;background:var(--bg3);border:1px solid var(--line);border-radius:5px;padding:0 6px;color:var(--dim);opacity:.7}
+.md table{border-collapse:collapse;display:block;overflow:auto;margin:.5em 0}.md th,.md td{border:1px solid var(--line);padding:4px 8px;font-size:13px}
+.md blockquote{margin:.4em 0;padding-left:10px;border-left:3px solid var(--line);color:var(--dim)}
+.md a{color:var(--blue)}
+.cursor::after{content:"▍";animation:bl 1s steps(2) infinite;color:var(--accent)}
+@keyframes bl{50%{opacity:0}}
+.hello{max-width:560px;margin:8vh auto 0;padding:0 20px;color:var(--dim);text-align:center}
+.hello h1{color:var(--ink);font-size:22px;margin:0 0 6px}
+.hello .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:18px;text-align:left}
+.hello .grid div{border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12.5px}
+.hello .grid b{display:block;color:var(--ink);margin-bottom:2px}
+/* composer */
+.comp{border-top:1px solid var(--line);padding:8px 12px 10px;background:var(--bg2)}
+.comp .box{max-width:820px;margin:0 auto;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:6px 8px}
+.comp .box:focus-within{border-color:var(--accent)}
+.comp textarea{width:100%;border:0;outline:none;resize:none;background:none;min-height:44px;max-height:40vh;padding:4px 2px}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ctl select,.ctl input{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-size:12.5px;max-width:100%}
+.ctl input{width:150px}
+.ctl .sp{flex:1}
+.ctl .pill{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:1px 8px;background:none;color:var(--dim)}
+.ctl .pill.on{border-color:var(--accent);color:var(--accent)}
+.send{background:var(--accent);color:#1a0d08;border:0;border-radius:8px;padding:5px 14px;font-weight:700}
+.send:disabled{opacity:.4;cursor:default}
+.stop{background:var(--bad);color:#200;border:0;border-radius:8px;padding:5px 14px;font-weight:700}
+.att{max-width:820px;margin:0 auto 4px;display:flex;flex-wrap:wrap;gap:4px}
+.att span{font-size:11.5px;background:var(--bg3);border:1px solid var(--line);border-radius:999px;padding:0 4px 0 8px;color:var(--dim)}
+.att button{border:0;background:none;color:var(--faint);padding:0 3px}
+/* panel penyedia & skill */
+.card{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 4px;background:var(--bg)}
+.card .h{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px}
+.card .n{font-size:12px;color:var(--faint);margin:2px 0 6px}
+.card label{display:block;font-size:11.5px;color:var(--dim);margin-top:4px}
+.card input{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:4px 6px;font-size:12.5px;font-family:var(--mono)}
+.card .row{display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap}
+.card .row button{background:var(--bg3);border:1px solid var(--line);border-radius:5px;padding:2px 10px;font-size:12px}
+.card .row .msg{font-size:11.5px;color:var(--dim)}
+.st{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
+.st.ok{background:var(--ok)}
+.sk{display:flex;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;align-items:flex-start}
+.sk:hover{background:var(--bg3)}
+.sk input{margin-top:3px;accent-color:var(--accent)}
+.sk b{font-size:13px}
+.sk div div{font-size:11.5px;color:var(--faint)}
+.hint{font-size:12px;color:var(--faint);padding:4px 10px}
+/* status bar */
+.status{grid-column:1/-1;background:var(--accent);color:#1a0d08;font-size:11.5px;display:flex;gap:14px;align-items:center;padding:0 10px;white-space:nowrap;overflow:hidden}
+.status .sp{flex:1}
+.toast{position:fixed;bottom:34px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--line);padding:8px 14px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:9;max-width:90vw}
+/* ponsel */
+.mnav{display:none}
+@media (max-width:820px){
+  .app,.app.nosb{grid-template-columns:1fr;grid-template-rows:42px 1fr 52px}
+  .act,.status{display:none}
+  .side{grid-row:2/3;grid-column:1;display:none;border:0}
+  .main{grid-row:2/3;grid-column:1}
+  .app.m-side .side{display:flex}
+  .app.m-side .main{display:none}
+  .app.m-edit .chat{display:none}
+  .app.m-edit .editor{display:flex!important;border:0}
+  .app.m-chat .editor{display:none}
+  .app.m-chat .chat{width:auto;flex:1}
+  .mnav{display:flex;grid-row:3/4;grid-column:1;background:var(--bg2);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  .mnav button{flex:1;border:0;background:none;color:var(--dim);font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+  .mnav button span{font-size:18px}
+  .mnav button.on{color:var(--accent)}
+  .ctl input{width:120px}
+  .top .ws{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="logo"><img src="/icon.svg" alt="">Studio</div>
+    <div class="ws" id="ws"></div>
+    <div class="sp"></div>
+    <button class="ib" id="newBtn" title="Sesi baru (Ctrl+Alt+N)">＋ Sesi</button>
+    <button class="ib" id="themeBtn" title="Tema">◐</button>
+    <a class="ib" id="logoutBtn" href="/logout" title="Keluar" style="text-decoration:none;display:none">⎋</a>
+  </header>
+
+  <nav class="act" aria-label="Aktivitas">
+    <button data-view="sessions" class="on" title="Sesi">💬</button>
+    <button data-view="files" title="Explorer">📁</button>
+    <button data-view="skills" title="Skill">🧰</button>
+    <button data-view="providers" title="Penyedia AI">⚙️</button>
+    <div class="grow"></div>
+  </nav>
+
+  <aside class="side" id="side"></aside>
+
+  <main class="main">
+    <section class="editor hide" id="editor">
+      <div class="tabs" id="tabs"></div>
+      <div class="ebar" id="ebar"></div>
+      <div class="code"><div class="gutter" id="gutter">1</div><textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea></div>
+    </section>
+    <section class="chat" id="chat">
+      <div class="head"><div class="title" id="ctitle">Sesi baru</div><span class="badge" id="cbadge"></span></div>
+      <div class="msgs" id="msgs"></div>
+      <div class="comp">
+        <div class="att" id="att"></div>
+        <div class="box">
+          <textarea id="prompt" rows="2" placeholder="Tulis prompt…  (Enter kirim, Shift+Enter baris baru, @ untuk menyertakan berkas aktif)"></textarea>
+          <div class="ctl">
+            <select id="prov" title="Penyedia"></select>
+            <input id="model" list="models" title="Model" placeholder="model">
+            <datalist id="models"></datalist>
+            <button class="pill" id="modeBtn" title="Mode langganan: baca saja / boleh mengubah file & menjalankan perintah">👁 Baca</button>
+            <button class="pill" id="fileBtn" title="Sertakan berkas yang sedang dibuka">📎 berkas aktif</button>
+            <span class="sp"></span>
+            <button class="send" id="sendBtn" disabled>Kirim ↵</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="mnav" id="mnav">
+    <button data-m="side" data-view="sessions"><span>💬</span>Sesi</button>
+    <button data-m="side" data-view="files"><span>📁</span>Berkas</button>
+    <button data-m="edit"><span>📝</span>Editor</button>
+    <button data-m="chat" class="on"><span>✨</span>Chat</button>
+    <button data-m="side" data-view="providers"><span>⚙️</span>Atur</button>
+  </nav>
+
+  <footer class="status" id="status"><span id="stLeft">Siap</span><span class="sp"></span><span id="stRight"></span></footer>
+</div>
+
+<script>
+"use strict";
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("studio." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("studio." + k, JSON.stringify(v)); } catch {} },
+};
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { "content-type": "application/json", ...(opts.headers || {}) }, body: opts.body && typeof opts.body !== "string" ? JSON.stringify(opts.body) : opts.body });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || `HTTP ${r.status}`), { status: r.status, data: j });
+  return j;
+}
+function toast(t, ms = 3200) {
+  const d = document.createElement("div");
+  d.className = "toast"; d.textContent = t; document.body.append(d);
+  setTimeout(() => d.remove(), ms);
+}
+
+const SRC = {
+  studio: { ic: "✨", name: "Studio" },
+  claude: { ic: "◆", name: "Claude Code" },
+  kantor: { ic: "🏢", name: "Kantor PGA" },
+  hvm: { ic: "💬", name: "HvM AI" },
+};
+const GROUP = { langganan: "Langganan", gratis: "Gratis", api: "API" };
+
+const S = {
+  info: null, providers: [], skills: [], sessions: [], filter: store.get("filter", "all"), q: "",
+  view: "sessions", cur: null, streaming: null,
+  provider: store.get("provider", "langganan"), models: {}, modelBy: store.get("modelBy", {}),
+  mode: store.get("mode", "baca"), chosenSkills: new Set(store.get("skills", [])), attachActive: false, attached: [],
+  tabs: [], active: null, tree: { "": null }, open: new Set(store.get("openDirs", [""])),
+};
+
+/* ───────────── Markdown mini (aman: escape dulu) ───────────── */
+function md(src) {
+  const blocks = [];
+  src = String(src || "").replace(/```([\w+-]*)[^\n]*\n([\s\S]*?)(```|$)/g, (_, lang, code) => {
+    blocks.push(`<pre><button class="cp" data-copy>salin</button><code data-lang="${esc(lang)}">${esc(code.replace(/\n$/, ""))}</code></pre>`);
+    return `\u0000${blocks.length - 1}\u0000`;
+  });
+  const inline = (t) => esc(t)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<i>$2</i>")
+    .replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,!?]|$)/g, "$1<i>$2</i>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|\s)(https?:\/\/[^\s<]+[^\s<.,)])/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+  const lines = src.split("\n");
+  let out = "", list = null, para = [], table = [];
+  const flushP = () => { if (para.length) { out += `<p>${para.map(inline).join("<br>")}</p>`; para = []; } };
+  const flushL = () => { if (list) { out += `</${list}>`; list = null; } };
+  const flushT = () => {
+    if (!table.length) return;
+    const rows = table.filter((r) => !/^\|?\s*:?-{2,}/.test(r)).map((r) => r.replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim())));
+    out += "<table>" + rows.map((r, i) => `<tr>${r.map((c) => i ? `<td>${c}</td>` : `<th>${c}</th>`).join("")}</tr>`).join("") + "</table>";
+    table = [];
+  };
+  for (const l of lines) {
+    const blk = l.match(/^\u0000(\d+)\u0000$/);
+    if (blk) { flushP(); flushL(); flushT(); out += blocks[+blk[1]]; continue; }
+    if (/^\s*\|.*\|\s*$/.test(l)) { flushP(); flushL(); table.push(l.trim()); continue; } else flushT();
+    let m;
+    if ((m = l.match(/^(#{1,4})\s+(.*)/))) { flushP(); flushL(); out += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`; }
+    else if ((m = l.match(/^\s*[-*+]\s+(.*)/))) { flushP(); if (list !== "ul") { flushL(); out += "<ul>"; list = "ul"; } out += `<li>${inline(m[1])}</li>`; }
+    else if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { flushP(); if (list !== "ol") { flushL(); out += "<ol>"; list = "ol"; } out += `<li>${inline(m[1])}</li>`; }
+    else if ((m = l.match(/^>\s?(.*)/))) { flushP(); flushL(); out += `<blockquote>${inline(m[1])}</blockquote>`; }
+    else if (/^\s*(-{3,}|\*{3,})\s*$/.test(l)) { flushP(); flushL(); out += "<hr>"; }
+    else if (!l.trim()) { flushP(); flushL(); }
+    else { flushL(); para.push(l); }
+  }
+  flushP(); flushL(); flushT();
+  return out.replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[+i]);
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-copy]");
+  if (!b) return;
+  navigator.clipboard?.writeText(b.nextElementSibling.textContent).then(() => { b.textContent = "tersalin"; setTimeout(() => (b.textContent = "salin"), 1200); });
+});
+
+/* ───────────── waktu ───────────── */
+function ago(t) {
+  if (!t) return "";
+  const s = (Date.now() - t) / 1000;
+  if (s < 60) return "baru saja";
+  if (s < 3600) return `${Math.floor(s / 60)} mnt lalu`;
+  if (s < 86400) return `${Math.floor(s / 3600)} jam lalu`;
+  return new Date(t).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: s > 300 * 86400 ? "numeric" : undefined });
+}
+function dayGroup(t) {
+  const d = new Date(t), n = new Date();
+  const diff = Math.floor((new Date(n.toDateString()) - new Date(d.toDateString())) / 86400000);
+  return diff <= 0 ? "Hari ini" : diff === 1 ? "Kemarin" : diff < 7 ? "7 hari terakhir" : diff < 30 ? "30 hari terakhir" : "Lebih lama";
+}
+
+/* ───────────── sidebar ───────────── */
+function setView(v) {
+  const app = $("#app");
+  if (S.view === v && !app.classList.contains("nosb") && innerWidth > 820) { app.classList.add("nosb"); return; }
+  app.classList.remove("nosb");
+  S.view = v;
+  document.querySelectorAll(".act button").forEach((b) => b.classList.toggle("on", b.dataset.view === v));
+  renderSide();
+}
+function renderSide() {
+  const el = $("#side");
+  if (S.view === "sessions") return renderSessions(el);
+  if (S.view === "files") return renderFiles(el);
+  if (S.view === "skills") return renderSkills(el);
+  if (S.view === "providers") return renderProviders(el);
+}
+
+async function loadSessions() {
+  try { S.sessions = (await api("/api/sessions")).sessions; } catch (e) { toast(e.message); }
+  if (S.view === "sessions") renderSessions($("#side"));
+}
+function renderSessions(el) {
+  const counts = {};
+  S.sessions.forEach((s) => (counts[s.source] = (counts[s.source] || 0) + 1));
+  el.innerHTML = `<h2>Semua sesi <span class="sp"></span><button class="ib" id="reloadS" title="Muat ulang">↻</button></h2>
+    <input class="search" id="sq" placeholder="Cari sesi…" value="${esc(S.q)}">
+    <div class="chips">${[["all", "Semua"], ...Object.entries(SRC).map(([k, v]) => [k, `${v.ic} ${v.name}`])]
+      .map(([k, n]) => `<button class="chip ${S.filter === k ? "on" : ""}" data-f="${k}">${n}${k !== "all" && counts[k] ? ` ${counts[k]}` : ""}</button>`).join("")}</div>
+    <div class="body" id="slist"></div>`;
+  $("#reloadS").onclick = loadSessions;
+  $("#sq").oninput = (e) => { S.q = e.target.value; drawList(); };
+  el.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { S.filter = b.dataset.f; store.set("filter", S.filter); renderSessions(el); }));
+  drawList();
+}
+function drawList() {
+  const q = S.q.toLowerCase();
+  const list = S.sessions.filter((s) => (S.filter === "all" || s.source === S.filter) && (!q || String(s.title).toLowerCase().includes(q)));
+  const box = $("#slist");
+  if (!list.length) { box.innerHTML = `<div class="empty">${S.sessions.length ? "Tidak ada yang cocok." : "Belum ada sesi. Tulis prompt di kanan untuk mulai."}</div>`; return; }
+  let html = "", last = "";
+  for (const s of list) {
+    const g = dayGroup(s.updatedAt || 0);
+    if (g !== last) { html += `<div class="grp">${g}</div>`; last = g; }
+    const sub = [SRC[s.source].name, s.provider && providerName(s.provider), s.cwd && s.cwd.split("/").pop(), s.branch, ago(s.updatedAt)].filter(Boolean).join(" · ");
+    const on = S.cur && S.cur.source === s.source && S.cur.id === s.id;
+    html += `<div class="item ${on ? "on" : ""}" data-src="${s.source}" data-id="${esc(s.id)}"><span class="ic">${SRC[s.source].ic}</span><div class="tx"><div class="t">${esc(s.title)}</div><div class="s">${esc(sub)}</div></div>${s.source === "studio" ? `<button class="ib" data-del title="Hapus">✕</button>` : ""}</div>`;
+  }
+  box.innerHTML = html;
+  box.querySelectorAll(".item").forEach((it) => {
+    it.onclick = (e) => {
+      if (e.target.closest("[data-del]")) return delSession(it.dataset.id);
+      openSession(it.dataset.src, it.dataset.id);
+    };
+    it.ondblclick = () => it.dataset.src === "studio" && renameSession(it.dataset.id);
+  });
+}
+async function delSession(id) {
+  if (!confirm("Hapus sesi Studio ini? (Sesi Claude Code aslinya, bila ada, tidak ikut terhapus.)")) return;
+  await api(`/api/sessions/studio/${id}`, { method: "DELETE" });
+  if (S.cur?.id === id) newSession();
+  loadSessions();
+}
+async function renameSession(id) {
+  const s = S.sessions.find((x) => x.id === id);
+  const t = prompt("Judul sesi:", s?.title || "");
+  if (!t) return;
+  await api(`/api/sessions/studio/${id}`, { method: "PATCH", body: { title: t } });
+  if (S.cur?.id === id) { S.cur.title = t; renderChat(); }
+  loadSessions();
+}
+
+/* ───────────── explorer ───────────── */
+async function loadDir(dir) {
+  try { S.tree[dir] = (await api(`/api/files?dir=${encodeURIComponent(dir)}`)).entries; }
+  catch (e) { S.tree[dir] = []; toast(e.message); }
+}
+async function renderFiles(el) {
+  el.innerHTML = `<h2>Explorer <span class="sp"></span><button class="ib" id="newF" title="Berkas baru">＋</button><button class="ib" id="reloadF" title="Muat ulang">↻</button></h2><div class="body tree" id="tree"></div>`;
+  $("#reloadF").onclick = async () => { S.tree = { "": null }; await refreshTree(); };
+  $("#newF").onclick = async () => {
+    const p = prompt("Jalur berkas baru (relatif ke workspace):", "catatan.md");
+    if (!p) return;
+    try { await api("/api/file", { method: "PUT", body: { path: p, content: "" } }); S.tree = { "": null }; await refreshTree(); openFile(p); } catch (e) { toast(e.message); }
+  };
+  await refreshTree();
+}
+async function refreshTree() {
+  for (const d of S.open) if (!S.tree[d]) await loadDir(d);
+  const box = $("#tree");
+  if (!box) return;
+  const rows = [];
+  const walk = (dir, depth) => {
+    for (const e of S.tree[dir] || []) {
+      const open = S.open.has(e.path);
+      rows.push(`<div class="item ${S.active === e.path ? "on" : ""}" data-p="${esc(e.path)}" data-dir="${e.dir ? 1 : ""}" style="padding-left:${6 + depth * 12}px"><span class="ic">${e.dir ? (open ? "▾" : "▸") : fileIcon(e.name)}</span><div class="t">${esc(e.name)}</div></div>`);
+      if (e.dir && open) walk(e.path, depth + 1);
+    }
+  };
+  walk("", 0);
+  box.innerHTML = rows.join("") || `<div class="empty">Workspace kosong.</div>`;
+  box.querySelectorAll(".item").forEach((it) => (it.onclick = async () => {
+    const p = it.dataset.p;
+    if (it.dataset.dir) {
+      if (S.open.has(p)) S.open.delete(p); else { S.open.add(p); if (!S.tree[p]) await loadDir(p); }
+      store.set("openDirs", [...S.open]);
+      refreshTree();
+    } else { openFile(p); if (innerWidth <= 820) mobile("edit"); }
+  }));
+}
+function fileIcon(n) {
+  const x = n.split(".").pop().toLowerCase();
+  return { md: "📝", js: "🟨", mjs: "🟨", json: "🔧", html: "🌐", css: "🎨", sh: "⌨️", py: "🐍", txt: "📄", csv: "📊", xlsx: "📊", pdf: "📕", docx: "📘", svg: "🖼️", png: "🖼️" }[x] || "📄";
+}
+
+/* ───────────── editor ───────────── */
+async function openFile(p) {
+  let t = S.tabs.find((x) => x.path === p);
+  if (!t) {
+    try {
+      const r = await api(`/api/file?path=${encodeURIComponent(p)}`);
+      t = { path: r.path, content: r.content, saved: r.content, mtime: r.mtime };
+      S.tabs.push(t);
+    } catch (e) { return toast(e.message); }
+  }
+  S.active = t.path;
+  renderEditor();
+  if (S.view === "files") refreshTree();
+}
+function activeTab() { return S.tabs.find((x) => x.path === S.active); }
+function renderEditor() {
+  const ed = $("#editor");
+  ed.classList.toggle("hide", !S.tabs.length);
+  $("#tabs").innerHTML = S.tabs.map((t) => `<div class="tab ${t.path === S.active ? "on" : ""}" data-p="${esc(t.path)}" title="${esc(t.path)}">${fileIcon(t.path)} ${esc(t.path.split("/").pop())}${t.content !== t.saved ? '<span class="dot"></span>' : ""}<button class="x" data-x>✕</button></div>`).join("");
+  $("#tabs").querySelectorAll(".tab").forEach((el) => (el.onclick = (e) => {
+    if (e.target.closest("[data-x]")) return closeTab(el.dataset.p);
+    S.active = el.dataset.p; renderEditor();
+  }));
+  const t = activeTab();
+  const code = $("#code");
+  if (!t) { $("#ebar").innerHTML = ""; return; }
+  if (code.dataset.path !== t.path) { code.value = t.content; code.dataset.path = t.path; code.scrollTop = 0; }
+  $("#ebar").innerHTML = `<span>${esc(t.path)}</span><span class="sp"></span><span id="cur"></span><button id="askBtn" title="Tanya AI tentang berkas ini">✨ Tanya AI</button><button id="reloadBtn" title="Muat ulang dari disk">↻</button><button id="saveBtn" ${t.content === t.saved ? "disabled" : ""}>Simpan ⌘S</button>`;
+  $("#saveBtn").onclick = () => saveFile();
+  $("#reloadBtn").onclick = () => reloadFile(t.path);
+  $("#askBtn").onclick = () => { S.attachActive = true; renderAttach(); $("#prompt").focus(); if (innerWidth <= 820) mobile("chat"); };
+  gutter();
+  renderAttach();
+}
+function gutter() {
+  const code = $("#code");
+  const n = code.value.split("\n").length;
+  const g = $("#gutter");
+  if (g.dataset.n != n) { g.textContent = Array.from({ length: n }, (_, i) => i + 1).join("\n"); g.dataset.n = n; }
+  g.scrollTop = code.scrollTop;
+}
+$("#code").addEventListener("input", (e) => {
+  const t = activeTab(); if (!t) return;
+  const wasClean = t.content === t.saved;
+  t.content = e.target.value; gutter();
+  if (wasClean !== (t.content === t.saved)) renderEditor();
+});
+$("#code").addEventListener("scroll", gutter);
+$("#code").addEventListener("keydown", (e) => {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const c = e.target, s = c.selectionStart;
+    c.setRangeText("  ", s, c.selectionEnd, "end"); c.dispatchEvent(new Event("input"));
+  }
+});
+$("#code").addEventListener("keyup", (e) => {
+  const c = e.target, before = c.value.slice(0, c.selectionStart).split("\n");
+  const cur = $("#cur"); if (cur) cur.textContent = `Bar ${before.length}, Kol ${before.at(-1).length + 1}`;
+});
+async function saveFile(force = false) {
+  const t = activeTab(); if (!t) return;
+  try {
+    const r = await api("/api/file", { method: "PUT", body: { path: t.path, content: t.content, mtime: t.mtime, force } });
+    t.saved = t.content; t.mtime = r.mtime; renderEditor(); status(`Tersimpan: ${t.path}`);
+  } catch (e) {
+    if (e.status === 409 && confirm(e.message + "\n\nOK = timpa dengan isi editor, Batal = biarkan.")) return saveFile(true);
+    toast(e.message);
+  }
+}
+async function reloadFile(p, quiet) {
+  const t = S.tabs.find((x) => x.path === p); if (!t) return;
+  if (!quiet && t.content !== t.saved && !confirm("Buang perubahan yang belum disimpan?")) return;
+  try {
+    const r = await api(`/api/file?path=${encodeURIComponent(p)}`);
+    if (quiet && t.content !== t.saved) return;
+    Object.assign(t, { content: r.content, saved: r.content, mtime: r.mtime });
+    if (S.active === p) $("#code").dataset.path = "";
+    renderEditor();
+  } catch (e) { if (!quiet) toast(e.message); }
+}
+function closeTab(p) {
+  const t = S.tabs.find((x) => x.path === p);
+  if (t && t.content !== t.saved && !confirm(`${p} belum disimpan. Tutup saja?`)) return;
+  S.tabs = S.tabs.filter((x) => x.path !== p);
+  if (S.active === p) S.active = S.tabs.at(-1)?.path || null;
+  $("#code").dataset.path = "";
+  renderEditor();
+}
+
+/* ───────────── skill ───────────── */
+function renderSkills(el) {
+  el.innerHTML = `<h2>Skill <span class="sp"></span><span style="text-transform:none;letter-spacing:0">${S.chosenSkills.size ? S.chosenSkills.size + " dipilih" : ""}</span></h2>
+    <div class="hint">Claude langganan memuat skill sendiri bila perlu (semua tersedia, atau hanya yang dicentang). Untuk penyedia lain, isi skill yang dicentang ditempel ke instruksi sistem.</div>
+    <div class="body">${S.skills.map((s) => `<label class="sk"><input type="checkbox" value="${esc(s.name)}" ${S.chosenSkills.has(s.name) ? "checked" : ""}><div><b>${esc(s.name.split(":")[1])}</b>${s.name.endsWith(":freellmapi") ? ' <span class="badge b-gratis">gratis</span>' : ""}<div>${esc(s.description)}</div></div></label>`).join("") || '<div class="empty">Tidak ada skill.</div>'}</div>`;
+  el.querySelectorAll("input[type=checkbox]").forEach((c) => (c.onchange = () => {
+    c.checked ? S.chosenSkills.add(c.value) : S.chosenSkills.delete(c.value);
+    store.set("skills", [...S.chosenSkills]); renderSkills(el); renderAttach();
+  }));
+}
+
+/* ───────────── penyedia ───────────── */
+function providerName(id) { return S.providers.find((p) => p.id === id)?.name.split(" (")[0] || id; }
+function renderProviders(el) {
+  const groups = ["langganan", "gratis", "api"];
+  el.innerHTML = `<h2>Penyedia AI</h2><div class="hint">Kunci disimpan di server (studio/data/providers.json), tidak pernah dikirim balik ke browser.</div><div class="body">${groups.map((g) => `<div class="grp">${GROUP[g]}</div>` + S.providers.filter((p) => p.group === g).map((p) => `
+    <div class="card" data-id="${p.id}">
+      <div class="h"><span class="st ${p.ready ? "ok" : ""}"></span>${esc(p.name)}</div>
+      ${p.note ? `<div class="n">${esc(p.note)}</div>` : ""}
+      ${p.kind === "claude-sdk" ? `<div class="n">Login sekali: <code>npm run login</code> → /login. Rem pengaman $${S.info?.maxUsd ?? 3}/prompt.</div>` : `
+      ${p.editableUrl ? `<label>URL dasar (…/v1)</label><input data-k="baseUrl" value="${esc(p.baseUrl)}" placeholder="https://…/v1">` : ""}
+      ${p.needsKey || p.id === "custom" ? `<label>Kunci API ${p.envKey ? `<span style="color:var(--faint)">(atau env ${p.envKey})</span>` : ""}</label><input data-k="apiKey" type="password" autocomplete="off" placeholder="${p.hasKey ? (p.keyFromEnv ? "dari env ✓" : "•••• tersimpan") : "belum diisi"}">` : ""}`}
+      <label>Model bawaan</label><input data-k="defaultModel" value="${esc(p.defaultModel)}" list="dl-${p.id}"><datalist id="dl-${p.id}">${p.models.map((m) => `<option value="${esc(m)}">`).join("")}</datalist>
+      <div class="row"><button data-save>Simpan</button><button data-test>Cek model</button><button data-use>Pakai</button><span class="msg"></span></div>
+    </div>`).join("")).join("")}
+    <div class="hint" style="margin-top:8px">FreeLLMAPI belum menyala? Lihat skill <b>freellmapi</b> (tab 🧰) untuk cara memasangnya di port 3011.</div></div>`;
+  el.querySelectorAll(".card").forEach((c) => {
+    const id = c.dataset.id, msg = $(".msg", c);
+    const vals = () => Object.fromEntries([...c.querySelectorAll("[data-k]")].filter((i) => i.dataset.k !== "apiKey" || i.value).map((i) => [i.dataset.k, i.value]));
+    $("[data-save]", c).onclick = async () => {
+      try { S.providers = (await api(`/api/providers/${id}`, { method: "POST", body: vals() })).providers; S.models[id] = null; renderProviders(el); fillProviders(); toast("Tersimpan."); }
+      catch (e) { msg.textContent = e.message; }
+    };
+    $("[data-test]", c).onclick = async () => {
+      msg.textContent = "memeriksa…";
+      const r = await api(`/api/providers/${id}/models`).catch((e) => ({ error: e.message, models: [] }));
+      msg.textContent = r.error ? `❌ ${r.error}` : `✅ ${r.models.length} model`;
+      if (r.models.length) { S.models[id] = r.models; $(`#dl-${id}`).innerHTML = r.models.map((m) => `<option value="${esc(m)}">`).join(""); }
+    };
+    $("[data-use]", c).onclick = () => { setProvider(id); toast(`Prompt berikutnya memakai ${providerName(id)}.`); };
+  });
+}
+function fillProviders() {
+  const sel = $("#prov");
+  sel.innerHTML = ["langganan", "gratis", "api"].map((g) => `<optgroup label="${GROUP[g]}">${S.providers.filter((p) => p.group === g).map((p) => `<option value="${p.id}">${p.ready ? "" : "○ "}${esc(p.name)}</option>`).join("")}</optgroup>`).join("");
+  if (!S.providers.find((p) => p.id === S.provider)) S.provider = "langganan";
+  sel.value = S.provider;
+  setProvider(S.provider, true);
+}
+async function setProvider(id, quiet) {
+  S.provider = id; store.set("provider", id);
+  $("#prov").value = id;
+  const p = S.providers.find((x) => x.id === id);
+  $("#model").value = S.modelBy[id] || p?.defaultModel || "";
+  $("#modeBtn").style.display = p?.kind === "claude-sdk" ? "" : "none";
+  updateStatus();
+  if (!S.models[id]) {
+    S.models[id] = p?.models || [];
+    const r = await api(`/api/providers/${id}/models`).catch(() => null);
+    if (r?.models?.length) S.models[id] = r.models;
+  }
+  if (S.provider === id) $("#models").innerHTML = (S.models[id] || []).map((m) => `<option value="${esc(m)}">`).join("");
+  if (!quiet && !p?.ready) toast(`${p?.name} belum siap — isi URL/kunci di ⚙️ Penyedia.`);
+}
+$("#prov").onchange = (e) => setProvider(e.target.value);
+$("#model").onchange = (e) => { S.modelBy[S.provider] = e.target.value.trim(); store.set("modelBy", S.modelBy); updateStatus(); };
+function renderMode() {
+  const b = $("#modeBtn");
+  b.textContent = S.mode === "tulis" ? "✏️ Boleh ubah file" : "👁 Baca";
+  b.classList.toggle("on", S.mode === "tulis");
+}
+$("#modeBtn").onclick = () => {
+  if (S.mode !== "tulis" && !confirm("Mode tulis: Claude boleh mengubah file workspace dan menjalankan perintah (Bash) tanpa bertanya. Lanjut?")) return;
+  S.mode = S.mode === "tulis" ? "baca" : "tulis"; store.set("mode", S.mode); renderMode(); updateStatus();
+};
+$("#fileBtn").onclick = () => { S.attachActive = !S.attachActive; renderAttach(); };
+function attachedFiles() { return [...new Set([...(S.attachActive && S.active ? [S.active] : []), ...S.attached])]; }
+function renderAttach() {
+  $("#fileBtn").classList.toggle("on", S.attachActive);
+  $("#fileBtn").style.display = S.tabs.length ? "" : "none";
+  const files = attachedFiles();
+  const sk = [...S.chosenSkills];
+  $("#att").innerHTML = files.map((f) => `<span>📎 ${esc(f)} <button data-rm="${esc(f)}">✕</button></span>`).join("") + sk.map((s) => `<span>🧰 ${esc(s.split(":")[1])} <button data-rs="${esc(s)}">✕</button></span>`).join("");
+  $("#att").querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => { if (b.dataset.rm === S.active) S.attachActive = false; S.attached = S.attached.filter((x) => x !== b.dataset.rm); renderAttach(); }));
+  $("#att").querySelectorAll("[data-rs]").forEach((b) => (b.onclick = () => { S.chosenSkills.delete(b.dataset.rs); store.set("skills", [...S.chosenSkills]); renderAttach(); if (S.view === "skills") renderSide(); }));
+}
+
+/* ───────────── chat ───────────── */
+function newSession() {
+  S.cur = { source: "studio", id: null, title: "Sesi baru", messages: [], readonly: false };
+  renderChat(); drawListSafe();
+  $("#prompt").focus();
+  if (innerWidth <= 820) mobile("chat");
+}
+function drawListSafe() { if (S.view === "sessions" && $("#slist")) drawList(); }
+async function openSession(source, id) {
+  try {
+    const { session } = await api(`/api/sessions/${source}/${encodeURIComponent(id)}`);
+    S.cur = session;
+    if (session.provider && source === "studio") setProvider(session.provider, true);
+    if (session.model && source === "studio") $("#model").value = session.model;
+    renderChat(); drawListSafe();
+    if (innerWidth <= 820) mobile("chat");
+  } catch (e) { toast(e.message); }
+}
+async function continueSession() {
+  const c = S.cur;
+  try {
+    const { session } = await api(`/api/sessions/${c.source}/${encodeURIComponent(c.id)}/lanjut`, { method: "POST" });
+    S.cur = { ...session, source: "studio", readonly: false };
+    if (c.source === "claude") setProvider("langganan", true);
+    renderChat(); loadSessions(); $("#prompt").focus();
+  } catch (e) { toast(e.message); }
+}
+function msgHtml(m, streaming) {
+  if (m.role === "user") return `<div class="m user">${esc(m.text)}${m.files?.length ? `<div class="files">📎 ${m.files.map(esc).join(", ")}</div>` : ""}</div>`;
+  const p = m.provider && S.providers.find((x) => x.id === m.provider);
+  const who = [
+    p ? `<span class="badge b-${p.group}">${esc(providerName(p.id))}</span>` : m.provider === "kantor" ? '<span class="badge">Kantor PGA</span>' : "",
+    m.model ? `<span>${esc(m.model)}</span>` : "",
+    m.meta?.routedVia ? `<span>via ${esc(m.meta.routedVia)}</span>` : m.meta?.servedModel && m.meta.servedModel !== m.model ? `<span>via ${esc(m.meta.servedModel)}</span>` : "",
+    m.ms ? `<span>${(m.ms / 1000).toFixed(1)} dtk</span>` : "",
+    m.meta?.usd ? `<span>≈$${m.meta.usd.toFixed(3)}</span>` : "",
+    m.meta?.usage?.output ? `<span>${m.meta.usage.input ?? "?"}→${m.meta.usage.output} tok</span>` : "",
+  ].filter(Boolean).join("");
+  const tools = m.tools?.length
+    ? `<div class="tools">${m.tools.length > 4 && !streaming ? `<details><summary>${m.tools.length} langkah alat</summary>${m.tools.map((t) => `<div class="tool">${esc(t)}</div>`).join("")}</details>` : m.tools.map((t) => `<div class="tool">${esc(t)}</div>`).join("")}</div>`
+    : "";
+  return `<div class="m ai ${m.error ? "err" : ""}"><div class="who">✨ ${who}</div>${tools}<div class="md ${streaming ? "cursor" : ""}">${md(m.text)}</div></div>`;
+}
+function renderChat() {
+  const c = S.cur;
+  $("#ctitle").textContent = c?.title || "Sesi baru";
+  const src = c?.source || "studio";
+  $("#cbadge").textContent = `${SRC[src].ic} ${SRC[src].name}`;
+  const box = $("#msgs");
+  if (!c || (!c.messages.length && !S.streaming)) {
+    box.innerHTML = `<div class="hello"><h1>Apa yang mau dikerjakan?</h1>
+      <div>Pilih penyedia di bawah: <b style="color:var(--sub)">langganan</b> Claude, <b style="color:var(--free)">gratis</b> (FreeLLMAPI, Ollama, Gemini, Groq), atau <b style="color:var(--api)">API</b>.</div>
+      <div class="grid">
+        <div><b>💬 Semua sesi</b>Sesi Studio, Claude Code, Kantor PGA, dan HvM AI ada di panel kiri.</div>
+        <div><b>📁 Berkas</b>Buka & ubah berkas workspace, lalu “✨ Tanya AI”.</div>
+        <div><b>✏️ Mode tulis</b>Claude langganan bisa mengubah file & menjalankan perintah, seperti Claude Code.</div>
+        <div><b>🧰 Skill</b>Skill tim, termasuk <i>freellmapi</i> untuk pekerjaan ringan gratis.</div>
+      </div></div>`;
+  } else {
+    const ro = c.readonly
+      ? `<div class="ro">🔒 Sesi ${esc(SRC[src].name)} (hanya baca)${c.cwd ? ` · ${esc(c.cwd)}` : ""}<span style="flex:1"></span><button id="contBtn">${src === "claude" ? "↻ Lanjutkan sesi ini" : "Lanjutkan di Studio"}</button></div>`
+      : "";
+    box.innerHTML = ro + `<div class="inner">${c.messages.map((m) => msgHtml(m)).join("")}${S.streaming && S.streaming.sid === (c.id || null) ? msgHtml(S.streaming.msg, true) : ""}</div>`;
+    $("#contBtn") && ($("#contBtn").onclick = continueSession);
+  }
+  box.scrollTop = box.scrollHeight;
+  const busy = Boolean(S.streaming);
+  $("#prompt").disabled = Boolean(c?.readonly);
+  $("#prompt").placeholder = c?.readonly ? "Sesi ini hanya baca — klik “Lanjutkan” di atas untuk meneruskannya." : "Tulis prompt…  (Enter kirim, Shift+Enter baris baru)";
+  const btn = $("#sendBtn");
+  btn.className = busy ? "stop" : "send";
+  btn.textContent = busy ? "■ Berhenti" : "Kirim ↵";
+  btn.disabled = !busy && (!$("#prompt").value.trim() || Boolean(c?.readonly));
+}
+let rafPending = false;
+function renderStreaming() {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => {
+    rafPending = false;
+    const box = $("#msgs");
+    const near = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+    const last = box.querySelector(".inner > .m.ai:last-child");
+    if (last && S.streaming) last.outerHTML = msgHtml(S.streaming.msg, true); else renderChat();
+    if (near) box.scrollTop = box.scrollHeight;
+  });
+}
+async function send() {
+  if (S.streaming) return stop();
+  const text = $("#prompt").value.trim();
+  if (!text || S.cur?.readonly) return;
+  if (!S.cur) S.cur = { source: "studio", id: null, title: "Sesi baru", messages: [] };
+  const files = attachedFiles();
+  const body = { sessionId: S.cur.id, provider: S.provider, model: $("#model").value.trim(), text, files, skills: [...S.chosenSkills], mode: S.mode };
+  S.cur.messages.push({ role: "user", text, files });
+  S.streaming = { sid: S.cur.id, msg: { role: "assistant", text: "", provider: S.provider, model: body.model, tools: [], meta: {} }, ac: new AbortController() };
+  $("#prompt").value = ""; S.attached = []; S.attachActive = false; renderAttach();
+  renderChat();
+  const startedIn = S.cur;
+  status(`Memproses dengan ${providerName(S.provider)}…`);
+  try {
+    const r = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: S.streaming.ac.signal });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 2);
+        if (!line.startsWith("data: ")) continue;
+        const e = JSON.parse(line.slice(6));
+        const m = S.streaming?.msg; if (!m) continue;
+        if (e.type === "session") { startedIn.id = e.id; startedIn.title = e.title; S.streaming.sid = e.id; if (S.cur === startedIn) $("#ctitle").textContent = e.title; }
+        else if (e.type === "delta") m.text += e.text;
+        else if (e.type === "tool") { m.tools.push(e.label); maybeReload(e.label); }
+        else if (e.type === "info") Object.assign(m.meta, e);
+        else if (e.type === "done" || e.type === "error") { startedIn.messages.push(e.message); S.streaming = null; }
+        if (S.cur === startedIn) renderStreaming();
+      }
+    }
+  } catch (e) {
+    if (S.streaming) startedIn.messages.push({ role: "assistant", text: S.streaming.ac.signal.aborted ? (S.streaming.msg.text || "") + "\n\n_(dihentikan)_" : `⚠️ ${e.message}`, error: !S.streaming.ac.signal.aborted, provider: S.provider });
+  }
+  S.streaming = null;
+  if (S.cur === startedIn) renderChat();
+  status("Siap");
+  loadSessions();
+  S.tabs.forEach((t) => reloadFile(t.path, true));
+}
+function maybeReload(label) {
+  if (/^(Write|Edit)\b/.test(label)) setTimeout(() => S.tabs.forEach((t) => reloadFile(t.path, true)), 300);
+}
+function stop() {
+  if (!S.streaming) return;
+  const sid = S.streaming.sid;
+  if (sid) fetch(`/api/chat/${sid}/stop`, { method: "POST" }).catch(() => {});
+  S.streaming.ac.abort();
+}
+$("#sendBtn").onclick = send;
+$("#prompt").addEventListener("input", (e) => {
+  const t = e.target; t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, innerHeight * 0.4) + "px";
+  if (!S.streaming) $("#sendBtn").disabled = !t.value.trim() || Boolean(S.cur?.readonly);
+});
+$("#prompt").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing && innerWidth > 820) { e.preventDefault(); send(); }
+  if (e.key === "@" && S.active && !S.attachActive) { S.attachActive = true; renderAttach(); }
+});
+
+/* ───────────── lain-lain ───────────── */
+function status(t) { $("#stLeft").textContent = t; }
+function updateStatus() {
+  const p = S.providers.find((x) => x.id === S.provider);
+  $("#stRight").textContent = p ? `${GROUP[p.group]} · ${p.name.split(" (")[0]} · ${$("#model").value || p.defaultModel}${p.kind === "claude-sdk" ? ` · ${S.mode === "tulis" ? "boleh ubah file" : "baca saja"}` : ""}` : "";
+}
+function mobile(m) {
+  const app = $("#app");
+  app.classList.remove("m-side", "m-edit", "m-chat");
+  app.classList.add("m-" + m);
+  $("#mnav").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.m === m && (m !== "side" || b.dataset.view === S.view)));
+}
+$("#mnav").querySelectorAll("button").forEach((b) => (b.onclick = () => {
+  if (b.dataset.view) { S.view = b.dataset.view; renderSide(); }
+  if (b.dataset.m === "edit" && !S.tabs.length) { toast("Belum ada berkas terbuka. Buka dari 📁 Berkas."); return; }
+  mobile(b.dataset.m);
+}));
+document.querySelectorAll(".act button[data-view]").forEach((b) => (b.onclick = () => setView(b.dataset.view)));
+$("#newBtn").onclick = newSession;
+$("#themeBtn").onclick = () => {
+  const t = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = t; store.set("theme", t);
+};
+document.documentElement.dataset.theme = store.get("theme", "dark");
+addEventListener("keydown", (e) => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); saveFile(); }
+  if (mod && e.altKey && e.key.toLowerCase() === "n") { e.preventDefault(); newSession(); }
+  if (mod && e.key.toLowerCase() === "b") { e.preventDefault(); $("#app").classList.toggle("nosb"); }
+  if (e.key === "Escape" && S.streaming) stop();
+});
+addEventListener("beforeunload", (e) => { if (S.tabs.some((t) => t.content !== t.saved)) { e.preventDefault(); e.returnValue = ""; } });
+
+(async function init() {
+  try {
+    S.info = await api("/api/info");
+  } catch (e) {
+    $("#msgs").innerHTML = `<div class="hello"><h1>Server Studio tidak terjangkau</h1>Jalankan <code>npm run studio</code> lalu muat ulang. (${esc(e.message)})</div>`;
+    return;
+  }
+  S.providers = S.info.providers; S.skills = S.info.skills;
+  $("#ws").textContent = `· ${S.info.workspaceName}`;
+  $("#ws").title = S.info.workspace;
+  if (S.info.auth) $("#logoutBtn").style.display = "";
+  fillProviders(); renderMode();
+  if (innerWidth <= 820) mobile("chat");
+  newSession();
+  renderSide();
+  loadSessions();
+  setInterval(() => { if (!S.streaming && document.visibilityState === "visible") loadSessions(); }, 30000);
+})();
+</script>
+</body>
+</html>

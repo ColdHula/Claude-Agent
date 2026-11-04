@@ -89,10 +89,10 @@ Di bawah kotak tugas ada pilihan **Model** (diingat browser):
 
 ### Skill dan penghematan token
 
-- **Claude Skills**: `skills/` berisi plugin lokal `kantor` dengan 10 skill:
+- **Claude Skills**: `skills/` berisi plugin lokal `kantor` dengan 11 skill:
   `hukum-pengadilan` (**Skill COURT**: PHI, mediasi Disnaker, somasi, gugatan, laporan polisi), `dokumen-resmi`,
   `periksa-dokumen`, `rekap-excel`, `baca-lampiran`, `sop-hiradc`, `riset-sumber`, `rencana-kerja`,
-  `memori-kantor`, dan `pembuat-skill`. Agent hanya melihat daftar nama + deskripsinya; isi skill
+  `memori-kantor`, `pembuat-skill`, dan `freellmapi` (AI gratis untuk pekerjaan ringan). Agent hanya melihat daftar nama + deskripsinya; isi skill
   baru dimuat saat dipakai. Di kantor, Sim berjalan ke **Rak Skill** dan mengambil buku saat memakai skill.
   Skill pribadi: taruh di `pengetahuan/skills/<nama>/SKILL.md` (ikut paket ZIP, tidak ke GitHub).
 - **Memori kantor**: bila hasil akhir Bima berisi bagian "## Catatan untuk Diingat", poin-poinnya otomatis disimpan ke
@@ -123,6 +123,44 @@ Salin `.env.example` menjadi `.env` bila ingin mengubah bawaan:
 | `CLAUDE_CODE_OAUTH_TOKEN` | — | Alternatif login: hasil `claude setup-token` |
 | `ENGINE` | `langganan` | Isi `api` untuk memakai `ANTHROPIC_API_KEY` berbayar (opsional) |
 | `PORT` / `HOST` | `3000` / `127.0.0.1` | Alamat server |
+
+## 🧭 Studio — semua sesi AI di satu tempat (ala VS Code / Codex)
+
+```bash
+npm run studio         # buka http://127.0.0.1:3002
+```
+
+Studio adalah IDE web terpisah dari kantor Sims:
+
+- **💬 Semua sesi**: sesi Studio, **sesi Claude Code** di mesin ini (`~/.claude/projects`), tugas **Kantor PGA** (`hasil/`),
+  dan percakapan **HvM AI**, dengan pencarian dan filter per sumber. Sesi selain Studio dibuka hanya-baca; tombol
+  **Lanjutkan** menyalinnya ke Studio. Sesi Claude Code dilanjutkan langsung (resume), jadi juga muncul di `claude --resume`.
+- **Pilih penyedia per prompt** (bisa ganti di tengah sesi; riwayat ikut terbawa):
+
+  | Golongan | Penyedia | Catatan |
+  |---|---|---|
+  | Langganan | Claude Pro/Max lewat Agent SDK | Membaca workspace; **✏️ mode tulis** boleh mengubah file & menjalankan Bash seperti Claude Code. Rem `STUDIO_MAX_USD`. |
+  | Gratis | **FreeLLMAPI**, Ollama lokal, OpenRouter `:free`, Gemini, Groq | FreeLLMAPI: model `auto`/`auto:smart`/`auto:fast`; penyedia yang menjawab tampil sebagai "via …". |
+  | API | Anthropic, OpenAI, OpenRouter, DeepSeek, endpoint OpenAI-compatible lain | Ditagih per token oleh penyedianya. |
+
+  URL dan kunci diisi di **⚙️ Penyedia** (disimpan di `studio/data/providers.json`, tidak ikut Git, tidak dikirim ke browser) atau lewat `.env`.
+- **📁 Explorer + editor**: buka, ubah, simpan (Ctrl/⌘+S) berkas workspace (`STUDIO_WORKSPACE`). **✨ Tanya AI** / 📎 menyertakan berkas aktif ke prompt.
+  `.env` dan kunci Studio tidak bisa dibuka dari editor.
+- **🧰 Skill**: skill tim bisa dicentang. Claude langganan memuatnya sendiri; untuk penyedia lain isinya ditempel ke instruksi sistem.
+- Di HP: navigasi bawah (Sesi / Berkas / Editor / Chat / Atur). Kata sandi sama dengan `APP_PASSWORD` (atau `STUDIO_PASSWORD`).
+
+### Skill `freellmapi`
+
+`skills/skills/freellmapi/` mengajari agent memakai [FreeLLMAPI](https://github.com/tashfeenahmed/freellmapi)
+untuk pekerjaan ringan yang banyak (ringkas, terjemah, klasifikasi, draf kasar, pendapat kedua) agar hemat kredit Claude,
+lengkap dengan aturan data pribadi (jangan kirim NIK/gaji/isi kasus ke penyedia gratis). Agent dengan Bash memanggil:
+
+```bash
+node skills/skills/freellmapi/scripts/tanya.mjs --cek
+node skills/skills/freellmapi/scripts/tanya.mjs -m auto:fast -s "Ringkas jadi 5 poin" -f catatan.txt
+```
+
+Cara memasang FreeLLMAPI (Docker, port 3011 agar tidak bentrok dengan HvM AI di 3001) ada di `SKILL.md`-nya.
 
 ## Pasang di rig HiveOS (bisa dibuka dari HP/laptop mana saja)
 

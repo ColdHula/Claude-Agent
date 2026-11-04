@@ -2,7 +2,8 @@
 
 Repo ini berisi 8 agent spesialis (`.claude/agents/*.md`) dan 1 Pemimpin
 (`prompts/pemimpin.md`), plus aplikasi web visualisasi kantor bergaya The Sims
-(`server.js`, `src/`, `public/`). Lihat `README.md`.
+(`server.js`, `src/`, `public/`), plus **Studio** (`studio/`): IDE web untuk semua sesi
+dengan pilihan penyedia AI (langganan/gratis/API). Lihat `README.md`.
 
 ## Bila dipakai langsung di Claude Code
 Saat Rahula memberi tugas di sesi ini, bertindaklah sebagai Pemimpin sesuai
