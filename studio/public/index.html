@@ -2,641 +2,853 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Studio</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<meta name="theme-color" content="#14161c">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#262624">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <style>
 :root{
-  --bg:#14161c;--bg2:#181b22;--bg3:#1e222b;--panel:#1a1d24;--line:#2a2f3a;--ink:#e8e6e3;--dim:#9aa0ad;--faint:#6b7280;
-  --accent:#d97757;--accent2:#e8916f;--ok:#4ade80;--warn:#facc15;--bad:#f87171;--blue:#7aa2ff;
-  --free:#4ade80;--sub:#d97757;--api:#7aa2ff;
+  --bg:#262624;--side:#1f1e1d;--card:#30302e;--card2:#3a3936;--line:#3e3d39;--ink:#f5f4ef;--dim:#b7b5a9;--faint:#8a887f;
+  --accent:#d97757;--accent-ink:#1d0f09;--ok:#7ccf8a;--bad:#f28b82;--warn:#e9c46a;--blue:#8ab4f8;
+  --add:rgba(124,207,138,.13);--del:rgba(242,139,130,.13);
+  --sub:#d97757;--free:#7ccf8a;--api:#8ab4f8;
+  --serif:ui-serif,"Iowan Old Style","Palatino Linotype",Georgia,Cambria,serif;
   --mono:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+  --fs:15px;
 }
 :root[data-theme="light"]{
-  --bg:#f6f5f2;--bg2:#efede8;--bg3:#e6e3dc;--panel:#fbfaf8;--line:#dcd8cf;--ink:#22252b;--dim:#5f6570;--faint:#8a8f99;
-  --accent:#c4613f;--accent2:#d97757;--blue:#3f6fd8;--free:#15803d;--api:#3f6fd8;--sub:#c4613f;
+  --bg:#faf9f5;--side:#f0eee6;--card:#ffffff;--card2:#f0eee6;--line:#e3e0d5;--ink:#29261b;--dim:#5e5b51;--faint:#8c897f;
+  --accent:#c6613f;--accent-ink:#fff;--ok:#2f7d3e;--bad:#b3261e;--blue:#2a5bd7;--add:rgba(47,125,62,.1);--del:rgba(179,38,30,.09);
+  --sub:#c6613f;--free:#2f7d3e;--api:#2a5bd7;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme]){
+    --bg:#faf9f5;--side:#f0eee6;--card:#ffffff;--card2:#f0eee6;--line:#e3e0d5;--ink:#29261b;--dim:#5e5b51;--faint:#8c897f;
+    --accent:#c6613f;--accent-ink:#fff;--ok:#2f7d3e;--bad:#b3261e;--blue:#2a5bd7;--add:rgba(47,125,62,.1);--del:rgba(179,38,30,.09);
+    --sub:#c6613f;--free:#2f7d3e;--api:#2a5bd7;
+  }
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:var(--fs)/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-.app{display:grid;grid-template-columns:48px 280px 1fr;grid-template-rows:38px 1fr 22px;height:100dvh}
-.app.nosb{grid-template-columns:48px 0 1fr}
-/* bilah judul */
-.top{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--bg2);border-bottom:1px solid var(--line);min-width:0}
-.top .logo{display:flex;align-items:center;gap:8px;font-weight:700}
-.top .logo img{width:20px;height:20px}
-.top .ws{color:var(--dim);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.top .sp{flex:1}
-.ib{background:none;border:0;color:var(--dim);padding:4px 8px;border-radius:6px;font-size:14px}
-.ib:hover{background:var(--bg3);color:var(--ink)}
-/* bilah aktivitas */
-.act{grid-row:2/3;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding-top:6px;gap:2px}
-.act button{width:40px;height:40px;border:0;background:none;border-radius:8px;font-size:18px;color:var(--dim);position:relative;filter:grayscale(.6);opacity:.75}
-.act button:hover{opacity:1}
-.act button.on{opacity:1;filter:none;background:var(--bg3)}
-.act button.on::before{content:"";position:absolute;left:-4px;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--accent)}
-.act .grow{flex:1}
-/* sidebar */
-.side{grid-row:2/3;background:var(--panel);border-right:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column;min-width:0}
-.side h2{margin:0;padding:10px 12px 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:6px}
-.side h2 .sp{flex:1}
-.side .body{overflow:auto;flex:1;padding:0 6px 12px}
-.search{margin:4px 8px 6px;width:calc(100% - 16px);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;outline:none}
-.search:focus{border-color:var(--accent)}
-.chips{display:flex;flex-wrap:wrap;gap:4px;padding:0 8px 6px}
-.chip{border:1px solid var(--line);background:none;border-radius:999px;padding:1px 9px;font-size:12px;color:var(--dim)}
-.chip.on{background:var(--accent);border-color:var(--accent);color:#1a0d08}
-.grp{font-size:11px;color:var(--faint);padding:8px 8px 2px;text-transform:uppercase;letter-spacing:.06em}
-.item{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border-radius:6px;cursor:pointer;min-width:0}
-.item:hover{background:var(--bg3)}
-.item.on{background:color-mix(in srgb,var(--accent) 18%,transparent)}
-.item .ic{flex:none;width:18px;text-align:center}
-.item .tx{min-width:0;flex:1}
-.item .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item .s{font-size:11.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tree .item{padding:3px 6px;align-items:center}
-.tree .item .t{font-size:13px}
-.empty{color:var(--faint);padding:14px;font-size:13px;text-align:center}
-/* utama */
-.main{grid-row:2/3;display:flex;min-width:0;min-height:0}
-.editor{flex:1;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}
-.editor.hide{display:none}
-.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--line);overflow-x:auto;flex:none}
-.tab{display:flex;align-items:center;gap:6px;padding:7px 10px;border-right:1px solid var(--line);font-size:13px;color:var(--dim);cursor:pointer;white-space:nowrap}
-.tab.on{background:var(--bg);color:var(--ink);box-shadow:inset 0 2px 0 var(--accent)}
-.tab .x{border:0;background:none;color:var(--faint);padding:0 2px;border-radius:4px}
-.tab .x:hover{background:var(--bg3);color:var(--ink)}
-.tab .dot{width:7px;height:7px;border-radius:50%;background:var(--ink)}
-.ebar{display:flex;align-items:center;gap:6px;padding:4px 10px;font-size:12px;color:var(--dim);border-bottom:1px solid var(--line);flex:none}
-.ebar .sp{flex:1}
-.ebar button{background:var(--bg3);border:1px solid var(--line);border-radius:5px;padding:1px 8px;font-size:12px}
-.code{flex:1;display:flex;min-height:0;font:13px/20px var(--mono)}
-.gutter{padding:8px 8px 8px 12px;text-align:right;color:var(--faint);background:var(--bg);user-select:none;overflow:hidden;white-space:pre;min-width:44px}
-.code textarea{flex:1;border:0;outline:none;resize:none;background:var(--bg);padding:8px 12px;white-space:pre;overflow:auto;tab-size:2;font:inherit;color:var(--ink)}
-/* chat */
-.chat{width:min(480px,46%);display:flex;flex-direction:column;min-width:0;background:var(--bg)}
-.editor.hide + .chat{width:auto;flex:1}
-.chat .head{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--line);background:var(--bg2);min-height:38px}
-.chat .head .title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
-.badge{font-size:11px;border-radius:999px;padding:0 8px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
-.b-langganan{color:var(--sub);border-color:color-mix(in srgb,var(--sub) 50%,transparent)}
-.b-gratis{color:var(--free);border-color:color-mix(in srgb,var(--free) 50%,transparent)}
-.b-api{color:var(--api);border-color:color-mix(in srgb,var(--api) 50%,transparent)}
-.msgs{flex:1;overflow:auto;padding:14px 0}
-.msgs .inner{max-width:820px;margin:0 auto;padding:0 16px;display:flex;flex-direction:column;gap:14px}
-.ro{position:sticky;top:-14px;z-index:2;background:var(--bg2);margin:-14px 0 8px;border-radius:0;border-width:0 0 1px;padding:8px 12px;border:1px dashed var(--line);border-radius:8px;color:var(--dim);font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.ro button{background:var(--accent);color:#1a0d08;border:0;border-radius:6px;padding:3px 10px;font-weight:600}
-.m{min-width:0}
-.m.user{align-self:flex-end;max-width:88%;background:var(--bg3);border:1px solid var(--line);border-radius:12px 12px 2px 12px;padding:8px 12px;white-space:pre-wrap;word-wrap:break-word}
-.m.user .files{font-size:11.5px;color:var(--dim);margin-top:4px}
-.m.ai .who{font-size:11.5px;color:var(--faint);margin-bottom:2px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.m.ai .md{word-wrap:break-word}
-.m.ai.err .md{color:var(--bad)}
-.tools{display:flex;flex-direction:column;gap:2px;margin:4px 0 6px}
-.tools details{font-size:12px;color:var(--dim)}
-.tools summary{cursor:pointer}
-.tool{font:12px/1.5 var(--mono);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tool::before{content:"⏺ ";color:var(--ok)}
-.md p{margin:.4em 0}.md h1,.md h2,.md h3,.md h4{margin:.8em 0 .3em;line-height:1.3}.md h1{font-size:1.3em}.md h2{font-size:1.15em}.md h3{font-size:1.05em}
-.md ul,.md ol{margin:.3em 0;padding-left:1.4em}
-.md code{font:12.5px var(--mono);background:var(--bg3);padding:1px 5px;border-radius:4px}
-.md pre{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow:auto;position:relative}
-.md pre code{background:none;padding:0;font-size:12.5px;line-height:1.55}
-.md pre .cp{position:absolute;top:6px;right:6px;font-size:11px;background:var(--bg3);border:1px solid var(--line);border-radius:5px;padding:0 6px;color:var(--dim);opacity:.7}
-.md table{border-collapse:collapse;display:block;overflow:auto;margin:.5em 0}.md th,.md td{border:1px solid var(--line);padding:4px 8px;font-size:13px}
-.md blockquote{margin:.4em 0;padding-left:10px;border-left:3px solid var(--line);color:var(--dim)}
-.md a{color:var(--blue)}
-.cursor::after{content:"▍";animation:bl 1s steps(2) infinite;color:var(--accent)}
-@keyframes bl{50%{opacity:0}}
-.hello{max-width:560px;margin:8vh auto 0;padding:0 20px;color:var(--dim);text-align:center}
-.hello h1{color:var(--ink);font-size:22px;margin:0 0 6px}
-.hello .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:18px;text-align:left}
-.hello .grid div{border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12.5px}
-.hello .grid b{display:block;color:var(--ink);margin-bottom:2px}
+a{color:var(--blue)}
+.app{display:flex;height:100dvh;overflow:hidden}
+.ib{background:none;border:0;color:var(--dim);padding:6px 8px;border-radius:8px;line-height:1;display:inline-flex;align-items:center;gap:6px}
+.ib:hover{background:var(--card2);color:var(--ink)}
+.kbd{font:11px var(--mono);color:var(--faint);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+
+/* ─────────── sidebar ─────────── */
+.side{width:272px;flex:none;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;transition:margin .18s}
+.app.noside .side{margin-left:-272px}
+.side .top{display:flex;align-items:center;gap:6px;padding:10px 10px 6px}
+.brand{display:flex;align-items:center;gap:8px;font:600 18px var(--serif);flex:1}
+.brand img{width:22px;height:22px;border-radius:6px}
+.newchat{margin:4px 10px 8px;display:flex;align-items:center;gap:10px;background:none;border:0;border-radius:10px;padding:8px 10px;color:var(--ink);font-weight:600}
+.newchat:hover{background:var(--card2)}
+.newchat .plus{width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:17px}
+.navb{margin:0 10px;display:flex;align-items:center;gap:10px;background:none;border:0;border-radius:8px;padding:6px 10px;color:var(--dim);font-size:14px;width:calc(100% - 20px);text-align:left}
+.navb:hover{background:var(--card2);color:var(--ink)}
+.navb .sp{flex:1}
+.list{flex:1;overflow:auto;padding:6px 6px 12px;min-height:0}
+.grp{font-size:12px;color:var(--faint);padding:12px 10px 4px;display:flex;align-items:center;gap:6px}
+.grp select{background:none;border:0;color:var(--faint);font-size:12px;margin-left:auto}
+.it{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;cursor:pointer;color:var(--dim);font-size:14px;min-width:0;position:relative}
+.it:hover{background:var(--card2);color:var(--ink)}
+.it.on{background:var(--card);color:var(--ink)}
+.it .ic{flex:none;width:16px;text-align:center;font-size:12px;opacity:.85}
+.it .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it .busy{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.side .foot{border-top:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;gap:4px}
+.syncpill{font-size:12px;color:var(--faint);display:flex;gap:6px;align-items:center;padding:2px 10px;border-radius:6px;cursor:pointer;border:0;background:none;text-align:left}
+.syncpill:hover{color:var(--ink)}
+.me{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:10px;border:0;background:none;width:100%;text-align:left}
+.me:hover{background:var(--card2)}
+.av{width:30px;height:30px;border-radius:50%;background:var(--card2);display:grid;place-items:center;font-weight:700;color:var(--ink);flex:none;border:1px solid var(--line)}
+.me .n{font-weight:600;font-size:14px;line-height:1.2}.me .s{font-size:12px;color:var(--faint)}
+.scrim{display:none}
+
+/* ─────────── utama ─────────── */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+.head{display:flex;align-items:center;gap:8px;padding:8px 12px;min-height:52px}
+.head .title{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;border:0;background:none;padding:4px 8px;border-radius:8px;color:var(--ink);max-width:46vw}
+.head .title:hover{background:var(--card2)}
+.head .sp{flex:1}
+.seg{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:2px}
+.seg button{border:0;background:none;padding:4px 12px;border-radius:8px;color:var(--dim);font-size:13.5px;font-weight:500}
+.seg button.on{background:var(--card2);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.body{flex:1;display:flex;min-height:0}
+.convo{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+.msgs{flex:1;overflow:auto;scroll-behavior:auto}
+.col{max-width:780px;margin:0 auto;padding:8px 20px 24px}
+.banner{max-width:780px;margin:0 auto 8px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--dim);font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner .sp{flex:1}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:9px;padding:6px 14px;font-weight:600}
+.btn2{background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:5px 12px;color:var(--ink)}
+.btn:disabled,.btn2:disabled{opacity:.45;cursor:default}
+
+.msg{margin:22px 0;position:relative}
+.msg.user{display:flex;justify-content:flex-end}
+.bubble{background:var(--card2);border-radius:18px;padding:10px 16px;max-width:100%;white-space:pre-wrap;word-wrap:break-word}
+.att-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;justify-content:flex-end}
+.chipf{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:4px 10px;font-size:12.5px;color:var(--dim);text-decoration:none;max-width:240px}
+.chipf span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thumb{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line);display:block}
+.msg .acts{display:flex;flex-wrap:wrap;align-items:center;gap:2px;opacity:0;transition:opacity .15s;margin-top:4px}
+.msg:hover .acts,.msg:focus-within .acts{opacity:1}
+.msg.user .acts{position:absolute;right:0;bottom:-28px}
+.acts button{background:none;border:0;color:var(--faint);padding:3px 7px;border-radius:6px;font-size:12.5px}
+.acts button:hover{background:var(--card2);color:var(--ink)}
+.acts .meta{font-size:12px;color:var(--faint);padding:3px 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.badge{font-size:11px;border-radius:999px;padding:0 8px;border:1px solid var(--line);white-space:nowrap}
+.g-langganan{color:var(--sub);border-color:color-mix(in srgb,var(--sub) 45%,transparent)}
+.g-gratis{color:var(--free);border-color:color-mix(in srgb,var(--free) 45%,transparent)}
+.g-api{color:var(--api);border-color:color-mix(in srgb,var(--api) 45%,transparent)}
+.ai .who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--faint);margin-bottom:4px}
+.spark{width:22px;height:22px;flex:none;color:var(--accent)}
+.spark.spin{animation:spin 2.4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err .md{color:var(--bad)}
+
+.think{border-left:2px solid var(--line);margin:4px 0 10px;padding:0 0 0 12px;color:var(--faint);font-size:14px}
+.think summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;color:var(--dim)}
+.think summary::-webkit-details-marker{display:none}
+.think summary::after{content:"›";transform:rotate(90deg);transition:transform .15s}
+.think:not([open]) summary::after{transform:none}
+.think .tx{white-space:pre-wrap;max-height:320px;overflow:auto;margin-top:4px}
+
+.steps{margin:4px 0 10px;display:flex;flex-direction:column;gap:2px}
+.step{font:13px/1.5 var(--mono)}
+.step>summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline;color:var(--dim);padding:2px 0;min-width:0}
+.step>summary::-webkit-details-marker{display:none}
+.step>summary .b{flex:none;color:var(--ok)}
+.step.run>summary .b{color:var(--warn);animation:pulse 1s infinite}
+.step.bad>summary .b{color:var(--bad)}
+.step>summary .l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.step>summary .l b{color:var(--ink);font-weight:600}
+.step .out{margin:2px 0 6px 18px;border-left:1px solid var(--line);padding-left:10px;color:var(--faint);white-space:pre-wrap;max-height:300px;overflow:auto;font-size:12.5px}
+.diff{margin:4px 0 8px 18px;border:1px solid var(--line);border-radius:8px;overflow:auto;max-height:380px;font:12.5px/1.5 var(--mono)}
+.diff div{white-space:pre;padding:0 10px}
+.diff .d{background:var(--del);color:var(--bad)}.diff .a{background:var(--add);color:var(--ok)}.diff .h{color:var(--faint);background:var(--card);padding:3px 10px}
+.todo{margin:2px 0 6px 18px;font-size:13px}
+.perm{border:1px solid color-mix(in srgb,var(--accent) 60%,var(--line));background:var(--card);border-radius:12px;padding:12px 14px;margin:8px 0}
+.perm .q{font-weight:600;margin-bottom:6px;font-family:system-ui}
+.perm .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.perm.done{opacity:.7;padding:6px 12px;font-size:13px}
+
+.md{word-wrap:break-word}
+.md>:first-child{margin-top:0}.md>:last-child{margin-bottom:0}
+.md p{margin:.55em 0}.md h1,.md h2,.md h3,.md h4{margin:1.1em 0 .4em;line-height:1.3;font-weight:600}.md h1{font-size:1.35em}.md h2{font-size:1.2em}.md h3{font-size:1.06em}
+.md ul,.md ol{margin:.4em 0;padding-left:1.5em}.md li{margin:.15em 0}
+.md code{font:.88em var(--mono);background:var(--card2);padding:.1em .4em;border-radius:5px}
+.md pre{background:var(--side);border:1px solid var(--line);border-radius:12px;padding:0;overflow:hidden;margin:.7em 0}
+.md pre .bar{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 4px 14px;font:12px var(--mono);color:var(--faint);border-bottom:1px solid var(--line)}
+.md pre .bar button{background:none;border:0;color:var(--faint);font-size:12px;border-radius:5px;padding:2px 6px}
+.md pre .bar button:hover{background:var(--card2);color:var(--ink)}
+.md pre code{display:block;background:none;padding:12px 14px;overflow:auto;font-size:13px;line-height:1.55}
+.md table{border-collapse:collapse;display:block;overflow:auto;margin:.7em 0;font-size:.94em}
+.md th,.md td{border:1px solid var(--line);padding:6px 10px;text-align:left}.md th{background:var(--card)}
+.md blockquote{margin:.6em 0;padding:.1em 0 .1em 14px;border-left:3px solid var(--line);color:var(--dim)}
+.md hr{border:0;border-top:1px solid var(--line);margin:1em 0}
+.md .tok-k{color:#c792ea}.md .tok-s{color:#c3e88d}.md .tok-c{color:var(--faint);font-style:italic}.md .tok-n{color:#f78c6c}
+:root[data-theme="light"] .md .tok-k{color:#8b2bb9}:root[data-theme="light"] .md .tok-s{color:#2e7d32}:root[data-theme="light"] .md .tok-n{color:#c2410c}
+.caret::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-left:4px;animation:pulse 1s infinite;vertical-align:middle}
+
+/* sambutan */
+.hello{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px 16px 8vh;overflow:auto}
+.hello h1{font:400 clamp(28px,4.4vw,40px)/1.2 var(--serif);margin:0 0 22px;display:flex;align-items:center;gap:12px;text-align:center}
+.hello h1 svg{width:34px;height:34px;color:var(--accent);flex:none}
+.hello .composer{width:100%;max-width:700px;padding:0}
+.quick{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px;max-width:700px}
+.quick button{border:1px solid var(--line);background:none;border-radius:10px;padding:6px 12px;color:var(--dim);font-size:13.5px}
+.quick button:hover{background:var(--card2);color:var(--ink)}
+.srcnote{margin-top:16px;font-size:12.5px;color:var(--faint);text-align:center;max-width:620px}
+
 /* composer */
-.comp{border-top:1px solid var(--line);padding:8px 12px 10px;background:var(--bg2)}
-.comp .box{max-width:820px;margin:0 auto;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:6px 8px}
-.comp .box:focus-within{border-color:var(--accent)}
-.comp textarea{width:100%;border:0;outline:none;resize:none;background:none;min-height:44px;max-height:40vh;padding:4px 2px}
-.ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.ctl select,.ctl input{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-size:12.5px;max-width:100%}
-.ctl input{width:150px}
-.ctl .sp{flex:1}
-.ctl .pill{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:1px 8px;background:none;color:var(--dim)}
-.ctl .pill.on{border-color:var(--accent);color:var(--accent)}
-.send{background:var(--accent);color:#1a0d08;border:0;border-radius:8px;padding:5px 14px;font-weight:700}
-.send:disabled{opacity:.4;cursor:default}
-.stop{background:var(--bad);color:#200;border:0;border-radius:8px;padding:5px 14px;font-weight:700}
-.att{max-width:820px;margin:0 auto 4px;display:flex;flex-wrap:wrap;gap:4px}
-.att span{font-size:11.5px;background:var(--bg3);border:1px solid var(--line);border-radius:999px;padding:0 4px 0 8px;color:var(--dim)}
-.att button{border:0;background:none;color:var(--faint);padding:0 3px}
-/* panel penyedia & skill */
-.card{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 4px;background:var(--bg)}
-.card .h{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px}
-.card .n{font-size:12px;color:var(--faint);margin:2px 0 6px}
-.card label{display:block;font-size:11.5px;color:var(--dim);margin-top:4px}
-.card input{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:4px 6px;font-size:12.5px;font-family:var(--mono)}
-.card .row{display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap}
-.card .row button{background:var(--bg3);border:1px solid var(--line);border-radius:5px;padding:2px 10px;font-size:12px}
-.card .row .msg{font-size:11.5px;color:var(--dim)}
-.st{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
-.st.ok{background:var(--ok)}
-.sk{display:flex;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;align-items:flex-start}
-.sk:hover{background:var(--bg3)}
-.sk input{margin-top:3px;accent-color:var(--accent)}
-.sk b{font-size:13px}
-.sk div div{font-size:11.5px;color:var(--faint)}
-.hint{font-size:12px;color:var(--faint);padding:4px 10px}
-/* status bar */
-.status{grid-column:1/-1;background:var(--accent);color:#1a0d08;font-size:11.5px;display:flex;gap:14px;align-items:center;padding:0 10px;white-space:nowrap;overflow:hidden}
-.status .sp{flex:1}
-.toast{position:fixed;bottom:34px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--line);padding:8px 14px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:9;max-width:90vw}
+.composer{padding:0 16px 14px;flex:none}
+.cbox{max-width:780px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:10px 12px 8px;box-shadow:0 2px 14px rgba(0,0,0,.12);transition:border-color .15s}
+.cbox:focus-within{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
+.cbox.drag{border-color:var(--accent);border-style:dashed}
+.cbox textarea{width:100%;border:0;outline:none;resize:none;background:none;min-height:26px;max-height:42vh;padding:2px 4px;font-size:var(--fs);line-height:1.55;display:block}
+.cbar{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:nowrap;min-width:0}
+.cbar .cb.plain{min-width:0;overflow:hidden;text-overflow:ellipsis;flex-shrink:1}
+.ebar .ib{white-space:nowrap}
+.cbar .sp{flex:1}
+.cb{border:1px solid var(--line);background:none;border-radius:10px;height:32px;min-width:32px;padding:0 10px;color:var(--dim);display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+.cb:hover{background:var(--card2);color:var(--ink)}
+.cb.on{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.cb.plain{border-color:transparent}
+.send{width:34px;height:34px;border-radius:10px;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:17px;font-weight:700}
+.send:disabled{opacity:.35;cursor:default}
+.send.stop{background:var(--ink);color:var(--bg)}
+.pend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.pend .pf{position:relative;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:6px 26px 6px 8px;font-size:12.5px;background:var(--bg);max-width:230px}
+.pend .pf img{width:36px;height:36px;object-fit:cover;border-radius:8px}
+.pend .pf .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pend .pf .sz{color:var(--faint);font-size:11px}
+.pend .pf .x{position:absolute;top:2px;right:2px;border:0;background:none;color:var(--faint);border-radius:6px;padding:0 5px}
+.pend .pf.up{opacity:.6}
+.hint{max-width:780px;margin:6px auto 0;text-align:center;font-size:11.5px;color:var(--faint)}
+
+/* popover & modal */
+.pop{position:fixed;z-index:30;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.35);padding:6px;min-width:240px;max-width:min(380px,calc(100vw - 16px));max-height:min(70vh,560px);overflow:auto}
+.pop .ttl{font-size:11.5px;color:var(--faint);padding:8px 10px 4px;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:8px}
+.pop .opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-radius:9px;padding:7px 10px;color:var(--ink);font-size:14px}
+.pop .opt:hover,.pop .opt.kb{background:var(--card2)}
+.pop .opt .d{font-size:12px;color:var(--faint)}
+.pop .opt .ck{margin-left:auto;color:var(--accent)}
+.pop .opt.dis{color:var(--faint)}
+.pop input.f{width:calc(100% - 8px);margin:4px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;outline:none}
+.pop hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
+.modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:6vh 12px 12px}
+.modal .box{background:var(--bg);border:1px solid var(--line);border-radius:16px;width:min(860px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.modal .mh{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);gap:8px}
+.modal .mh h2{margin:0;font:500 20px var(--serif);flex:1}
+.modal .mb{display:flex;min-height:0;flex:1}
+.tabsv{width:190px;border-right:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:2px;flex:none}
+.tabsv button{text-align:left;border:0;background:none;border-radius:8px;padding:7px 10px;color:var(--dim)}
+.tabsv button.on{background:var(--card2);color:var(--ink)}
+.pane{flex:1;overflow:auto;padding:16px 18px 24px}
+.pane h3{margin:0 0 4px;font-size:16px}
+.pane p.s{margin:0 0 14px;color:var(--faint);font-size:13.5px}
+.fld{display:block;margin:10px 0}
+.fld>span{display:block;font-size:13px;color:var(--dim);margin-bottom:4px}
+.fld input,.fld textarea,.fld select{width:100%;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px;outline:none}
+.fld input:focus,.fld textarea:focus{border-color:var(--accent)}
+.radios{display:grid;gap:8px;margin:10px 0}
+.radios label{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;background:var(--card)}
+.radios label.on{border-color:var(--accent)}
+.radios b{display:block}.radios small{color:var(--faint)}
+.pcard{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0;background:var(--card)}
+.pcard .h{display:flex;align-items:center;gap:8px;font-weight:600}
+.pcard .n{font-size:12.5px;color:var(--faint);margin:2px 0 4px}
+.pcard .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pcard .fld{margin:4px 0}.pcard .fld input{padding:6px 8px;font:13px var(--mono)}
+.pcard .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.pcard .msgx{font-size:12.5px;color:var(--dim)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}
+.skl{display:flex;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;align-items:flex-start}
+.skl:hover{background:var(--card)}
+.skl input{margin-top:4px;accent-color:var(--accent)}
+.skl small{display:block;color:var(--faint)}
+.res{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 12px;border-radius:10px;color:var(--ink)}
+.res:hover,.res.kb{background:var(--card2)}
+.res small{display:block;color:var(--faint);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;z-index:60;max-width:90vw;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+
+/* workspace (mode Code) */
+.ws{width:min(48%,760px);border-left:1px solid var(--line);display:none;flex-direction:column;min-width:0;background:var(--side)}
+.app.mcode.wsopen .ws{display:flex}
+.wsh{display:flex;align-items:center;gap:4px;padding:6px 8px;border-bottom:1px solid var(--line)}
+.wsh .t{font-size:13px;color:var(--dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wsb{flex:1;display:flex;min-height:0}
+.tree{width:220px;overflow:auto;border-right:1px solid var(--line);padding:4px;flex:none;font-size:13px}
+.tree .tn{display:flex;align-items:center;gap:6px;padding:2px 6px;border-radius:6px;cursor:pointer;white-space:nowrap;color:var(--dim)}
+.tree .tn:hover{background:var(--card2);color:var(--ink)}
+.tree .tn.on{background:var(--card);color:var(--ink)}
+.ed{flex:1;display:flex;flex-direction:column;min-width:0}
+.etabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--line);flex:none}
+.etab{display:flex;align-items:center;gap:4px;padding:5px 6px 5px 10px;font-size:12.5px;color:var(--dim);border-right:1px solid var(--line);white-space:nowrap;cursor:pointer}
+.etab.on{background:var(--bg);color:var(--ink)}
+.etab .x{border:0;background:none;color:var(--faint);border-radius:4px;padding:0 4px}
+.etab .m{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.ebar{display:flex;gap:6px;align-items:center;padding:4px 8px;font-size:12px;color:var(--faint);border-bottom:1px solid var(--line)}
+.ebar .sp{flex:1}
+.code{flex:1;display:flex;min-height:0;font:12.5px/19px var(--mono);background:var(--bg)}
+.gut{padding:8px 8px 8px 10px;text-align:right;color:var(--faint);user-select:none;overflow:hidden;white-space:pre;min-width:42px}
+.code textarea{flex:1;border:0;outline:none;resize:none;background:none;padding:8px 10px;white-space:pre;overflow:auto;tab-size:2;font:inherit;color:var(--ink)}
+.edempty{flex:1;display:grid;place-items:center;color:var(--faint);font-size:13px;padding:20px;text-align:center}
+
 /* ponsel */
-.mnav{display:none}
-@media (max-width:820px){
-  .app,.app.nosb{grid-template-columns:1fr;grid-template-rows:42px 1fr 52px}
-  .act,.status{display:none}
-  .side{grid-row:2/3;grid-column:1;display:none;border:0}
-  .main{grid-row:2/3;grid-column:1}
-  .app.m-side .side{display:flex}
-  .app.m-side .main{display:none}
-  .app.m-edit .chat{display:none}
-  .app.m-edit .editor{display:flex!important;border:0}
-  .app.m-chat .editor{display:none}
-  .app.m-chat .chat{width:auto;flex:1}
-  .mnav{display:flex;grid-row:3/4;grid-column:1;background:var(--bg2);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-  .mnav button{flex:1;border:0;background:none;color:var(--dim);font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
-  .mnav button span{font-size:18px}
-  .mnav button.on{color:var(--accent)}
-  .ctl input{width:120px}
-  .top .ws{display:none}
+@media (max-width:860px){
+  .side{position:fixed;inset:0 auto 0 0;z-index:20;margin-left:-280px;width:280px;box-shadow:0 0 40px rgba(0,0,0,.4)}
+  .app.mside .side{margin-left:0}
+  .app.mside .scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:19}
+  .app.noside .side{margin-left:-280px}
+  .ws{position:fixed;inset:0;z-index:25;width:auto;border:0}
+  .tree{width:150px}
+  .head .title{max-width:40vw}
+  .col{padding:6px 14px 20px}
+  .composer{padding:0 8px 8px}
+  .msg .acts{opacity:1}
+  .tabsv{width:auto;flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .modal .mb{flex-direction:column}
+  .modal{padding:0}.modal .box{max-height:100dvh;height:100dvh;border-radius:0}
+  .pcard .grid{grid-template-columns:1fr}
+  .hide-m{display:none!important}
 }
 </style>
 </head>
 <body>
 <div class="app" id="app">
-  <header class="top">
-    <div class="logo"><img src="/icon.svg" alt="">Studio</div>
-    <div class="ws" id="ws"></div>
-    <div class="sp"></div>
-    <button class="ib" id="newBtn" title="Sesi baru (Ctrl+Alt+N)">＋ Sesi</button>
-    <button class="ib" id="themeBtn" title="Tema">◐</button>
-    <a class="ib" id="logoutBtn" href="/logout" title="Keluar" style="text-decoration:none;display:none">⎋</a>
-  </header>
-
-  <nav class="act" aria-label="Aktivitas">
-    <button data-view="sessions" class="on" title="Sesi">💬</button>
-    <button data-view="files" title="Explorer">📁</button>
-    <button data-view="skills" title="Skill">🧰</button>
-    <button data-view="providers" title="Penyedia AI">⚙️</button>
-    <div class="grow"></div>
-  </nav>
-
-  <aside class="side" id="side"></aside>
+  <aside class="side" id="side">
+    <div class="top">
+      <div class="brand"><img src="/icon.svg" alt="">Studio</div>
+      <button class="ib" id="sideClose" title="Tutup panel (Ctrl+B)">⇤</button>
+    </div>
+    <button class="newchat" id="newBtn"><span class="plus">+</span>Chat baru</button>
+    <button class="navb" id="searchBtn">🔍 Cari chat <span class="sp"></span><span class="kbd hide-m">Ctrl K</span></button>
+    <div class="list" id="list"></div>
+    <div class="foot">
+      <button class="syncpill" id="syncPill" title="Penyimpanan chat"></button>
+      <button class="me" id="meBtn"><span class="av" id="av">R</span><span><div class="n" id="meName">Rahula</div><div class="s" id="meSub">Pengaturan</div></span></button>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
 
   <main class="main">
-    <section class="editor hide" id="editor">
-      <div class="tabs" id="tabs"></div>
-      <div class="ebar" id="ebar"></div>
-      <div class="code"><div class="gutter" id="gutter">1</div><textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea></div>
-    </section>
-    <section class="chat" id="chat">
-      <div class="head"><div class="title" id="ctitle">Sesi baru</div><span class="badge" id="cbadge"></span></div>
-      <div class="msgs" id="msgs"></div>
-      <div class="comp">
-        <div class="att" id="att"></div>
-        <div class="box">
-          <textarea id="prompt" rows="2" placeholder="Tulis prompt…  (Enter kirim, Shift+Enter baris baru, @ untuk menyertakan berkas aktif)"></textarea>
-          <div class="ctl">
-            <select id="prov" title="Penyedia"></select>
-            <input id="model" list="models" title="Model" placeholder="model">
-            <datalist id="models"></datalist>
-            <button class="pill" id="modeBtn" title="Mode langganan: baca saja / boleh mengubah file & menjalankan perintah">👁 Baca</button>
-            <button class="pill" id="fileBtn" title="Sertakan berkas yang sedang dibuka">📎 berkas aktif</button>
-            <span class="sp"></span>
-            <button class="send" id="sendBtn" disabled>Kirim ↵</button>
-          </div>
-        </div>
-      </div>
-    </section>
+    <header class="head">
+      <button class="ib" id="sideOpen" title="Buka panel">☰</button>
+      <button class="title" id="title" title="Ganti nama"></button>
+      <span class="sp"></span>
+      <div class="seg" id="modeSeg"><button data-mode="chat">Chat</button><button data-mode="code">Code</button></div>
+      <button class="ib" id="wsBtn" title="Berkas workspace" style="display:none">📁</button>
+      <button class="ib" id="menuBtn" title="Lainnya">⋯</button>
+    </header>
+    <div class="body">
+      <section class="convo" id="convo"></section>
+      <aside class="ws" id="ws">
+        <div class="wsh"><button class="ib" id="wsClose" title="Tutup">✕</button><span class="t" id="wsName"></span><button class="ib" id="newFile" title="Berkas baru">＋</button><button class="ib" id="treeReload" title="Muat ulang">↻</button></div>
+        <div class="wsb"><div class="tree" id="tree"></div><div class="ed" id="ed"></div></div>
+      </aside>
+    </div>
   </main>
-
-  <nav class="mnav" id="mnav">
-    <button data-m="side" data-view="sessions"><span>💬</span>Sesi</button>
-    <button data-m="side" data-view="files"><span>📁</span>Berkas</button>
-    <button data-m="edit"><span>📝</span>Editor</button>
-    <button data-m="chat" class="on"><span>✨</span>Chat</button>
-    <button data-m="side" data-view="providers"><span>⚙️</span>Atur</button>
-  </nav>
-
-  <footer class="status" id="status"><span id="stLeft">Siap</span><span class="sp"></span><span id="stRight"></span></footer>
 </div>
+<input type="file" id="fileIn" multiple hidden>
 
 <script>
 "use strict";
+/* ═════════════ dasar ═════════════ */
 const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const store = {
-  get(k, d) { try { const v = localStorage.getItem("studio." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem("studio." + k, JSON.stringify(v)); } catch {} },
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem("studio2." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("studio2." + k, JSON.stringify(v)); } catch {} },
 };
 async function api(path, opts = {}) {
-  const r = await fetch(path, { ...opts, headers: { "content-type": "application/json", ...(opts.headers || {}) }, body: opts.body && typeof opts.body !== "string" ? JSON.stringify(opts.body) : opts.body });
+  const r = await fetch(path, { ...opts, headers: { "content-type": "application/json", ...(opts.headers || {}) }, body: opts.body && typeof opts.body !== "string" && !(opts.body instanceof Blob) ? JSON.stringify(opts.body) : opts.body });
   const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { location.href = "/login"; throw new Error("Belum masuk."); }
   if (!r.ok) throw Object.assign(new Error(j.error || `HTTP ${r.status}`), { status: r.status, data: j });
   return j;
 }
-function toast(t, ms = 3200) {
+function toast(t, ms = 3000) {
+  $$(".toast").forEach((x) => x.remove());
   const d = document.createElement("div");
   d.className = "toast"; d.textContent = t; document.body.append(d);
   setTimeout(() => d.remove(), ms);
 }
-
-const SRC = {
-  studio: { ic: "✨", name: "Studio" },
-  claude: { ic: "◆", name: "Claude Code" },
-  kantor: { ic: "🏢", name: "Kantor PGA" },
-  hvm: { ic: "💬", name: "HvM AI" },
-};
-const GROUP = { langganan: "Langganan", gratis: "Gratis", api: "API" };
+const isMobile = () => innerWidth <= 860;
+const SPARK = `<svg class="spark" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" opacity=".7"/></svg>`;
+const SRC = { studio: { ic: "", name: "Studio" }, claude: { ic: "◆", name: "Claude Code" }, kantor: { ic: "🏢", name: "Kantor PGA" }, hvm: { ic: "💬", name: "HvM AI" } };
+const GROUP = { langganan: "Langganan Claude", gratis: "Gratis", api: "API berbayar" };
+const MODEL_NAME = { "claude-sonnet-5-5": "Sonnet 5.5", "claude-opus-5-5": "Opus 5.5", "claude-haiku-5-5": "Haiku 5.5", "claude-fable-5-1": "Fable 5.1", auto: "Otomatis", "auto:smart": "Paling pintar", "auto:fast": "Paling cepat", "auto:reliable": "Paling andal", "auto:balanced": "Seimbang", fusion: "Fusion (gabungan)" };
+const MODEL_DESC = { "claude-sonnet-5-5": "Cerdas & efisien untuk sehari-hari", "claude-opus-5-5": "Paling mampu, untuk tugas sulit", "claude-haiku-5-5": "Tercepat & paling hemat", "claude-fable-5-1": "Model terbaru", auto: "FreeLLMAPI memilih penyedia", fusion: "Beberapa model digabung (lambat)" };
+const PERM = { baca: { ic: "👁", n: "Baca saja", d: "Hanya membaca berkas, tidak mengubah apa pun" }, tanya: { ic: "🛡", n: "Tanya dulu", d: "Minta izin sebelum mengubah berkas atau menjalankan perintah" }, otomatis: { ic: "⚡", n: "Otomatis", d: "Langsung mengubah berkas & menjalankan perintah" } };
 
 const S = {
-  info: null, providers: [], skills: [], sessions: [], filter: store.get("filter", "all"), q: "",
-  view: "sessions", cur: null, streaming: null,
-  provider: store.get("provider", "langganan"), models: {}, modelBy: store.get("modelBy", {}),
-  mode: store.get("mode", "baca"), chosenSkills: new Set(store.get("skills", [])), attachActive: false, attached: [],
-  tabs: [], active: null, tree: { "": null }, open: new Set(store.get("openDirs", [""])),
+  info: null, providers: [], skills: [], sessions: [], sync: null, profile: { name: "Rahula" },
+  cur: null, live: null, // live = { sid, msg, ac }
+  provider: LS.get("provider", "langganan"), model: LS.get("model", ""), models: {},
+  mode: LS.get("mode", "chat"), perm: LS.get("perm", "tanya"), think: LS.get("think", false),
+  skillsOn: new Set(LS.get("skills", [])), pending: [], wsFiles: [], srcFilter: LS.get("src", "all"),
+  tabs: [], active: null, tree: {}, open: new Set(LS.get("openDirs", [""])), busyIds: new Set(),
+  project: null, projects: [], account: null,
 };
 
-/* ───────────── Markdown mini (aman: escape dulu) ───────────── */
+/* ═════════════ markdown + sorot kode ═════════════ */
+const KW = /\b(const|let|var|function|return|if|else|for|while|import|from|export|default|class|new|await|async|try|catch|throw|def|self|None|True|False|true|false|null|undefined|in|of|elif|lambda|with|as|pass|break|continue|switch|case|public|private|static|void|int|string|echo|fi|then|do|done|select|where|insert|update|delete|create|table)\b/g;
+function hl(code, lang) {
+  if (!/^(js|javascript|ts|typescript|jsx|tsx|py|python|sh|bash|shell|json|java|c|cpp|go|rust|php|sql|mjs|html|css)$/i.test(lang || "")) return esc(code);
+  const toks = [];
+  const keep = (cls) => (m) => { toks.push(`<span class="tok-${cls}">${esc(m)}</span>`); return `\u0001${toks.length - 1}\u0001`; };
+  let s = code
+    .replace(/(\/\/[^\n]*|#(?![!{])[^\n]*|\/\*[\s\S]*?\*\/|--[^\n]*(?=\n|$))/g, (m) => (/^--/.test(m) && !/sql/i.test(lang) ? m : keep("c")(m)))
+    .replace(/("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, keep("s"));
+  s = esc(s).replace(KW, '<span class="tok-k">$1</span>').replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="tok-n">$1</span>');
+  return s.replace(/\u0001(\d+)\u0001/g, (_, i) => toks[+i]);
+}
 function md(src) {
   const blocks = [];
-  src = String(src || "").replace(/```([\w+-]*)[^\n]*\n([\s\S]*?)(```|$)/g, (_, lang, code) => {
-    blocks.push(`<pre><button class="cp" data-copy>salin</button><code data-lang="${esc(lang)}">${esc(code.replace(/\n$/, ""))}</code></pre>`);
+  src = String(src || "").replace(/```([\w+#.-]*)[^\n]*\n([\s\S]*?)(?:```|$)/g, (_, lang, code) => {
+    blocks.push(`<pre><div class="bar"><span>${esc(lang || "teks")}</span><button data-copy>Salin</button></div><code>${hl(code.replace(/\n$/, ""), lang)}</code></pre>`);
     return `\u0000${blocks.length - 1}\u0000`;
   });
-  const inline = (t) => esc(t)
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
-    .replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<i>$2</i>")
-    .replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,!?]|$)/g, "$1<i>$2</i>")
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-    .replace(/(^|\s)(https?:\/\/[^\s<]+[^\s<.,)])/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
-  const lines = src.split("\n");
-  let out = "", list = null, para = [], table = [];
+  const inline = (t) => {
+    const codes = [];
+    t = t.replace(/`([^`]+)`/g, (_, c) => { codes.push(`<code>${esc(c)}</code>`); return `\u0002${codes.length - 1}\u0002`; });
+    return esc(t)
+      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+      .replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<i>$2</i>")
+      .replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,!?:;]|$)/g, "$1<i>$2</i>")
+      .replace(/~~([^~]+)~~/g, "<s>$1</s>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/(^|[\s(])(https?:\/\/[^\s<)]+[^\s<.,;:)])/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
+      .replace(/\u0002(\d+)\u0002/g, (_, i) => codes[+i]);
+  };
+  let out = "", list = [], para = [], table = [];
   const flushP = () => { if (para.length) { out += `<p>${para.map(inline).join("<br>")}</p>`; para = []; } };
-  const flushL = () => { if (list) { out += `</${list}>`; list = null; } };
+  const closeLists = (to = 0) => { while (list.length > to) out += `</${list.pop().t}>`; };
   const flushT = () => {
     if (!table.length) return;
     const rows = table.filter((r) => !/^\|?\s*:?-{2,}/.test(r)).map((r) => r.replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim())));
-    out += "<table>" + rows.map((r, i) => `<tr>${r.map((c) => i ? `<td>${c}</td>` : `<th>${c}</th>`).join("")}</tr>`).join("") + "</table>";
+    out += "<table>" + rows.map((r, i) => `<tr>${r.map((c) => (i ? `<td>${c}</td>` : `<th>${c}</th>`)).join("")}</tr>`).join("") + "</table>";
     table = [];
   };
-  for (const l of lines) {
-    const blk = l.match(/^\u0000(\d+)\u0000$/);
-    if (blk) { flushP(); flushL(); flushT(); out += blocks[+blk[1]]; continue; }
-    if (/^\s*\|.*\|\s*$/.test(l)) { flushP(); flushL(); table.push(l.trim()); continue; } else flushT();
+  for (const l of src.split("\n")) {
+    const blk = l.match(/^\s*\u0000(\d+)\u0000\s*$/);
+    if (blk) { flushP(); closeLists(); flushT(); out += blocks[+blk[1]]; continue; }
+    if (/^\s*\|.*\|\s*$/.test(l)) { flushP(); closeLists(); table.push(l.trim()); continue; } else flushT();
     let m;
-    if ((m = l.match(/^(#{1,4})\s+(.*)/))) { flushP(); flushL(); out += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`; }
-    else if ((m = l.match(/^\s*[-*+]\s+(.*)/))) { flushP(); if (list !== "ul") { flushL(); out += "<ul>"; list = "ul"; } out += `<li>${inline(m[1])}</li>`; }
-    else if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { flushP(); if (list !== "ol") { flushL(); out += "<ol>"; list = "ol"; } out += `<li>${inline(m[1])}</li>`; }
-    else if ((m = l.match(/^>\s?(.*)/))) { flushP(); flushL(); out += `<blockquote>${inline(m[1])}</blockquote>`; }
-    else if (/^\s*(-{3,}|\*{3,})\s*$/.test(l)) { flushP(); flushL(); out += "<hr>"; }
-    else if (!l.trim()) { flushP(); flushL(); }
-    else { flushL(); para.push(l); }
+    if ((m = l.match(/^(#{1,4})\s+(.*)/))) { flushP(); closeLists(); out += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`; }
+    else if ((m = l.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)/))) {
+      flushP();
+      const depth = Math.floor(m[1].replace(/\t/g, "  ").length / 2), t = /\d/.test(m[2]) ? "ol" : "ul";
+      while (list.length > depth + 1) out += `</${list.pop().t}>`;
+      if (list.length === depth + 1 && list.at(-1).t !== t) out += `</${list.pop().t}>`;
+      if (list.length < depth + 1) { out += `<${t}>`; list.push({ t }); }
+      out += `<li>${inline(m[3].replace(/^\[ \]\s/, "☐ ").replace(/^\[x\]\s/i, "☑ "))}</li>`;
+    }
+    else if ((m = l.match(/^>\s?(.*)/))) { flushP(); closeLists(); out += `<blockquote>${inline(m[1])}</blockquote>`; }
+    else if (/^\s*(-{3,}|\*{3,})\s*$/.test(l)) { flushP(); closeLists(); out += "<hr>"; }
+    else if (!l.trim()) { flushP(); closeLists(); }
+    else { closeLists(); para.push(l); }
   }
-  flushP(); flushL(); flushT();
+  flushP(); closeLists(); flushT();
   return out.replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[+i]);
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-copy]");
   if (!b) return;
-  navigator.clipboard?.writeText(b.nextElementSibling.textContent).then(() => { b.textContent = "tersalin"; setTimeout(() => (b.textContent = "salin"), 1200); });
+  navigator.clipboard?.writeText(b.closest("pre").querySelector("code").textContent).then(() => { b.textContent = "Tersalin ✓"; setTimeout(() => (b.textContent = "Salin"), 1300); });
 });
 
-/* ───────────── waktu ───────────── */
+/* ═════════════ waktu ═════════════ */
 function ago(t) {
   if (!t) return "";
   const s = (Date.now() - t) / 1000;
   if (s < 60) return "baru saja";
   if (s < 3600) return `${Math.floor(s / 60)} mnt lalu`;
   if (s < 86400) return `${Math.floor(s / 3600)} jam lalu`;
-  return new Date(t).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: s > 300 * 86400 ? "numeric" : undefined });
+  return new Date(t).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
 }
 function dayGroup(t) {
-  const d = new Date(t), n = new Date();
-  const diff = Math.floor((new Date(n.toDateString()) - new Date(d.toDateString())) / 86400000);
-  return diff <= 0 ? "Hari ini" : diff === 1 ? "Kemarin" : diff < 7 ? "7 hari terakhir" : diff < 30 ? "30 hari terakhir" : "Lebih lama";
+  const diff = Math.floor((new Date(new Date().toDateString()) - new Date(new Date(t).toDateString())) / 86400000);
+  return diff <= 0 ? "Hari ini" : diff === 1 ? "Kemarin" : diff < 7 ? "7 hari terakhir" : diff < 30 ? "30 hari terakhir" : new Date(t).toLocaleDateString("id-ID", { month: "long", year: "numeric" });
 }
+function greet() {
+  const h = new Date().getHours();
+  return h < 11 ? "Selamat pagi" : h < 15 ? "Selamat siang" : h < 18 ? "Selamat sore" : "Selamat malam";
+}
+const kb = (n) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
-/* ───────────── sidebar ───────────── */
-function setView(v) {
-  const app = $("#app");
-  if (S.view === v && !app.classList.contains("nosb") && innerWidth > 820) { app.classList.add("nosb"); return; }
-  app.classList.remove("nosb");
-  S.view = v;
-  document.querySelectorAll(".act button").forEach((b) => b.classList.toggle("on", b.dataset.view === v));
-  renderSide();
-}
-function renderSide() {
-  const el = $("#side");
-  if (S.view === "sessions") return renderSessions(el);
-  if (S.view === "files") return renderFiles(el);
-  if (S.view === "skills") return renderSkills(el);
-  if (S.view === "providers") return renderProviders(el);
-}
-
+/* ═════════════ sidebar: daftar sesi ═════════════ */
 async function loadSessions() {
-  try { S.sessions = (await api("/api/sessions")).sessions; } catch (e) { toast(e.message); }
-  if (S.view === "sessions") renderSessions($("#side"));
+  try {
+    const r = await api("/api/sessions");
+    S.sessions = r.sessions; S.sync = r.sync;
+  } catch (e) { return; }
+  renderList(); renderSync();
 }
-function renderSessions(el) {
+function renderList() {
+  const srcOf = (s) => (s.origin === "claude.ai" ? "claudeai" : s.source);
+  const list = S.sessions.filter((s) => S.srcFilter === "all" || srcOf(s) === S.srcFilter || (S.srcFilter.startsWith("p:") && s.project === S.srcFilter.slice(2)));
   const counts = {};
-  S.sessions.forEach((s) => (counts[s.source] = (counts[s.source] || 0) + 1));
-  el.innerHTML = `<h2>Semua sesi <span class="sp"></span><button class="ib" id="reloadS" title="Muat ulang">↻</button></h2>
-    <input class="search" id="sq" placeholder="Cari sesi…" value="${esc(S.q)}">
-    <div class="chips">${[["all", "Semua"], ...Object.entries(SRC).map(([k, v]) => [k, `${v.ic} ${v.name}`])]
-      .map(([k, n]) => `<button class="chip ${S.filter === k ? "on" : ""}" data-f="${k}">${n}${k !== "all" && counts[k] ? ` ${counts[k]}` : ""}</button>`).join("")}</div>
-    <div class="body" id="slist"></div>`;
-  $("#reloadS").onclick = loadSessions;
-  $("#sq").oninput = (e) => { S.q = e.target.value; drawList(); };
-  el.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { S.filter = b.dataset.f; store.set("filter", S.filter); renderSessions(el); }));
-  drawList();
-}
-function drawList() {
-  const q = S.q.toLowerCase();
-  const list = S.sessions.filter((s) => (S.filter === "all" || s.source === S.filter) && (!q || String(s.title).toLowerCase().includes(q)));
-  const box = $("#slist");
-  if (!list.length) { box.innerHTML = `<div class="empty">${S.sessions.length ? "Tidak ada yang cocok." : "Belum ada sesi. Tulis prompt di kanan untuk mulai."}</div>`; return; }
-  let html = "", last = "";
-  for (const s of list) {
+  S.sessions.forEach((s) => (counts[srcOf(s)] = (counts[srcOf(s)] || 0) + 1));
+  const pinned = list.filter((s) => s.pinned);
+  let html = `<div class="grp">${pinned.length ? "Disematkan" : "Chat"}<select id="srcSel" title="Sumber">${[["all", "Semua sumber"], ["studio", "Studio"], ["claudeai", "claude.ai (impor)"], ["claude", "Claude Code"], ["kantor", "Kantor PGA"], ["hvm", "HvM AI"], ...S.projects.map((p) => ["p:" + p.id, "▤ " + p.name])].filter(([k]) => k === "all" || k.startsWith("p:") || counts[k] || k === S.srcFilter).map(([k, n]) => `<option value="${esc(k)}" ${S.srcFilter === k ? "selected" : ""}>${esc(n)}${k !== "all" && counts[k] ? ` (${counts[k]})` : ""}</option>`).join("")}</select></div>`;
+  const item = (s) => {
+    const on = S.cur && S.cur.source === s.source && S.cur.id === s.id;
+    const ic = s.source === "studio" ? (s.origin === "claude.ai" ? "✳" : s.mode === "code" ? "‹›" : s.project ? "▤" : "") : SRC[s.source].ic;
+    return `<div class="it ${on ? "on" : ""}" data-src="${s.source}" data-id="${esc(s.id)}" title="${esc(s.title)}${s.cwd ? "\n" + esc(s.cwd) : ""}"><span class="ic">${ic}</span><span class="t">${esc(s.title)}</span>${S.busyIds.has(s.id) ? '<span class="busy"></span>' : ""}</div>`;
+  };
+  html += pinned.map(item).join("");
+  let last = pinned.length ? "" : "Chat";
+  for (const s of list.filter((x) => !x.pinned)) {
     const g = dayGroup(s.updatedAt || 0);
     if (g !== last) { html += `<div class="grp">${g}</div>`; last = g; }
-    const sub = [SRC[s.source].name, s.provider && providerName(s.provider), s.cwd && s.cwd.split("/").pop(), s.branch, ago(s.updatedAt)].filter(Boolean).join(" · ");
-    const on = S.cur && S.cur.source === s.source && S.cur.id === s.id;
-    html += `<div class="item ${on ? "on" : ""}" data-src="${s.source}" data-id="${esc(s.id)}"><span class="ic">${SRC[s.source].ic}</span><div class="tx"><div class="t">${esc(s.title)}</div><div class="s">${esc(sub)}</div></div>${s.source === "studio" ? `<button class="ib" data-del title="Hapus">✕</button>` : ""}</div>`;
+    html += item(s);
   }
-  box.innerHTML = html;
-  box.querySelectorAll(".item").forEach((it) => {
-    it.onclick = (e) => {
-      if (e.target.closest("[data-del]")) return delSession(it.dataset.id);
-      openSession(it.dataset.src, it.dataset.id);
-    };
-    it.ondblclick = () => it.dataset.src === "studio" && renameSession(it.dataset.id);
-  });
+  if (!list.length) html += `<div class="grp" style="justify-content:center;padding:24px">Belum ada chat.</div>`;
+  $("#list").innerHTML = html;
+  $("#srcSel").onchange = (e) => { S.srcFilter = e.target.value; LS.set("src", S.srcFilter); renderList(); };
+  $$("#list .it").forEach((it) => (it.onclick = () => { openSession(it.dataset.src, it.dataset.id); if (isMobile()) sideMobile(false); }));
 }
-async function delSession(id) {
-  if (!confirm("Hapus sesi Studio ini? (Sesi Claude Code aslinya, bila ada, tidak ikut terhapus.)")) return;
-  await api(`/api/sessions/studio/${id}`, { method: "DELETE" });
-  if (S.cur?.id === id) newSession();
-  loadSessions();
-}
-async function renameSession(id) {
-  const s = S.sessions.find((x) => x.id === id);
-  const t = prompt("Judul sesi:", s?.title || "");
-  if (!t) return;
-  await api(`/api/sessions/studio/${id}`, { method: "PATCH", body: { title: t } });
-  if (S.cur?.id === id) { S.cur.title = t; renderChat(); }
-  loadSessions();
+function renderSync() {
+  const s = S.sync;
+  if (!s) return;
+  const pill = $("#syncPill");
+  if (s.mode === "lokal") pill.innerHTML = `💾 Tersimpan lokal di server`;
+  else if (s.error) pill.innerHTML = `<span style="color:var(--bad)">⚠️ Sinkron gagal</span> · klik untuk lihat`;
+  else pill.innerHTML = `${s.busy ? "🔄" : "☁️"} ${s.mode === "github" ? "GitHub" : "Git"} · ${s.busy ? "menyinkronkan…" : s.last ? `tersinkron ${ago(s.last)}` : "menunggu"}`;
 }
 
-/* ───────────── explorer ───────────── */
-async function loadDir(dir) {
-  try { S.tree[dir] = (await api(`/api/files?dir=${encodeURIComponent(dir)}`)).entries; }
-  catch (e) { S.tree[dir] = []; toast(e.message); }
-}
-async function renderFiles(el) {
-  el.innerHTML = `<h2>Explorer <span class="sp"></span><button class="ib" id="newF" title="Berkas baru">＋</button><button class="ib" id="reloadF" title="Muat ulang">↻</button></h2><div class="body tree" id="tree"></div>`;
-  $("#reloadF").onclick = async () => { S.tree = { "": null }; await refreshTree(); };
-  $("#newF").onclick = async () => {
-    const p = prompt("Jalur berkas baru (relatif ke workspace):", "catatan.md");
-    if (!p) return;
-    try { await api("/api/file", { method: "PUT", body: { path: p, content: "" } }); S.tree = { "": null }; await refreshTree(); openFile(p); } catch (e) { toast(e.message); }
-  };
-  await refreshTree();
-}
-async function refreshTree() {
-  for (const d of S.open) if (!S.tree[d]) await loadDir(d);
-  const box = $("#tree");
-  if (!box) return;
-  const rows = [];
-  const walk = (dir, depth) => {
-    for (const e of S.tree[dir] || []) {
-      const open = S.open.has(e.path);
-      rows.push(`<div class="item ${S.active === e.path ? "on" : ""}" data-p="${esc(e.path)}" data-dir="${e.dir ? 1 : ""}" style="padding-left:${6 + depth * 12}px"><span class="ic">${e.dir ? (open ? "▾" : "▸") : fileIcon(e.name)}</span><div class="t">${esc(e.name)}</div></div>`);
-      if (e.dir && open) walk(e.path, depth + 1);
-    }
-  };
-  walk("", 0);
-  box.innerHTML = rows.join("") || `<div class="empty">Workspace kosong.</div>`;
-  box.querySelectorAll(".item").forEach((it) => (it.onclick = async () => {
-    const p = it.dataset.p;
-    if (it.dataset.dir) {
-      if (S.open.has(p)) S.open.delete(p); else { S.open.add(p); if (!S.tree[p]) await loadDir(p); }
-      store.set("openDirs", [...S.open]);
-      refreshTree();
-    } else { openFile(p); if (innerWidth <= 820) mobile("edit"); }
-  }));
-}
-function fileIcon(n) {
-  const x = n.split(".").pop().toLowerCase();
-  return { md: "📝", js: "🟨", mjs: "🟨", json: "🔧", html: "🌐", css: "🎨", sh: "⌨️", py: "🐍", txt: "📄", csv: "📊", xlsx: "📊", pdf: "📕", docx: "📘", svg: "🖼️", png: "🖼️" }[x] || "📄";
-}
-
-/* ───────────── editor ───────────── */
-async function openFile(p) {
-  let t = S.tabs.find((x) => x.path === p);
-  if (!t) {
-    try {
-      const r = await api(`/api/file?path=${encodeURIComponent(p)}`);
-      t = { path: r.path, content: r.content, saved: r.content, mtime: r.mtime };
-      S.tabs.push(t);
-    } catch (e) { return toast(e.message); }
-  }
-  S.active = t.path;
-  renderEditor();
-  if (S.view === "files") refreshTree();
-}
-function activeTab() { return S.tabs.find((x) => x.path === S.active); }
-function renderEditor() {
-  const ed = $("#editor");
-  ed.classList.toggle("hide", !S.tabs.length);
-  $("#tabs").innerHTML = S.tabs.map((t) => `<div class="tab ${t.path === S.active ? "on" : ""}" data-p="${esc(t.path)}" title="${esc(t.path)}">${fileIcon(t.path)} ${esc(t.path.split("/").pop())}${t.content !== t.saved ? '<span class="dot"></span>' : ""}<button class="x" data-x>✕</button></div>`).join("");
-  $("#tabs").querySelectorAll(".tab").forEach((el) => (el.onclick = (e) => {
-    if (e.target.closest("[data-x]")) return closeTab(el.dataset.p);
-    S.active = el.dataset.p; renderEditor();
-  }));
-  const t = activeTab();
-  const code = $("#code");
-  if (!t) { $("#ebar").innerHTML = ""; return; }
-  if (code.dataset.path !== t.path) { code.value = t.content; code.dataset.path = t.path; code.scrollTop = 0; }
-  $("#ebar").innerHTML = `<span>${esc(t.path)}</span><span class="sp"></span><span id="cur"></span><button id="askBtn" title="Tanya AI tentang berkas ini">✨ Tanya AI</button><button id="reloadBtn" title="Muat ulang dari disk">↻</button><button id="saveBtn" ${t.content === t.saved ? "disabled" : ""}>Simpan ⌘S</button>`;
-  $("#saveBtn").onclick = () => saveFile();
-  $("#reloadBtn").onclick = () => reloadFile(t.path);
-  $("#askBtn").onclick = () => { S.attachActive = true; renderAttach(); $("#prompt").focus(); if (innerWidth <= 820) mobile("chat"); };
-  gutter();
-  renderAttach();
-}
-function gutter() {
-  const code = $("#code");
-  const n = code.value.split("\n").length;
-  const g = $("#gutter");
-  if (g.dataset.n != n) { g.textContent = Array.from({ length: n }, (_, i) => i + 1).join("\n"); g.dataset.n = n; }
-  g.scrollTop = code.scrollTop;
-}
-$("#code").addEventListener("input", (e) => {
-  const t = activeTab(); if (!t) return;
-  const wasClean = t.content === t.saved;
-  t.content = e.target.value; gutter();
-  if (wasClean !== (t.content === t.saved)) renderEditor();
-});
-$("#code").addEventListener("scroll", gutter);
-$("#code").addEventListener("keydown", (e) => {
-  if (e.key === "Tab") {
-    e.preventDefault();
-    const c = e.target, s = c.selectionStart;
-    c.setRangeText("  ", s, c.selectionEnd, "end"); c.dispatchEvent(new Event("input"));
-  }
-});
-$("#code").addEventListener("keyup", (e) => {
-  const c = e.target, before = c.value.slice(0, c.selectionStart).split("\n");
-  const cur = $("#cur"); if (cur) cur.textContent = `Bar ${before.length}, Kol ${before.at(-1).length + 1}`;
-});
-async function saveFile(force = false) {
-  const t = activeTab(); if (!t) return;
-  try {
-    const r = await api("/api/file", { method: "PUT", body: { path: t.path, content: t.content, mtime: t.mtime, force } });
-    t.saved = t.content; t.mtime = r.mtime; renderEditor(); status(`Tersimpan: ${t.path}`);
-  } catch (e) {
-    if (e.status === 409 && confirm(e.message + "\n\nOK = timpa dengan isi editor, Batal = biarkan.")) return saveFile(true);
-    toast(e.message);
-  }
-}
-async function reloadFile(p, quiet) {
-  const t = S.tabs.find((x) => x.path === p); if (!t) return;
-  if (!quiet && t.content !== t.saved && !confirm("Buang perubahan yang belum disimpan?")) return;
-  try {
-    const r = await api(`/api/file?path=${encodeURIComponent(p)}`);
-    if (quiet && t.content !== t.saved) return;
-    Object.assign(t, { content: r.content, saved: r.content, mtime: r.mtime });
-    if (S.active === p) $("#code").dataset.path = "";
-    renderEditor();
-  } catch (e) { if (!quiet) toast(e.message); }
-}
-function closeTab(p) {
-  const t = S.tabs.find((x) => x.path === p);
-  if (t && t.content !== t.saved && !confirm(`${p} belum disimpan. Tutup saja?`)) return;
-  S.tabs = S.tabs.filter((x) => x.path !== p);
-  if (S.active === p) S.active = S.tabs.at(-1)?.path || null;
-  $("#code").dataset.path = "";
-  renderEditor();
-}
-
-/* ───────────── skill ───────────── */
-function renderSkills(el) {
-  el.innerHTML = `<h2>Skill <span class="sp"></span><span style="text-transform:none;letter-spacing:0">${S.chosenSkills.size ? S.chosenSkills.size + " dipilih" : ""}</span></h2>
-    <div class="hint">Claude langganan memuat skill sendiri bila perlu (semua tersedia, atau hanya yang dicentang). Untuk penyedia lain, isi skill yang dicentang ditempel ke instruksi sistem.</div>
-    <div class="body">${S.skills.map((s) => `<label class="sk"><input type="checkbox" value="${esc(s.name)}" ${S.chosenSkills.has(s.name) ? "checked" : ""}><div><b>${esc(s.name.split(":")[1])}</b>${s.name.endsWith(":freellmapi") ? ' <span class="badge b-gratis">gratis</span>' : ""}<div>${esc(s.description)}</div></div></label>`).join("") || '<div class="empty">Tidak ada skill.</div>'}</div>`;
-  el.querySelectorAll("input[type=checkbox]").forEach((c) => (c.onchange = () => {
-    c.checked ? S.chosenSkills.add(c.value) : S.chosenSkills.delete(c.value);
-    store.set("skills", [...S.chosenSkills]); renderSkills(el); renderAttach();
-  }));
-}
-
-/* ───────────── penyedia ───────────── */
-function providerName(id) { return S.providers.find((p) => p.id === id)?.name.split(" (")[0] || id; }
-function renderProviders(el) {
-  const groups = ["langganan", "gratis", "api"];
-  el.innerHTML = `<h2>Penyedia AI</h2><div class="hint">Kunci disimpan di server (studio/data/providers.json), tidak pernah dikirim balik ke browser.</div><div class="body">${groups.map((g) => `<div class="grp">${GROUP[g]}</div>` + S.providers.filter((p) => p.group === g).map((p) => `
-    <div class="card" data-id="${p.id}">
-      <div class="h"><span class="st ${p.ready ? "ok" : ""}"></span>${esc(p.name)}</div>
-      ${p.note ? `<div class="n">${esc(p.note)}</div>` : ""}
-      ${p.kind === "claude-sdk" ? `<div class="n">Login sekali: <code>npm run login</code> → /login. Rem pengaman $${S.info?.maxUsd ?? 3}/prompt.</div>` : `
-      ${p.editableUrl ? `<label>URL dasar (…/v1)</label><input data-k="baseUrl" value="${esc(p.baseUrl)}" placeholder="https://…/v1">` : ""}
-      ${p.needsKey || p.id === "custom" ? `<label>Kunci API ${p.envKey ? `<span style="color:var(--faint)">(atau env ${p.envKey})</span>` : ""}</label><input data-k="apiKey" type="password" autocomplete="off" placeholder="${p.hasKey ? (p.keyFromEnv ? "dari env ✓" : "•••• tersimpan") : "belum diisi"}">` : ""}`}
-      <label>Model bawaan</label><input data-k="defaultModel" value="${esc(p.defaultModel)}" list="dl-${p.id}"><datalist id="dl-${p.id}">${p.models.map((m) => `<option value="${esc(m)}">`).join("")}</datalist>
-      <div class="row"><button data-save>Simpan</button><button data-test>Cek model</button><button data-use>Pakai</button><span class="msg"></span></div>
-    </div>`).join("")).join("")}
-    <div class="hint" style="margin-top:8px">FreeLLMAPI belum menyala? Lihat skill <b>freellmapi</b> (tab 🧰) untuk cara memasangnya di port 3011.</div></div>`;
-  el.querySelectorAll(".card").forEach((c) => {
-    const id = c.dataset.id, msg = $(".msg", c);
-    const vals = () => Object.fromEntries([...c.querySelectorAll("[data-k]")].filter((i) => i.dataset.k !== "apiKey" || i.value).map((i) => [i.dataset.k, i.value]));
-    $("[data-save]", c).onclick = async () => {
-      try { S.providers = (await api(`/api/providers/${id}`, { method: "POST", body: vals() })).providers; S.models[id] = null; renderProviders(el); fillProviders(); toast("Tersimpan."); }
-      catch (e) { msg.textContent = e.message; }
-    };
-    $("[data-test]", c).onclick = async () => {
-      msg.textContent = "memeriksa…";
-      const r = await api(`/api/providers/${id}/models`).catch((e) => ({ error: e.message, models: [] }));
-      msg.textContent = r.error ? `❌ ${r.error}` : `✅ ${r.models.length} model`;
-      if (r.models.length) { S.models[id] = r.models; $(`#dl-${id}`).innerHTML = r.models.map((m) => `<option value="${esc(m)}">`).join(""); }
-    };
-    $("[data-use]", c).onclick = () => { setProvider(id); toast(`Prompt berikutnya memakai ${providerName(id)}.`); };
-  });
-}
-function fillProviders() {
-  const sel = $("#prov");
-  sel.innerHTML = ["langganan", "gratis", "api"].map((g) => `<optgroup label="${GROUP[g]}">${S.providers.filter((p) => p.group === g).map((p) => `<option value="${p.id}">${p.ready ? "" : "○ "}${esc(p.name)}</option>`).join("")}</optgroup>`).join("");
-  if (!S.providers.find((p) => p.id === S.provider)) S.provider = "langganan";
-  sel.value = S.provider;
-  setProvider(S.provider, true);
-}
-async function setProvider(id, quiet) {
-  S.provider = id; store.set("provider", id);
-  $("#prov").value = id;
-  const p = S.providers.find((x) => x.id === id);
-  $("#model").value = S.modelBy[id] || p?.defaultModel || "";
-  $("#modeBtn").style.display = p?.kind === "claude-sdk" ? "" : "none";
-  updateStatus();
-  if (!S.models[id]) {
-    S.models[id] = p?.models || [];
+/* ═════════════ penyedia & model ═════════════ */
+const prov = (id) => S.providers.find((p) => p.id === id);
+const provShort = (id) => (prov(id)?.name || id).split(" (")[0];
+const modelLabel = (m) => MODEL_NAME[m] || m;
+function currentModel() { return S.model || prov(S.provider)?.defaultModel || ""; }
+async function modelsOf(id) {
+  if (S.models[id]) return S.models[id];
+  const p = prov(id);
+  S.models[id] = p?.models || [];
+  if (p?.ready && p.kind === "openai") {
     const r = await api(`/api/providers/${id}/models`).catch(() => null);
     if (r?.models?.length) S.models[id] = r.models;
   }
-  if (S.provider === id) $("#models").innerHTML = (S.models[id] || []).map((m) => `<option value="${esc(m)}">`).join("");
-  if (!quiet && !p?.ready) toast(`${p?.name} belum siap — isi URL/kunci di ⚙️ Penyedia.`);
+  return S.models[id];
 }
-$("#prov").onchange = (e) => setProvider(e.target.value);
-$("#model").onchange = (e) => { S.modelBy[S.provider] = e.target.value.trim(); store.set("modelBy", S.modelBy); updateStatus(); };
-function renderMode() {
-  const b = $("#modeBtn");
-  b.textContent = S.mode === "tulis" ? "✏️ Boleh ubah file" : "👁 Baca";
-  b.classList.toggle("on", S.mode === "tulis");
-}
-$("#modeBtn").onclick = () => {
-  if (S.mode !== "tulis" && !confirm("Mode tulis: Claude boleh mengubah file workspace dan menjalankan perintah (Bash) tanpa bertanya. Lanjut?")) return;
-  S.mode = S.mode === "tulis" ? "baca" : "tulis"; store.set("mode", S.mode); renderMode(); updateStatus();
-};
-$("#fileBtn").onclick = () => { S.attachActive = !S.attachActive; renderAttach(); };
-function attachedFiles() { return [...new Set([...(S.attachActive && S.active ? [S.active] : []), ...S.attached])]; }
-function renderAttach() {
-  $("#fileBtn").classList.toggle("on", S.attachActive);
-  $("#fileBtn").style.display = S.tabs.length ? "" : "none";
-  const files = attachedFiles();
-  const sk = [...S.chosenSkills];
-  $("#att").innerHTML = files.map((f) => `<span>📎 ${esc(f)} <button data-rm="${esc(f)}">✕</button></span>`).join("") + sk.map((s) => `<span>🧰 ${esc(s.split(":")[1])} <button data-rs="${esc(s)}">✕</button></span>`).join("");
-  $("#att").querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => { if (b.dataset.rm === S.active) S.attachActive = false; S.attached = S.attached.filter((x) => x !== b.dataset.rm); renderAttach(); }));
-  $("#att").querySelectorAll("[data-rs]").forEach((b) => (b.onclick = () => { S.chosenSkills.delete(b.dataset.rs); store.set("skills", [...S.chosenSkills]); renderAttach(); if (S.view === "skills") renderSide(); }));
+function setModel(provider, model) {
+  S.provider = provider; S.model = model;
+  LS.set("provider", provider); LS.set("model", model);
+  renderComposerBar();
 }
 
-/* ───────────── chat ───────────── */
-function newSession() {
-  S.cur = { source: "studio", id: null, title: "Sesi baru", messages: [], readonly: false };
-  renderChat(); drawListSafe();
-  $("#prompt").focus();
-  if (innerWidth <= 820) mobile("chat");
+function popover(anchor, html, { align = "left", up = true } = {}) {
+  closePop();
+  const p = document.createElement("div");
+  p.className = "pop"; p.innerHTML = html; p.id = "pop";
+  document.body.append(p);
+  const r = anchor.getBoundingClientRect();
+  const w = p.offsetWidth, h = p.offsetHeight;
+  let left = align === "right" ? r.right - w : r.left;
+  left = Math.max(8, Math.min(left, innerWidth - w - 8));
+  let top = up ? r.top - h - 6 : r.bottom + 6;
+  if (top < 8) top = r.bottom + 6;
+  if (top + h > innerHeight - 8) top = Math.max(8, innerHeight - h - 8);
+  Object.assign(p.style, { left: left + "px", top: top + "px" });
+  setTimeout(() => document.addEventListener("pointerdown", outside, true), 0);
+  return p;
 }
-function drawListSafe() { if (S.view === "sessions" && $("#slist")) drawList(); }
+function outside(e) { const p = $("#pop"); if (p && !p.contains(e.target)) closePop(); }
+function closePop() { $("#pop")?.remove(); document.removeEventListener("pointerdown", outside, true); }
+
+async function openModelPicker(anchor) {
+  const groups = ["langganan", "gratis", "api"];
+  const ready = S.providers.filter((p) => p.ready);
+  await Promise.all(ready.filter((p) => p.kind === "openai").map((p) => modelsOf(p.id)));
+  const draw = (q = "") => {
+    const ql = q.toLowerCase();
+    let h = `<input class="f" id="mq" placeholder="Cari model…" value="${esc(q)}" autocomplete="off">`;
+    for (const g of groups) {
+      const ps = ready.filter((p) => p.group === g);
+      let part = "";
+      for (const p of ps) {
+        const ms = (S.models[p.id] || p.models).filter((m) => !ql || (m + " " + modelLabel(m) + " " + p.name).toLowerCase().includes(ql)).slice(0, ql ? 60 : 12);
+        if (!ms.length) continue;
+        if (ps.length > 1 || g !== "langganan") part += `<div class="ttl" style="text-transform:none;letter-spacing:0;padding-top:4px">${esc(provShort(p.id))}</div>`;
+        part += ms.map((m) => `<button class="opt" data-p="${p.id}" data-m="${esc(m)}"><span><div>${esc(modelLabel(m))}</div>${MODEL_DESC[m] || modelLabel(m) !== m ? `<div class="d">${esc(MODEL_DESC[m] || m)}</div>` : ""}</span>${S.provider === p.id && currentModel() === m ? '<span class="ck">✓</span>' : ""}</button>`).join("");
+      }
+      if (part) h += `<div class="ttl"><span class="badge g-${g}">${GROUP[g]}</span></div>${part}`;
+    }
+    const notReady = S.providers.filter((p) => !p.ready);
+    h += `<hr><button class="opt" data-settings><span>⚙️ Tambah / atur penyedia</span><span class="d" style="margin-left:auto">${notReady.length} belum diatur</span></button>`;
+    return h;
+  };
+  const p = popover(anchor, draw(), { align: "right" });
+  const bind = () => {
+    $$(".opt[data-p]", p).forEach((b) => (b.onclick = () => { setModel(b.dataset.p, b.dataset.m); closePop(); }));
+    $(".opt[data-settings]", p).onclick = () => { closePop(); openSettings("model"); };
+    const q = $("#mq", p);
+    q.oninput = () => { const v = q.value; p.innerHTML = draw(v); bind(); const nq = $("#mq", p); nq.focus(); nq.setSelectionRange(v.length, v.length); };
+  };
+  bind();
+  if (!isMobile()) $("#mq", p).focus();
+}
+
+function openPlusMenu(anchor) {
+  const h = `<button class="opt" data-a="up">📎 <span><div>Unggah berkas atau foto</div><div class="d">Gambar, PDF, teks, CSV, kode… (maks 60 MB)</div></span></button>
+    ${S.mode === "code" && S.active ? `<button class="opt" data-a="cur">📄 <span><div>Sertakan berkas yang dibuka</div><div class="d">${esc(S.active)}</div></span></button>` : ""}
+    ${S.mode === "code" ? `<button class="opt" data-a="ws">📁 <span>Pilih berkas workspace…</span></button>` : ""}
+    <hr><div class="ttl">Proyek (pengetahuan)</div>
+    ${S.projects.map((pj) => `<button class="opt" data-pj="${esc(pj.id)}">▤ <span><div>${esc(pj.name)}</div><div class="d">${pj.files.length} berkas${pj.source === "claude.ai" ? " · dari claude.ai" : ""}</div></span>${S.project === pj.id ? '<span class="ck">✓</span>' : ""}</button>`).join("")}
+    <button class="opt" data-a="proj">＋ <span>Kelola proyek / impor dari claude.ai</span></button>
+    <hr><div class="ttl">Skill</div>
+    ${S.skills.map((s) => `<button class="opt" data-sk="${esc(s.name)}"><span><div>${esc(s.name.split(":")[1])}</div><div class="d">${esc(s.description.slice(0, 90))}</div></span>${S.skillsOn.has(s.name) ? '<span class="ck">✓</span>' : ""}</button>`).join("") || '<div class="ttl">Tidak ada skill</div>'}`;
+  const p = popover(anchor, h);
+  $$(".opt[data-a]", p).forEach((b) => (b.onclick = () => {
+    closePop();
+    if (b.dataset.a === "up") $("#fileIn").click();
+    if (b.dataset.a === "cur") addWsFile(S.active);
+    if (b.dataset.a === "ws") { openWs(true); toast("Klik kanan / tahan berkas di pohon untuk menyertakannya, atau buka lalu pakai menu +."); }
+    if (b.dataset.a === "proj") openSettings("impor");
+  }));
+  $$(".opt[data-pj]", p).forEach((b) => (b.onclick = () => { S.project = S.project === b.dataset.pj ? null : b.dataset.pj; S.projectTouched = true; closePop(); renderPending(); }));
+  $$(".opt[data-sk]", p).forEach((b) => (b.onclick = () => { const n = b.dataset.sk; S.skillsOn.has(n) ? S.skillsOn.delete(n) : S.skillsOn.add(n); LS.set("skills", [...S.skillsOn]); closePop(); renderPending(); }));
+}
+function openPermMenu(anchor) {
+  const p = popover(anchor, `<div class="ttl">Izin di mode Code</div>` + Object.entries(PERM).map(([k, v]) => `<button class="opt" data-k="${k}">${v.ic} <span><div>${v.n}</div><div class="d">${v.d}</div></span>${S.perm === k ? '<span class="ck">✓</span>' : ""}</button>`).join(""));
+  $$(".opt", p).forEach((b) => (b.onclick = () => { S.perm = b.dataset.k; LS.set("perm", S.perm); closePop(); renderComposerBar(); }));
+}
+
+/* ═════════════ lampiran ═════════════ */
+async function uploadFiles(files) {
+  for (const f of files) {
+    if (f.size > 60 * 1024 * 1024) { toast(`${f.name} lebih dari 60 MB.`); continue; }
+    const item = { name: f.name, size: f.size, type: f.type, uploading: true, preview: f.type.startsWith("image/") ? URL.createObjectURL(f) : null };
+    S.pending.push(item); renderPending();
+    try {
+      const r = await api(`/api/upload?name=${encodeURIComponent(f.name)}`, { method: "POST", body: f, headers: { "content-type": f.type || "application/octet-stream" } });
+      Object.assign(item, r.attachment, { uploading: false });
+    } catch (e) { S.pending = S.pending.filter((x) => x !== item); toast(`Gagal mengunggah ${f.name}: ${e.message}`); }
+    renderPending();
+  }
+}
+function addWsFile(p) { if (p && !S.wsFiles.includes(p)) S.wsFiles.push(p); renderPending(); }
+function renderPending() {
+  const box = $("#pend");
+  if (!box) return;
+  const fileIc = (n) => (/\.pdf$/i.test(n) ? "📕" : /\.(xlsx?|csv)$/i.test(n) ? "📊" : /\.docx?$/i.test(n) ? "📘" : "📄");
+  box.innerHTML =
+    S.pending.map((a, i) => `<div class="pf ${a.uploading ? "up" : ""}">${a.preview ? `<img src="${a.preview}" alt="">` : `<span style="font-size:22px">${fileIc(a.name)}</span>`}<div style="min-width:0"><div class="nm">${esc(a.name)}</div><div class="sz">${a.uploading ? "mengunggah…" : kb(a.size)}</div></div><button class="x" data-rp="${i}">✕</button></div>`).join("") +
+    S.wsFiles.map((f, i) => `<div class="pf"><span style="font-size:18px">📄</span><div style="min-width:0"><div class="nm">${esc(f.split("/").pop())}</div><div class="sz">workspace</div></div><button class="x" data-rw="${i}">✕</button></div>`).join("") +
+    (S.project ? `<div class="pf"><span style="font-size:18px">▤</span><div style="min-width:0"><div class="nm">${esc(S.projects.find((x) => x.id === S.project)?.name || S.project)}</div><div class="sz">proyek</div></div><button class="x" data-rj>✕</button></div>` : "") +
+    [...S.skillsOn].map((s) => `<div class="pf"><span style="font-size:18px">🧰</span><div style="min-width:0"><div class="nm">${esc(s.split(":")[1])}</div><div class="sz">skill</div></div><button class="x" data-rs="${esc(s)}">✕</button></div>`).join("");
+  box.style.display = box.innerHTML ? "" : "none";
+  $$("[data-rp]", box).forEach((b) => (b.onclick = () => { S.pending.splice(+b.dataset.rp, 1); renderPending(); }));
+  $$("[data-rw]", box).forEach((b) => (b.onclick = () => { S.wsFiles.splice(+b.dataset.rw, 1); renderPending(); }));
+  $("[data-rj]", box) && ($("[data-rj]", box).onclick = () => { S.project = null; S.projectTouched = true; renderPending(); });
+  $$("[data-rs]", box).forEach((b) => (b.onclick = () => { S.skillsOn.delete(b.dataset.rs); LS.set("skills", [...S.skillsOn]); renderPending(); }));
+  updateSend();
+}
+$("#fileIn").onchange = (e) => { uploadFiles([...e.target.files]); e.target.value = ""; };
+document.addEventListener("paste", (e) => {
+  const files = [...(e.clipboardData?.files || [])];
+  if (files.length && !e.target.closest?.(".code")) { e.preventDefault(); uploadFiles(files); }
+});
+document.addEventListener("dragover", (e) => { if (e.dataTransfer?.types?.includes("Files")) { e.preventDefault(); $(".cbox")?.classList.add("drag"); } });
+document.addEventListener("dragleave", (e) => { if (!e.relatedTarget) $(".cbox")?.classList.remove("drag"); });
+document.addEventListener("drop", (e) => { if (e.dataTransfer?.files?.length) { e.preventDefault(); $(".cbox")?.classList.remove("drag"); uploadFiles([...e.dataTransfer.files]); } });
+
+/* ═════════════ composer ═════════════ */
+function composerHtml(big) {
+  return `<div class="composer">
+    <div class="cbox">
+      <div class="pend" id="pend" style="display:none"></div>
+      <textarea id="prompt" rows="${big ? 2 : 1}" placeholder="${big ? "Ada yang bisa saya bantu hari ini?" : "Balas…"}" enterkeyhint="send"></textarea>
+      <div class="cbar">
+        <button class="cb" id="plusBtn" title="Lampiran & skill">＋</button>
+        <button class="cb" id="thinkBtn" title="Berpikir lebih dalam (lebih lambat, lebih teliti)">💡<span class="hide-m">Berpikir</span></button>
+        <button class="cb" id="permBtn" title="Izin mode Code"></button>
+        <span class="sp"></span>
+        <button class="cb plain" id="modelBtn" title="Pilih model"></button>
+        <button class="send" id="sendBtn" title="Kirim (Enter)" disabled>↑</button>
+      </div>
+    </div>
+  </div>`;
+}
+function bindComposer() {
+  const ta = $("#prompt");
+  ta.value = S.draft || "";
+  autoGrow();
+  ta.oninput = () => { S.draft = ta.value; autoGrow(); updateSend(); };
+  ta.onkeydown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !isMobile()) { e.preventDefault(); send(); }
+    if (e.key === "ArrowUp" && !ta.value && S.cur?.messages?.length) {
+      const lastU = [...S.cur.messages].map((m, i) => [m, i]).filter(([m]) => m.role === "user").pop();
+      if (lastU && !S.cur.readonly) { e.preventDefault(); editMessage(lastU[1]); }
+    }
+  };
+  $("#sendBtn").onclick = () => (S.live && S.live.sid === (S.cur?.id || null) ? stop() : send());
+  $("#plusBtn").onclick = (e) => openPlusMenu(e.currentTarget);
+  $("#modelBtn").onclick = (e) => openModelPicker(e.currentTarget);
+  $("#permBtn").onclick = (e) => openPermMenu(e.currentTarget);
+  $("#thinkBtn").onclick = () => { S.think = !S.think; LS.set("think", S.think); renderComposerBar(); };
+  renderComposerBar(); renderPending();
+}
+function autoGrow() { const ta = $("#prompt"); if (!ta) return; ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, innerHeight * 0.42) + "px"; }
+function renderComposerBar() {
+  const p = prov(S.provider);
+  const mb = $("#modelBtn");
+  if (!mb) return;
+  mb.innerHTML = `${p && !p.ready ? "○ " : ""}${esc(modelLabel(currentModel()) || "Pilih model")} <span class="badge g-${p?.group || "api"} hide-m">${esc(p?.group === "langganan" ? "Langganan" : provShort(S.provider))}</span> ▾`;
+  $("#thinkBtn").classList.toggle("on", S.think);
+  $("#thinkBtn").style.display = p?.kind === "openai" ? "none" : "";
+  const pb = $("#permBtn");
+  pb.style.display = S.mode === "code" && p?.kind === "claude-sdk" ? "" : "none";
+  pb.innerHTML = `${PERM[S.perm].ic}<span class="hide-m">${PERM[S.perm].n}</span>`;
+  pb.classList.toggle("on", S.perm === "otomatis");
+  updateSend();
+}
+function updateSend() {
+  const b = $("#sendBtn");
+  if (!b) return;
+  const live = S.live && S.live.sid === (S.cur?.id || null);
+  b.classList.toggle("stop", Boolean(live));
+  b.textContent = live ? "■" : "↑";
+  b.title = live ? "Hentikan (Esc)" : "Kirim (Enter)";
+  const has = ($("#prompt")?.value.trim() || S.pending.length) && !S.pending.some((x) => x.uploading);
+  b.disabled = !live && (!has || Boolean(S.cur?.readonly) || Boolean(S.live));
+}
+
+/* ═════════════ tampilan chat ═════════════ */
+function render() {
+  const c = S.cur;
+  $("#app").classList.toggle("mcode", S.mode === "code");
+  $$("#modeSeg button").forEach((b) => b.classList.toggle("on", b.dataset.mode === S.mode));
+  $("#wsBtn").style.display = S.mode === "code" ? "" : "none";
+  $("#title").textContent = c?.id ? c.title : "";
+  $("#title").style.visibility = c?.id ? "" : "hidden";
+  $("#menuBtn").style.visibility = c?.id ? "" : "hidden";
+  const convo = $("#convo");
+  const empty = !c || (!c.messages.length && !(S.live && S.live.sid === (c.id || null)));
+  if (empty) {
+    const name = esc(S.profile?.name || "Rahula");
+    const q = S.mode === "code"
+      ? ["Jelaskan struktur proyek ini", "Cari bug di server.js", "Tambahkan fitur kecil + tes", "Tulis README yang lebih jelas"]
+      : ["✍️ Bantu tulis email", "📚 Jelaskan sebuah konsep", "📊 Analisis berkas CSV", "💡 Ide & brainstorming"];
+    convo.innerHTML = `<div class="hello"><h1>${SPARK}${S.mode === "code" ? "Mau membangun apa" : greet()}, ${name}${S.mode === "code" ? "?" : ""}</h1>${composerHtml(true)}
+      <div class="quick">${q.map((x) => `<button>${esc(x)}</button>`).join("")}</div>
+      <div class="srcnote">${S.mode === "code" ? `Mode Code bekerja di <b>${esc(S.info?.workspaceName || "")}</b> seperti Claude Code. Buka 📁 untuk melihat & mengubah berkas.` : "Semua chat Anda — Studio, Claude Code, Kantor PGA, dan HvM AI — ada di panel kiri."}</div></div>`;
+    $$(".quick button", convo).forEach((b) => (b.onclick = () => { const t = b.textContent.replace(/^\S+\s/, (m) => (/[\p{Emoji}]/u.test(m) ? "" : m)); $("#prompt").value = t + (S.mode === "code" ? "" : ": "); S.draft = $("#prompt").value; $("#prompt").focus(); updateSend(); }));
+    bindComposer();
+    if (!isMobile()) $("#prompt").focus();
+    return;
+  }
+  const ro = c.readonly
+    ? `<div class="banner">🔒 <span>Ini sesi <b>${esc(SRC[c.source].name)}</b>${c.cwd ? ` · ${esc(c.cwd)}` : ""} (hanya baca).</span><span class="sp"></span><button class="btn" id="contBtn">${c.source === "claude" ? "↻ Lanjutkan di Studio" : "Lanjutkan chat ini"}</button></div>`
+    : "";
+  const keepScroll = $("#msgs") && S.renderedId === (c.source + c.id);
+  const prevTop = $("#msgs")?.scrollTop;
+  convo.innerHTML = `<div class="msgs" id="msgs"><div class="col">${ro}<div id="mlist">${c.messages.map((m, i) => msgHtml(m, i)).join("")}${S.live && S.live.sid === c.id ? msgHtml(S.live.msg, -1, true) : ""}</div></div></div>${c.readonly ? "" : composerHtml(false)}`;
+  if (!c.readonly) bindComposer();
+  $("#contBtn") && ($("#contBtn").onclick = continueSession);
+  bindMsgActions();
+  const box = $("#msgs");
+  box.scrollTop = keepScroll ? prevTop : box.scrollHeight;
+  S.renderedId = c.source + c.id;
+}
+
+function stepHtml(s, live) {
+  if (s.kind === "perm") return "";
+  const running = live && s.result === undefined && !s.done;
+  const nm = esc(s.label || s.name).replace(/^(\w+)\(/, "<b>$1</b>(");
+  let body = "";
+  const inp = s.input || {};
+  if ((s.name === "Edit" || s.name === "MultiEdit") && (inp.old !== undefined || inp.edits)) {
+    const pairs = inp.edits || [{ old: inp.old, new: inp.new }];
+    body += `<div class="diff"><div class="h">${esc(inp.file || "")}</div>${pairs.map((p) => (p.old || "").split("\n").map((l) => `<div class="d">- ${esc(l)}</div>`).join("") + (p.new || "").split("\n").map((l) => `<div class="a">+ ${esc(l)}</div>`).join("")).join('<div class="h">⋯</div>')}</div>`;
+  } else if (s.name === "Write" && inp.content !== undefined) {
+    body += `<div class="diff"><div class="h">${esc(inp.file || "")} (berkas baru/ditimpa)</div>${inp.content.split("\n").slice(0, 80).map((l) => `<div class="a">+ ${esc(l)}</div>`).join("")}</div>`;
+  } else if (s.name === "TodoWrite" && inp.todos) {
+    body += `<div class="todo">${inp.todos.map((t) => `${t.status === "completed" ? "☑" : t.status === "in_progress" ? "◐" : "☐"} ${esc(t.content)}`).join("<br>")}</div>`;
+  } else if (s.name === "Bash" && inp.command) {
+    body += `<div class="out">$ ${esc(inp.command)}</div>`;
+  }
+  if (s.result) body += `<div class="out">${esc(s.result)}</div>`;
+  const auto = (s.name === "Edit" || s.name === "Write" || s.name === "MultiEdit" || s.name === "TodoWrite") && !s.error;
+  return `<details class="step ${running ? "run" : ""} ${s.error ? "bad" : ""}" ${auto && live ? "open" : ""}><summary><span class="b">⏺</span><span class="l">${s.sub ? "↳ " : ""}${nm}</span></summary>${body}</details>`;
+}
+function msgHtml(m, i, live) {
+  if (m.role === "user") {
+    const atts = (m.attachments || []).map((a) => /\.(png|jpe?g|gif|webp)$/i.test(a.file) ? `<a href="/api/lampiran?file=${encodeURIComponent(a.file)}" target="_blank"><img class="thumb" src="/api/lampiran?file=${encodeURIComponent(a.file)}" alt="${esc(a.name)}" loading="lazy"></a>` : `<a class="chipf" href="/api/lampiran?file=${encodeURIComponent(a.file)}" target="_blank">📎 <span>${esc(a.name)}</span></a>`).join("") + (m.files || []).map((f) => `<span class="chipf">📄 <span>${esc(f)}</span></span>`).join("") + (m.docs || []).map((d) => `<span class="chipf">📎 <span>${esc(d.name)}</span></span>`).join("");
+    return `<div class="msg user" data-i="${i}"><div style="display:flex;flex-direction:column;align-items:flex-end;max-width:min(85%,640px)">${m.text ? `<div class="bubble">${esc(m.text)}</div>` : ""}${atts ? `<div class="att-row">${atts}</div>` : ""}</div>${S.cur?.readonly || live ? "" : `<div class="acts"><button data-act="copy">Salin</button><button data-act="edit">✎ Edit</button></div>`}</div>`;
+  }
+  const p = prov(m.provider);
+  const thinking = m.thinking ? `<details class="think" ${live && !m.text ? "open" : ""}><summary>${live && !m.text ? "Sedang berpikir…" : "Proses berpikir"}</summary><div class="tx">${esc(m.thinking)}</div></details>` : "";
+  const steps = (m.steps || []).filter((s) => s.kind === "tool");
+  const stepsHtml = steps.length ? `<div class="steps">${steps.length > 8 && !live ? `<details class="step"><summary><span class="b">⏺</span><span class="l">${steps.length} langkah — tampilkan</span></summary>${steps.map((s) => stepHtml(s)).join("")}</details>` : steps.map((s) => stepHtml(s, live)).join("")}</div>` : "";
+  const perms = live ? (m.perms || []).map(permHtml).join("") : "";
+  const notes = (m.notes || []).map((n) => `<div style="font-size:13px;color:var(--faint)">${esc(n)}</div>`).join("");
+  const meta = [
+    p ? `<span class="badge g-${p.group}">${esc(provShort(p.id))}</span>` : m.provider === "kantor" ? `<span class="badge">Kantor PGA</span>` : m.provider === "claude.ai" ? `<span class="badge g-langganan">claude.ai</span>` : "",
+    m.model ? esc(modelLabel(m.model)) : "",
+    m.meta?.routedVia ? `via ${esc(m.meta.routedVia)}` : m.meta?.servedModel && m.meta.servedModel !== m.model && !/^claude/.test(m.meta.servedModel) ? `via ${esc(m.meta.servedModel)}` : "",
+    m.ms ? `${(m.ms / 1000).toFixed(1)} dtk` : "",
+    m.meta?.usd ? `≈$${m.meta.usd.toFixed(3)}` : "",
+  ].filter(Boolean).join(" · ");
+  const isLast = i === S.cur?.messages.length - 1;
+  const acts = live ? "" : `<div class="acts"><button data-act="copy">Salin</button>${!S.cur?.readonly && isLast ? `<button data-act="retry">↻ Ulangi</button>` : ""}<span class="meta">${meta}</span></div>`;
+  const content = m.text ? `<div class="md ${live ? "caret" : ""}">${md(m.text)}</div>` : live && !m.thinking && !steps.length ? `<div class="md caret" style="color:var(--faint)">${m.waitText || ""}</div>` : "";
+  return `<div class="msg ai ${m.error ? "err" : ""}" data-i="${i}">${thinking}${stepsHtml}${perms}${notes}${content}${acts}</div>`;
+}
+function permHtml(pm) {
+  if (pm.answered !== undefined) return `<div class="perm done">${pm.answered ? "✅ Diizinkan" : "⛔ Ditolak"}: <code>${esc(pm.label)}</code></div>`;
+  const inp = pm.input || {};
+  let detail = "";
+  if (pm.name === "Bash") detail = `<div class="out" style="font:12.5px var(--mono);white-space:pre-wrap;margin:6px 0;padding:8px 10px;background:var(--side);border-radius:8px">$ ${esc(inp.command)}</div>${inp.description ? `<div style="font-size:13px;color:var(--faint)">${esc(inp.description)}</div>` : ""}`;
+  else detail = stepHtml({ ...pm, kind: "tool" }, true).replace("<details", "<details open");
+  const what = { Bash: "menjalankan perintah", Edit: "mengubah berkas", MultiEdit: "mengubah berkas", Write: "menulis berkas", NotebookEdit: "mengubah notebook", Agent: "menjalankan sub-agent" }[pm.name] || `memakai ${pm.name}`;
+  return `<div class="perm" data-perm="${pm.id}"><div class="q">Claude ingin ${what}. Izinkan?</div>${detail}<div class="row"><button class="btn" data-pa="1">Izinkan</button><button class="btn2" data-pa="always">Selalu izinkan ${esc(pm.name)} di chat ini</button><button class="btn2" data-pa="0">Tolak</button></div></div>`;
+}
+function bindMsgActions() {
+  $$("#mlist [data-act]").forEach((b) => (b.onclick = () => {
+    const i = +b.closest(".msg").dataset.i, m = S.cur.messages[i];
+    if (b.dataset.act === "copy") navigator.clipboard?.writeText(m.text).then(() => toast("Tersalin."));
+    if (b.dataset.act === "edit") editMessage(i);
+    if (b.dataset.act === "retry") retry();
+  }));
+  $$("#mlist [data-pa]").forEach((b) => (b.onclick = async () => {
+    const id = b.closest("[data-perm]").dataset.perm;
+    const v = b.dataset.pa;
+    await api(`/api/permission/${id}`, { method: "POST", body: { allow: v !== "0", always: v === "always" } }).catch((e) => toast(e.message));
+  }));
+}
+function editMessage(i) {
+  const m = S.cur.messages[i];
+  S.editAt = i;
+  S.draft = m.text;
+  S.pending = (m.attachments || []).map((a) => ({ ...a, preview: /\.(png|jpe?g|gif|webp)$/i.test(a.file) ? `/api/lampiran?file=${encodeURIComponent(a.file)}` : null }));
+  S.wsFiles = [...(m.files || [])];
+  render();
+  const ta = $("#prompt"); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  toast("Ubah pesan lalu kirim — jawaban setelahnya akan diganti.");
+}
+function retry() {
+  const msgs = S.cur.messages;
+  let i = msgs.length - 1;
+  while (i >= 0 && msgs[i].role !== "user") i--;
+  if (i < 0) return;
+  const m = msgs[i];
+  send({ text: m.text, attachments: m.attachments || [], files: m.files || [], truncateAt: i });
+}
+
+let raf = 0;
+function renderLive() {
+  if (raf) return;
+  raf = requestAnimationFrame(() => {
+    raf = 0;
+    if (!S.live || !S.cur || S.live.sid !== S.cur.id) return;
+    const box = $("#msgs");
+    if (!box) return render();
+    const near = box.scrollHeight - box.scrollTop - box.clientHeight < 160;
+    const holder = $("#mlist .msg[data-i='-1']");
+    const html = msgHtml(S.live.msg, -1, true);
+    if (holder) {
+      // Pertahankan detail yang sedang dibuka pengguna.
+      const openIdx = $$("details", holder).map((d, k) => (d.open ? k : -1)).filter((k) => k >= 0);
+      holder.outerHTML = html;
+      const nh = $("#mlist .msg[data-i='-1']");
+      $$("details", nh).forEach((d, k) => { if (openIdx.includes(k)) d.open = true; });
+    } else $("#mlist").insertAdjacentHTML("beforeend", html);
+    bindMsgActions();
+    if (near) box.scrollTop = box.scrollHeight;
+  });
+}
+
+/* ═════════════ alur sesi ═════════════ */
+function newChat(mode) {
+  if (mode) setMode(mode, true);
+  S.cur = { source: "studio", id: null, title: "", messages: [], mode: S.mode };
+  S.editAt = undefined; S.draft = ""; S.projectTouched = false;
+  S.project = S.srcFilter.startsWith("p:") ? S.srcFilter.slice(2) : null;
+  render(); renderList();
+  if (isMobile()) sideMobile(false);
+}
 async function openSession(source, id) {
   try {
     const { session } = await api(`/api/sessions/${source}/${encodeURIComponent(id)}`);
-    S.cur = session;
-    if (session.provider && source === "studio") setProvider(session.provider, true);
-    if (session.model && source === "studio") $("#model").value = session.model;
-    renderChat(); drawListSafe();
-    if (innerWidth <= 820) mobile("chat");
+    S.cur = session; S.editAt = undefined; S.draft = ""; S.project = session.project || null; S.projectTouched = false;
+    if (source === "studio") {
+      if (session.mode) setMode(session.mode, true);
+      if (session.provider && prov(session.provider)) { S.provider = session.provider; S.model = session.model || ""; }
+    } else if (source === "claude") setMode("code", true);
+    render(); renderList();
   } catch (e) { toast(e.message); }
 }
 async function continueSession() {
@@ -644,85 +856,45 @@ async function continueSession() {
   try {
     const { session } = await api(`/api/sessions/${c.source}/${encodeURIComponent(c.id)}/lanjut`, { method: "POST" });
     S.cur = { ...session, source: "studio", readonly: false };
-    if (c.source === "claude") setProvider("langganan", true);
-    renderChat(); loadSessions(); $("#prompt").focus();
+    if (session.mode) setMode(session.mode, true);
+    if (session.provider) setModel(session.provider, S.model);
+    render(); loadSessions(); $("#prompt")?.focus();
   } catch (e) { toast(e.message); }
 }
-function msgHtml(m, streaming) {
-  if (m.role === "user") return `<div class="m user">${esc(m.text)}${m.files?.length ? `<div class="files">📎 ${m.files.map(esc).join(", ")}</div>` : ""}</div>`;
-  const p = m.provider && S.providers.find((x) => x.id === m.provider);
-  const who = [
-    p ? `<span class="badge b-${p.group}">${esc(providerName(p.id))}</span>` : m.provider === "kantor" ? '<span class="badge">Kantor PGA</span>' : "",
-    m.model ? `<span>${esc(m.model)}</span>` : "",
-    m.meta?.routedVia ? `<span>via ${esc(m.meta.routedVia)}</span>` : m.meta?.servedModel && m.meta.servedModel !== m.model ? `<span>via ${esc(m.meta.servedModel)}</span>` : "",
-    m.ms ? `<span>${(m.ms / 1000).toFixed(1)} dtk</span>` : "",
-    m.meta?.usd ? `<span>≈$${m.meta.usd.toFixed(3)}</span>` : "",
-    m.meta?.usage?.output ? `<span>${m.meta.usage.input ?? "?"}→${m.meta.usage.output} tok</span>` : "",
-  ].filter(Boolean).join("");
-  const tools = m.tools?.length
-    ? `<div class="tools">${m.tools.length > 4 && !streaming ? `<details><summary>${m.tools.length} langkah alat</summary>${m.tools.map((t) => `<div class="tool">${esc(t)}</div>`).join("")}</details>` : m.tools.map((t) => `<div class="tool">${esc(t)}</div>`).join("")}</div>`
-    : "";
-  return `<div class="m ai ${m.error ? "err" : ""}"><div class="who">✨ ${who}</div>${tools}<div class="md ${streaming ? "cursor" : ""}">${md(m.text)}</div></div>`;
+function setMode(m, quiet) {
+  S.mode = m; LS.set("mode", m);
+  if (S.cur && !S.cur.id) S.cur.mode = m;
+  if (m === "code" && !isMobile() && LS.get("wsOpen", true)) openWs(true, true);
+  if (!quiet) render();
+  $("#app").classList.toggle("mcode", m === "code");
+  $$("#modeSeg button").forEach((b) => b.classList.toggle("on", b.dataset.mode === m));
+  $("#wsBtn").style.display = m === "code" ? "" : "none";
+  renderComposerBar();
 }
-function renderChat() {
+
+async function send(override) {
+  if (S.live) return toast("Tunggu jawaban sebelumnya selesai, atau hentikan dulu.");
+  const text = override ? override.text : ($("#prompt")?.value || "").trim();
+  const attachments = override ? override.attachments : S.pending.filter((a) => !a.uploading).map(({ name, file, size, type }) => ({ name, file, size, type }));
+  const files = override ? override.files : [...S.wsFiles];
+  if (!text && !attachments.length) return;
+  if (!S.cur) newChat();
   const c = S.cur;
-  $("#ctitle").textContent = c?.title || "Sesi baru";
-  const src = c?.source || "studio";
-  $("#cbadge").textContent = `${SRC[src].ic} ${SRC[src].name}`;
-  const box = $("#msgs");
-  if (!c || (!c.messages.length && !S.streaming)) {
-    box.innerHTML = `<div class="hello"><h1>Apa yang mau dikerjakan?</h1>
-      <div>Pilih penyedia di bawah: <b style="color:var(--sub)">langganan</b> Claude, <b style="color:var(--free)">gratis</b> (FreeLLMAPI, Ollama, Gemini, Groq), atau <b style="color:var(--api)">API</b>.</div>
-      <div class="grid">
-        <div><b>💬 Semua sesi</b>Sesi Studio, Claude Code, Kantor PGA, dan HvM AI ada di panel kiri.</div>
-        <div><b>📁 Berkas</b>Buka & ubah berkas workspace, lalu “✨ Tanya AI”.</div>
-        <div><b>✏️ Mode tulis</b>Claude langganan bisa mengubah file & menjalankan perintah, seperti Claude Code.</div>
-        <div><b>🧰 Skill</b>Skill tim, termasuk <i>freellmapi</i> untuk pekerjaan ringan gratis.</div>
-      </div></div>`;
-  } else {
-    const ro = c.readonly
-      ? `<div class="ro">🔒 Sesi ${esc(SRC[src].name)} (hanya baca)${c.cwd ? ` · ${esc(c.cwd)}` : ""}<span style="flex:1"></span><button id="contBtn">${src === "claude" ? "↻ Lanjutkan sesi ini" : "Lanjutkan di Studio"}</button></div>`
-      : "";
-    box.innerHTML = ro + `<div class="inner">${c.messages.map((m) => msgHtml(m)).join("")}${S.streaming && S.streaming.sid === (c.id || null) ? msgHtml(S.streaming.msg, true) : ""}</div>`;
-    $("#contBtn") && ($("#contBtn").onclick = continueSession);
-  }
-  box.scrollTop = box.scrollHeight;
-  const busy = Boolean(S.streaming);
-  $("#prompt").disabled = Boolean(c?.readonly);
-  $("#prompt").placeholder = c?.readonly ? "Sesi ini hanya baca — klik “Lanjutkan” di atas untuk meneruskannya." : "Tulis prompt…  (Enter kirim, Shift+Enter baris baru)";
-  const btn = $("#sendBtn");
-  btn.className = busy ? "stop" : "send";
-  btn.textContent = busy ? "■ Berhenti" : "Kirim ↵";
-  btn.disabled = !busy && (!$("#prompt").value.trim() || Boolean(c?.readonly));
-}
-let rafPending = false;
-function renderStreaming() {
-  if (rafPending) return;
-  rafPending = true;
-  requestAnimationFrame(() => {
-    rafPending = false;
-    const box = $("#msgs");
-    const near = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
-    const last = box.querySelector(".inner > .m.ai:last-child");
-    if (last && S.streaming) last.outerHTML = msgHtml(S.streaming.msg, true); else renderChat();
-    if (near) box.scrollTop = box.scrollHeight;
-  });
-}
-async function send() {
-  if (S.streaming) return stop();
-  const text = $("#prompt").value.trim();
-  if (!text || S.cur?.readonly) return;
-  if (!S.cur) S.cur = { source: "studio", id: null, title: "Sesi baru", messages: [] };
-  const files = attachedFiles();
-  const body = { sessionId: S.cur.id, provider: S.provider, model: $("#model").value.trim(), text, files, skills: [...S.chosenSkills], mode: S.mode };
-  S.cur.messages.push({ role: "user", text, files });
-  S.streaming = { sid: S.cur.id, msg: { role: "assistant", text: "", provider: S.provider, model: body.model, tools: [], meta: {} }, ac: new AbortController() };
-  $("#prompt").value = ""; S.attached = []; S.attachActive = false; renderAttach();
-  renderChat();
-  const startedIn = S.cur;
-  status(`Memproses dengan ${providerName(S.provider)}…`);
+  if (c.readonly) return;
+  const p = prov(S.provider);
+  if (!p?.ready) { toast(`${p?.name || S.provider} belum siap — atur dulu di Pengaturan.`); return openSettings("model"); }
+  const truncateAt = override ? override.truncateAt : S.editAt;
+  if (Number.isInteger(truncateAt)) c.messages = c.messages.slice(0, truncateAt);
+  c.messages.push({ role: "user", text, attachments, files });
+  const body = { sessionId: c.id, provider: S.provider, model: currentModel(), text, attachments, files, skills: [...S.skillsOn], mode: S.mode, perm: S.perm, think: S.think, truncateAt, ...(S.projectTouched || !c.id ? { project: S.project } : {}) };
+  S.projectTouched = false;
+  S.live = { sid: c.id, msg: { role: "assistant", text: "", thinking: "", provider: S.provider, model: body.model, steps: [], perms: [], notes: [], meta: {}, waitText: "" }, ac: new AbortController() };
+  S.pending = []; S.wsFiles = []; S.draft = ""; S.editAt = undefined;
+  render();
+  const live = S.live;
   try {
-    const r = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: S.streaming.ac.signal });
+    const r = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: live.ac.signal });
+    if (r.status === 401) { location.href = "/login"; return; }
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
     const reader = r.body.getReader(), dec = new TextDecoder();
     let buf = "";
@@ -730,98 +902,533 @@ async function send() {
       const { value, done } = await reader.read();
       if (done) break;
       buf += dec.decode(value, { stream: true });
-      let i;
-      while ((i = buf.indexOf("\n\n")) >= 0) {
-        const line = buf.slice(0, i); buf = buf.slice(i + 2);
-        if (!line.startsWith("data: ")) continue;
-        const e = JSON.parse(line.slice(6));
-        const m = S.streaming?.msg; if (!m) continue;
-        if (e.type === "session") { startedIn.id = e.id; startedIn.title = e.title; S.streaming.sid = e.id; if (S.cur === startedIn) $("#ctitle").textContent = e.title; }
-        else if (e.type === "delta") m.text += e.text;
-        else if (e.type === "tool") { m.tools.push(e.label); maybeReload(e.label); }
-        else if (e.type === "info") Object.assign(m.meta, e);
-        else if (e.type === "done" || e.type === "error") { startedIn.messages.push(e.message); S.streaming = null; }
-        if (S.cur === startedIn) renderStreaming();
+      let k;
+      while ((k = buf.indexOf("\n\n")) >= 0) {
+        const chunk = buf.slice(0, k); buf = buf.slice(k + 2);
+        if (!chunk.startsWith("data: ")) continue;
+        handleEvent(c, live, JSON.parse(chunk.slice(6)));
       }
     }
   } catch (e) {
-    if (S.streaming) startedIn.messages.push({ role: "assistant", text: S.streaming.ac.signal.aborted ? (S.streaming.msg.text || "") + "\n\n_(dihentikan)_" : `⚠️ ${e.message}`, error: !S.streaming.ac.signal.aborted, provider: S.provider });
+    if (S.live === live) c.messages.push({ role: "assistant", text: live.ac.signal.aborted ? (live.msg.text || "") + "\n\n_(dihentikan)_" : `⚠️ ${e.message}`, error: !live.ac.signal.aborted, provider: live.msg.provider, model: live.msg.model, steps: live.msg.steps, thinking: live.msg.thinking });
   }
-  S.streaming = null;
-  if (S.cur === startedIn) renderChat();
-  status("Siap");
+  if (S.live === live) S.live = null;
+  S.busyIds.delete(c.id);
+  if (S.cur === c) render();
   loadSessions();
-  S.tabs.forEach((t) => reloadFile(t.path, true));
+  if (S.mode === "code") { S.tabs.forEach((t) => reloadFile(t.path, true)); S.tree = {}; drawTree(); }
 }
-function maybeReload(label) {
-  if (/^(Write|Edit)\b/.test(label)) setTimeout(() => S.tabs.forEach((t) => reloadFile(t.path, true)), 300);
+function handleEvent(c, live, e) {
+  const m = live.msg;
+  switch (e.type) {
+    case "session":
+      c.id = e.id; c.title = e.title; live.sid = e.id; S.busyIds.add(e.id);
+      if (S.cur === c) { $("#title").textContent = e.title; $("#title").style.visibility = ""; $("#menuBtn").style.visibility = ""; }
+      if (!S.sessions.find((s) => s.id === e.id)) { S.sessions.unshift({ source: "studio", id: e.id, title: e.title, updatedAt: Date.now(), mode: S.mode }); renderList(); }
+      break;
+    case "delta": m.text += e.text; break;
+    case "thinking": m.thinking += e.text; break;
+    case "tool": m.steps.push({ kind: "tool", id: e.id, name: e.name, label: e.label, input: e.input, sub: e.sub }); if (/^(Write|Edit|MultiEdit)$/.test(e.name)) setTimeout(() => S.tabs.forEach((t) => reloadFile(t.path, true)), 600); break;
+    case "tool_result": { const s = m.steps.find((x) => x.id === e.id); if (s) Object.assign(s, { result: e.text || "", error: e.error }); break; }
+    case "permission": m.perms.push({ id: e.id, name: e.name, label: e.label, input: e.input }); notify("Claude meminta izin", e.label); break;
+    case "permission_done": { const pm = m.perms.find((x) => x.id === e.id); if (pm) pm.answered = e.allow; break; }
+    case "info": Object.assign(m.meta, e); break;
+    case "note": m.notes.push(e.text); break;
+    case "done": case "error":
+      c.messages.push(e.message); if (e.title) c.title = e.title;
+      if (S.live === live) S.live = null;
+      if (document.hidden) notify("Jawaban siap", c.title);
+      break;
+  }
+  if (S.cur === c && S.live === live) renderLive();
 }
 function stop() {
-  if (!S.streaming) return;
-  const sid = S.streaming.sid;
-  if (sid) fetch(`/api/chat/${sid}/stop`, { method: "POST" }).catch(() => {});
-  S.streaming.ac.abort();
+  const l = S.live;
+  if (!l) return;
+  if (l.sid) fetch(`/api/chat/${l.sid}/stop`, { method: "POST" }).catch(() => {});
+  l.ac.abort();
 }
-$("#sendBtn").onclick = send;
-$("#prompt").addEventListener("input", (e) => {
-  const t = e.target; t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, innerHeight * 0.4) + "px";
-  if (!S.streaming) $("#sendBtn").disabled = !t.value.trim() || Boolean(S.cur?.readonly);
-});
-$("#prompt").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey && !e.isComposing && innerWidth > 820) { e.preventDefault(); send(); }
-  if (e.key === "@" && S.active && !S.attachActive) { S.attachActive = true; renderAttach(); }
-});
+function notify(title, body) {
+  if (!document.hidden || !("Notification" in window) || Notification.permission !== "granted") return;
+  try { new Notification(title, { body, icon: "/icon.svg" }); } catch {}
+}
 
-/* ───────────── lain-lain ───────────── */
-function status(t) { $("#stLeft").textContent = t; }
-function updateStatus() {
-  const p = S.providers.find((x) => x.id === S.provider);
-  $("#stRight").textContent = p ? `${GROUP[p.group]} · ${p.name.split(" (")[0]} · ${$("#model").value || p.defaultModel}${p.kind === "claude-sdk" ? ` · ${S.mode === "tulis" ? "boleh ubah file" : "baca saja"}` : ""}` : "";
-}
-function mobile(m) {
-  const app = $("#app");
-  app.classList.remove("m-side", "m-edit", "m-chat");
-  app.classList.add("m-" + m);
-  $("#mnav").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.m === m && (m !== "side" || b.dataset.view === S.view)));
-}
-$("#mnav").querySelectorAll("button").forEach((b) => (b.onclick = () => {
-  if (b.dataset.view) { S.view = b.dataset.view; renderSide(); }
-  if (b.dataset.m === "edit" && !S.tabs.length) { toast("Belum ada berkas terbuka. Buka dari 📁 Berkas."); return; }
-  mobile(b.dataset.m);
-}));
-document.querySelectorAll(".act button[data-view]").forEach((b) => (b.onclick = () => setView(b.dataset.view)));
-$("#newBtn").onclick = newSession;
-$("#themeBtn").onclick = () => {
-  const t = document.documentElement.dataset.theme === "light" ? "dark" : "light";
-  document.documentElement.dataset.theme = t; store.set("theme", t);
+/* ═════════════ menu chat ═════════════ */
+$("#menuBtn").onclick = (e) => {
+  const c = S.cur;
+  if (!c?.id) return;
+  const studio = c.source === "studio";
+  const p = popover(e.currentTarget, `
+    ${studio ? `<button class="opt" data-a="pin">${c.pinned ? "📌 Lepas sematan" : "📌 Sematkan"}</button><button class="opt" data-a="ren">✎ Ganti nama</button><button class="opt" data-a="exp">⬇️ Unduh sebagai Markdown</button><button class="opt" data-a="copy">📋 Salin seluruh chat</button><hr><button class="opt" data-a="del" style="color:var(--bad)">🗑 Hapus</button>` : `<button class="opt" data-a="cont">↻ Lanjutkan di Studio</button><button class="opt" data-a="copy">📋 Salin seluruh chat</button>`}`, { align: "right", up: false });
+  $$(".opt", p).forEach((b) => (b.onclick = async () => {
+    closePop();
+    const a = b.dataset.a;
+    if (a === "pin") { await api(`/api/sessions/studio/${c.id}`, { method: "PATCH", body: { pinned: !c.pinned } }); c.pinned = !c.pinned; loadSessions(); }
+    if (a === "ren") renameCur();
+    if (a === "exp") location.href = `/api/sessions/studio/${c.id}/export.md`;
+    if (a === "copy") navigator.clipboard?.writeText(c.messages.map((m) => `${m.role === "user" ? "Saya" : "AI"}: ${m.text}`).join("\n\n")).then(() => toast("Chat tersalin."));
+    if (a === "del") { if (!confirm(`Hapus chat "${c.title}"?`)) return; await api(`/api/sessions/studio/${c.id}`, { method: "DELETE" }); newChat(); loadSessions(); }
+    if (a === "cont") continueSession();
+  }));
 };
-document.documentElement.dataset.theme = store.get("theme", "dark");
+async function renameCur() {
+  const c = S.cur;
+  if (!c?.id || c.source !== "studio") return;
+  const t = prompt("Nama chat:", c.title);
+  if (!t?.trim()) return;
+  await api(`/api/sessions/studio/${c.id}`, { method: "PATCH", body: { title: t } });
+  c.title = t.trim(); $("#title").textContent = c.title; loadSessions();
+}
+$("#title").onclick = renameCur;
+
+/* ═════════════ pencarian (Ctrl+K) ═════════════ */
+function openSearch() {
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="box" style="max-width:640px"><div class="mh"><input id="sq" placeholder="Cari di semua chat…" style="flex:1;border:0;background:none;outline:none;font-size:17px" autocomplete="off"><button class="ib" data-x>✕</button></div><div class="pane" id="sres" style="padding:8px"></div></div>`;
+  document.body.append(m);
+  const close = () => m.remove();
+  m.onclick = (e) => { if (e.target === m || e.target.closest("[data-x]")) close(); };
+  const q = $("#sq", m), res = $("#sres", m);
+  let t = 0, sel = 0, items = [];
+  const draw = async () => {
+    const v = q.value.trim().toLowerCase();
+    let found = [];
+    if (v.length >= 2) {
+      const r = await api(`/api/search?q=${encodeURIComponent(v)}`).catch(() => ({ results: [] }));
+      found = r.results;
+      const ids = new Set(found.map((x) => x.id));
+      found.push(...S.sessions.filter((s) => s.source !== "studio" && !ids.has(s.id) && String(s.title).toLowerCase().includes(v)).slice(0, 30));
+    } else found = S.sessions.slice(0, 12);
+    items = found; sel = 0;
+    res.innerHTML = found.map((s, i) => `<button class="res ${i === 0 ? "kb" : ""}" data-i="${i}">${SRC[s.source].ic || (s.mode === "code" ? "‹›" : "💬")} ${esc(s.title)}<small>${s.snippet ? esc(s.snippet) : `${SRC[s.source].name} · ${ago(s.updatedAt)}`}</small></button>`).join("") || `<div style="padding:20px;text-align:center;color:var(--faint)">Tidak ditemukan.</div>`;
+    $$(".res", res).forEach((b) => (b.onclick = () => { const s = items[+b.dataset.i]; close(); openSession(s.source, s.id); }));
+  };
+  q.oninput = () => { clearTimeout(t); t = setTimeout(draw, 180); };
+  q.onkeydown = (e) => {
+    const bs = $$(".res", res);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); sel = Math.max(0, Math.min(bs.length - 1, sel + (e.key === "ArrowDown" ? 1 : -1))); bs.forEach((b, i) => b.classList.toggle("kb", i === sel)); bs[sel]?.scrollIntoView({ block: "nearest" }); }
+    if (e.key === "Enter" && items[sel]) { close(); openSession(items[sel].source, items[sel].id); }
+    if (e.key === "Escape") close();
+  };
+  draw(); q.focus();
+}
+$("#searchBtn").onclick = () => { if (isMobile()) sideMobile(false); openSearch(); };
+
+/* ═════════════ pengaturan ═════════════ */
+function openSettings(tab = "profil") {
+  $(".modal")?.remove();
+  const m = document.createElement("div");
+  m.className = "modal";
+  const tabs = [["profil", "👤 Profil"], ["akun", "🔑 Akun Claude"], ["model", "🤖 Model & penyedia"], ["impor", "📥 Impor & proyek"], ["simpan", "☁️ Penyimpanan chat"], ["skill", "🧰 Skill"], ["tampilan", "🎨 Tampilan"], ["bantuan", "❔ Bantuan"]];
+  m.innerHTML = `<div class="box"><div class="mh"><h2>Pengaturan</h2><button class="ib" data-x>✕</button></div><div class="mb"><nav class="tabsv">${tabs.map(([k, n]) => `<button data-t="${k}">${n}</button>`).join("")}</nav><div class="pane" id="pane"></div></div></div>`;
+  document.body.append(m);
+  m.onclick = (e) => { if (e.target === m || e.target.closest("[data-x]")) m.remove(); };
+  const show = (t) => { $$(".tabsv button", m).forEach((b) => b.classList.toggle("on", b.dataset.t === t)); PANES[t]($("#pane", m)); };
+  $$(".tabsv button", m).forEach((b) => (b.onclick = () => show(b.dataset.t)));
+  show(tab);
+}
+const PANES = {
+  profil(el) {
+    el.innerHTML = `<h3>Profil</h3><p class="s">Dipakai untuk sapaan dan agar AI memahami konteks Anda.</p>
+      <label class="fld"><span>Nama panggilan</span><input id="pn" value="${esc(S.profile.name || "")}"></label>
+      <label class="fld"><span>Tentang saya (opsional) — pekerjaan, gaya jawaban yang disukai, dll.</span><textarea id="pa" rows="5" placeholder="Mis. Saya PGA di PGD Mayora. Jawab ringkas, pakai poin.">${esc(S.profile.about || "")}</textarea></label>
+      <button class="btn" id="ps">Simpan</button>`;
+    $("#ps", el).onclick = async () => {
+      const r = await api("/api/settings/profile", { method: "POST", body: { name: $("#pn", el).value, about: $("#pa", el).value } });
+      S.profile = r.profile; renderMe(); toast("Profil tersimpan.");
+    };
+  },
+  model(el) {
+    const groups = ["langganan", "gratis", "api"];
+    el.innerHTML = `<h3>Model & penyedia</h3><p class="s">Pilih penyedia di tombol model saat mengetik. Kunci API disimpan di server (tidak dikirim ke browser).</p>` +
+      groups.map((g) => `<div style="margin-top:14px"><span class="badge g-${g}">${GROUP[g]}</span></div>` + S.providers.filter((p) => p.group === g).map((p) => `
+      <div class="pcard" data-id="${p.id}">
+        <div class="h"><span class="dot ${p.ready ? "ok" : ""}"></span>${esc(p.name)}<span style="margin-left:auto;font-size:12px;font-weight:400;color:var(--faint)">${p.ready ? "siap" : "belum diatur"}</span></div>
+        ${p.note ? `<div class="n">${esc(p.note)}</div>` : ""}
+        ${p.kind === "claude-sdk" ? `<div class="n">Login sekali di server: <code>npm run login</code> → ketik <code>/login</code>. Rem pengaman $${S.info?.maxUsd ?? 3} per pesan.</div>` : `<div class="grid">
+          ${p.editableUrl ? `<label class="fld"><span>URL (…/v1)</span><input data-k="baseUrl" value="${esc(p.baseUrl)}" placeholder="https://…/v1"></label>` : ""}
+          ${p.needsKey || p.id === "custom" ? `<label class="fld"><span>Kunci API${p.envKey ? ` <small style="color:var(--faint)">atau env ${p.envKey}</small>` : ""}</span><input data-k="apiKey" type="password" autocomplete="off" placeholder="${p.hasKey ? (p.keyFromEnv ? "dari env ✓" : "•••• tersimpan") : "tempel kunci di sini"}"></label>` : ""}
+        </div>`}
+        <div class="row"><label class="fld" style="flex:1;margin:0"><span>Model bawaan</span><input data-k="defaultModel" value="${esc(p.defaultModel)}"></label></div>
+        <div class="row">${p.kind !== "claude-sdk" ? `<button class="btn2" data-save>Simpan</button>` : `<button class="btn2" data-save>Simpan model</button>`}<button class="btn2" data-test>Tes koneksi</button><span class="msgx"></span></div>
+      </div>`).join("")).join("") +
+      `<p class="s" style="margin-top:14px">FreeLLMAPI belum menyala? Lihat skill <b>freellmapi</b> (tab Skill) untuk cara memasangnya di port 3011.</p>`;
+    $$(".pcard", el).forEach((c) => {
+      const id = c.dataset.id, msg = $(".msgx", c);
+      const vals = () => Object.fromEntries($$("[data-k]", c).filter((i) => i.dataset.k !== "apiKey" || i.value).map((i) => [i.dataset.k, i.value]));
+      $("[data-save]", c).onclick = async () => {
+        try { S.providers = (await api(`/api/providers/${id}`, { method: "POST", body: vals() })).providers; delete S.models[id]; PANES.model(el); renderComposerBar(); toast("Tersimpan."); }
+        catch (e) { msg.textContent = e.message; }
+      };
+      $("[data-test]", c).onclick = async () => {
+        msg.textContent = "memeriksa…";
+        const r = await api(`/api/providers/${id}/models`).catch((e) => ({ error: e.message, models: [] }));
+        msg.innerHTML = r.error ? `<span style="color:var(--bad)">❌ ${esc(r.error)}</span>` : `✅ Terhubung · ${r.models.length} model`;
+        if (r.models.length) S.models[id] = r.models;
+      };
+    });
+  },
+  simpan(el) {
+    const s = S.sync || { mode: "lokal" };
+    const opt = (k, t, d) => `<label class="${s.mode === k ? "on" : ""}"><input type="radio" name="sm" value="${k}" ${s.mode === k ? "checked" : ""}><span><b>${t}</b><small>${d}</small></span></label>`;
+    el.innerHTML = `<h3>Penyimpanan chat</h3><p class="s">Semua chat <b>selalu</b> tersimpan di server ini (rig/VPS Anda): <code>${esc(s.localPath || "")}</code>. Anda bisa menambah salinan otomatis ke GitHub.</p>
+      <div class="radios">${opt("lokal", "💾 Lokal saja", "Hanya di server/rig ini. Paling privat.")}${opt("github", "☁️ GitHub (repo privat)", "Disalin otomatis ke repo GitHub privat Anda — aman bila rig rusak, bisa dibaca dari mana saja. Repo publik ditolak.")}${opt("git", "🔗 Git lain", "Gitea/GitLab di rig sendiri, repo bare di disk lain, dll.")}</div>
+      <div id="gh" style="display:${s.mode === "github" ? "" : "none"}">
+        <label class="fld"><span>Repo (pemilik/nama)</span><input id="sr" value="${esc(s.repo || "")}" placeholder="ColdHula/arsip-chat"></label>
+        <label class="fld"><span>Token GitHub — <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">buat fine-grained token</a>, izin <b>Contents: Read and write</b> (+ <b>Administration</b> bila ingin repo dibuat otomatis)</span><input id="st" type="password" placeholder="${s.hasToken ? (s.tokenFromEnv ? "dari env ✓" : "•••• tersimpan") : "github_pat_…"}" autocomplete="off"></label>
+        <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="sc" checked> Buat repo privat bila belum ada</label>
+      </div>
+      <div id="gt" style="display:${s.mode === "git" ? "" : "none"}"><label class="fld"><span>URL remote</span><input id="su" value="${esc(s.url || "")}" placeholder="ssh://git@rig/arsip.git atau /mnt/backup/arsip.git"></label></div>
+      <div id="gb" style="display:${s.mode === "lokal" ? "none" : ""}"><label class="fld"><span>Branch</span><input id="sb" value="${esc(s.branch || "main")}"></label></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px"><button class="btn" id="ss">Simpan</button>${s.mode !== "lokal" ? `<button class="btn2" id="sn">🔄 Sinkron sekarang</button>` : ""}<span id="sm" style="font-size:13px;color:var(--dim)"></span></div>
+      ${s.mode !== "lokal" ? `<p class="s" style="margin-top:14px">Status: ${s.error ? `<span style="color:var(--bad)">⚠️ ${esc(s.error)}</span>` : s.last ? `✅ tersinkron ${ago(s.last)}` : "belum pernah"} · disinkronkan ±15 detik setelah setiap pesan dan tiap 5 menit.</p>` : ""}`;
+    $$("input[name=sm]", el).forEach((r) => (r.onchange = () => {
+      $$(".radios label", el).forEach((l) => l.classList.toggle("on", l.contains(r) && r.checked));
+      $("#gh", el).style.display = r.value === "github" ? "" : "none";
+      $("#gt", el).style.display = r.value === "git" ? "" : "none";
+      $("#gb", el).style.display = r.value === "lokal" ? "none" : "";
+    }));
+    $("#ss", el).onclick = async () => {
+      const mode = $("input[name=sm]:checked", el).value;
+      $("#sm", el).textContent = "menyimpan & menyinkronkan…";
+      try {
+        const r = await api("/api/settings/sync", { method: "POST", body: { mode, repo: $("#sr", el).value, token: $("#st", el).value, url: $("#su", el).value, branch: $("#sb", el).value, create: $("#sc", el).checked } });
+        S.sync = r.sync; renderSync(); PANES.simpan(el); toast(mode === "lokal" ? "Chat disimpan lokal saja." : "Tersambung & tersinkron ✓");
+      } catch (e) { $("#sm", el).innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`; }
+    };
+    $("#sn", el) && ($("#sn", el).onclick = async () => {
+      $("#sm", el).textContent = "menyinkronkan…";
+      const r = await api("/api/sync", { method: "POST" });
+      S.sync = r.sync; renderSync(); PANES.simpan(el);
+      if (r.error) toast(r.error, 6000);
+    });
+  },
+  skill(el) {
+    el.innerHTML = `<h3>Skill</h3><p class="s">Skill yang dicentang ikut dipakai di setiap pesan (bisa juga lewat tombol ＋). Claude langganan juga bisa memuat skill sendiri bila relevan.</p>` +
+      S.skills.map((s) => `<label class="skl"><input type="checkbox" value="${esc(s.name)}" ${S.skillsOn.has(s.name) ? "checked" : ""}><span><b>${esc(s.name.split(":")[1])}</b>${s.name.endsWith(":freellmapi") ? ' <span class="badge g-gratis">gratis</span>' : ""}<small>${esc(s.description)}</small></span></label>`).join("");
+    $$("input", el).forEach((c) => (c.onchange = () => { c.checked ? S.skillsOn.add(c.value) : S.skillsOn.delete(c.value); LS.set("skills", [...S.skillsOn]); renderPending(); }));
+  },
+  tampilan(el) {
+    const th = LS.get("theme", "auto"), fs = LS.get("fs", 15);
+    el.innerHTML = `<h3>Tampilan</h3><p class="s">Disimpan di browser ini.</p>
+      <label class="fld"><span>Tema</span><select id="tt"><option value="auto">Ikuti sistem</option><option value="dark">Gelap</option><option value="light">Terang</option></select></label>
+      <label class="fld"><span>Ukuran teks: <b id="fv">${fs}px</b></span><input type="range" id="tf" min="13" max="19" value="${fs}"></label>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="tn" ${typeof Notification !== "undefined" && Notification.permission === "granted" ? "checked" : ""}> Notifikasi saat jawaban selesai / Claude minta izin (tab di latar belakang)</label>`;
+    $("#tt", el).value = th;
+    $("#tt", el).onchange = (e) => { LS.set("theme", e.target.value); applyTheme(); };
+    $("#tf", el).oninput = (e) => { LS.set("fs", +e.target.value); $("#fv", el).textContent = e.target.value + "px"; applyTheme(); };
+    $("#tn", el).onchange = (e) => { if (e.target.checked && typeof Notification !== "undefined") Notification.requestPermission(); };
+  },
+  bantuan(el) {
+    el.innerHTML = `<h3>Bantuan singkat</h3><div class="md">${md(`
+- **Chat** = seperti claude.ai: tanya apa saja, unggah foto/PDF/berkas (＋, seret, atau tempel), web search otomatis.
+- **Code** = seperti Claude Code: AI membaca & mengubah berkas di **${S.info?.workspaceName}**. Pilih izin: 👁 *Baca saja*, 🛡 *Tanya dulu* (bawaan), ⚡ *Otomatis*.
+- **Tombol model** (kanan bawah kotak ketik): pilih Claude langganan, model **gratis** (FreeLLMAPI, Gemini, Groq, Ollama…), atau API. Bisa ganti di tengah chat — riwayat ikut.
+- **💡 Berpikir**: jawaban lebih teliti untuk soal sulit.
+- **Edit & ulangi**: arahkan ke pesan → ✎ Edit, atau ↻ Ulangi pada jawaban terakhir. Tekan ↑ di kotak kosong untuk mengedit pesan terakhir.
+- **Semua sesi**: panel kiri memuat chat Studio, sesi Claude Code di server ini, tugas Kantor PGA, dan HvM AI. Klik **Lanjutkan** untuk meneruskan.
+- **Penyimpanan**: chat tersimpan di server; aktifkan salinan ke **GitHub privat** di tab Penyimpanan.
+- **Akun Claude**: tab *Akun Claude* → **Masuk dengan Claude** (sekali, berlaku 1 tahun) agar langganan Pro/Max dipakai.
+- **Dari claude.ai**: tab *Impor & proyek* → unggah ZIP *Export data* claude.ai; semua chat, Project, dan memori pindah ke sini.
+- **Proyek**: instruksi + berkas pengetahuan yang dipakai otomatis di chat proyek itu (pilih lewat ＋).
+- **Panduan awal**: tombol di bawah membuka lagi langkah-langkah awal.
+
+**Pintasan:** \`Ctrl K\` cari · \`Ctrl Shift O\` chat baru · \`Ctrl B\` panel · \`Esc\` hentikan · \`Ctrl S\` simpan berkas · \`Enter\` kirim, \`Shift Enter\` baris baru.`)}</div><p><button class="btn" id="wzAgain">🧭 Buka panduan awal</button></p>`;
+    $("#wzAgain", el).onclick = () => openWizard();
+  },
+};
+
+/* ═════════════ akun Claude, AI gratis, impor & proyek ═════════════ */
+async function refreshAccount(fresh) {
+  try { S.account = await api(`/api/claude/status${fresh ? "?fresh=1" : ""}`); } catch { S.account = null; }
+  renderMe();
+  return S.account;
+}
+PANES.akun = async function (el, inWizard) {
+  const a = S.account;
+  const subName = (x) => ({ max: "Claude Max", pro: "Claude Pro", team: "Claude Team", enterprise: "Claude Enterprise" })[String(x || "").toLowerCase()] || x || "";
+  el.innerHTML = `<h3>Akun Claude</h3><p class="s">Hubungkan langganan Claude (Pro/Max) agar Studio memakai kuota langganan Anda — tanpa API key berbayar. Pemakaian diambil dari kredit Agent SDK bulanan yang termasuk di langganan.</p>
+    <div class="pcard"><div class="h"><span class="dot ${a?.loggedIn ? "ok" : ""}"></span>${a ? (a.loggedIn ? `Terhubung${a.email ? ` sebagai <b>${esc(a.email)}</b>` : ""}${a.subscription ? ` · ${esc(subName(a.subscription))}` : ""}` : "Belum terhubung ke langganan Claude") : "Memeriksa…"}</div>
+      <div class="n">${a?.loggedIn ? (a.method === "studio" ? "Masuk lewat Studio (token 1 tahun, tersimpan di server)." : "Memakai login Claude Code di server ini.") : "Klik tombol di bawah. Halaman masuk claude.com terbuka; setelah masuk, salin kode yang tampil lalu tempel di sini."}</div>
+      <div class="row" id="lgRow">${a?.loggedIn ? `<button class="btn2" id="lgAgain">Ganti akun</button>${a.method === "studio" ? `<button class="btn2" id="lgOut">Keluar</button>` : ""}<button class="btn2" id="lgCheck">Periksa ulang</button>` : `<button class="btn" id="lgStart">🔑 Masuk dengan Claude</button><button class="btn2" id="lgCheck">Periksa ulang</button>`}</div>
+      <div id="lgFlow"></div>
+    </div>
+    <p class="s">Tips: jangan aktifkan "usage credits" berbayar di akun Claude agar tidak ada tagihan tambahan; bila kredit bulanan habis, pakai model <b>gratis</b> sambil menunggu.</p>`;
+  const flow = $("#lgFlow", el);
+  const start = async () => {
+    flow.innerHTML = `<p class="s" style="margin-top:10px">Menyiapkan tautan masuk…</p>`;
+    const r = await api("/api/claude/login", { method: "POST" }).catch((e) => ({ state: "error", error: e.message }));
+    if (r.state === "error" || !r.url) { flow.innerHTML = `<p style="color:var(--bad)">❌ ${esc(r.error || "Tautan masuk tidak muncul.")}</p>`; return; }
+    window.open(r.url, "_blank", "noopener");
+    flow.innerHTML = `<div style="margin-top:12px"><b>1.</b> Halaman masuk Claude sudah dibuka di tab baru (<a href="${esc(r.url)}" target="_blank" rel="noopener">buka lagi</a>). Masuk dengan akun Claude Pro/Max Anda dan klik <b>Authorize</b>.<br><b>2.</b> Salin <b>kode</b> yang tampil, lalu tempel di sini:</div>
+      <div class="row"><input id="lgCode" placeholder="Tempel kode di sini" style="flex:1;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:13px var(--mono)" autocomplete="off"><button class="btn" id="lgSend">Hubungkan</button></div><div id="lgMsg" class="msgx" style="margin-top:6px"></div>`;
+    $("#lgCode", el).focus();
+    const submit = async () => {
+      const code = $("#lgCode", el).value.trim();
+      if (!code) return;
+      $("#lgMsg", el).textContent = "Memeriksa kode…"; $("#lgSend", el).disabled = true;
+      const x = await api("/api/claude/login/code", { method: "POST", body: { code } }).catch((e) => ({ state: "error", error: e.message }));
+      if (x.state === "done") { S.account = x.status; renderMe(); toast("Akun Claude terhubung ✓"); PANES.akun(el, inWizard); }
+      else { $("#lgMsg", el).innerHTML = `<span style="color:var(--bad)">❌ ${esc(x.error || "Gagal.")}</span> <button class="btn2" id="lgRetry">Coba lagi</button>`; $("#lgRetry", el).onclick = start; }
+    };
+    $("#lgSend", el).onclick = submit;
+    $("#lgCode", el).onkeydown = (e) => e.key === "Enter" && submit();
+  };
+  $("#lgStart", el) && ($("#lgStart", el).onclick = start);
+  $("#lgAgain", el) && ($("#lgAgain", el).onclick = start);
+  $("#lgOut", el) && ($("#lgOut", el).onclick = async () => { await api("/api/claude/logout", { method: "POST" }); await refreshAccount(true); PANES.akun(el, inWizard); });
+  $("#lgCheck", el).onclick = async () => { $("#lgCheck", el).textContent = "memeriksa…"; await refreshAccount(true); PANES.akun(el, inWizard); };
+  if (!a) { await refreshAccount(); PANES.akun(el, inWizard); }
+};
+PANES.gratis = function (el) {
+  const free = S.providers.filter((p) => p.group === "gratis");
+  el.innerHTML = `<h3>Pilih AI gratis</h3><p class="s">Isi satu atau beberapa. Semuanya muncul di tombol model saat mengetik, dan bisa dipakai bergantian dengan Claude. Paling mudah: <b>Gemini</b> atau <b>Groq</b> (cukup kunci gratis). <b>FreeLLMAPI</b> menggabungkan banyak penyedia sekaligus.</p>` +
+    free.map((p) => `<div class="pcard" data-id="${p.id}"><div class="h"><span class="dot ${p.ready ? "ok" : ""}"></span>${esc(p.name)}${p.keyUrl ? `<a href="${esc(p.keyUrl)}" target="_blank" rel="noopener" style="margin-left:auto;font-size:13px;font-weight:400">${p.id === "freellmapi" ? "cara pasang ↗" : p.id === "ollama" ? "unduh ↗" : "dapatkan kunci gratis ↗"}</a>` : ""}</div>
+      ${p.note ? `<div class="n">${esc(p.note)}</div>` : ""}
+      <div class="grid">${p.editableUrl && (p.id === "freellmapi" || p.id === "ollama") ? `<label class="fld"><span>URL</span><input data-k="baseUrl" value="${esc(p.baseUrl)}"></label>` : ""}${p.needsKey ? `<label class="fld"><span>Kunci API</span><input data-k="apiKey" type="password" autocomplete="off" placeholder="${p.hasKey ? (p.keyFromEnv ? "dari env ✓" : "•••• tersimpan") : "tempel kunci"}"></label>` : ""}</div>
+      <div class="row"><button class="btn2" data-save>Simpan & tes</button><button class="btn2" data-use ${p.ready ? "" : "disabled"}>Jadikan bawaan</button><span class="msgx"></span></div></div>`).join("");
+  $$(".pcard", el).forEach((c) => {
+    const id = c.dataset.id, msg = $(".msgx", c);
+    $("[data-save]", c).onclick = async () => {
+      const body = Object.fromEntries($$("[data-k]", c).filter((i) => i.dataset.k !== "apiKey" || i.value).map((i) => [i.dataset.k, i.value]));
+      msg.textContent = "menyimpan…";
+      try {
+        S.providers = (await api(`/api/providers/${id}`, { method: "POST", body })).providers; delete S.models[id];
+        const r = await api(`/api/providers/${id}/models`);
+        PANES.gratis(el);
+        const m2 = $(`.pcard[data-id="${id}"] .msgx`, el);
+        m2.innerHTML = r.error ? `<span style="color:var(--bad)">❌ ${esc(r.error)}</span>` : `✅ Terhubung · ${r.models.length} model`;
+        if (r.models.length) S.models[id] = r.models;
+        renderComposerBar();
+      } catch (e) { msg.textContent = e.message; }
+    };
+    $("[data-use]", c).onclick = () => { const p = prov(id); setModel(id, p.defaultModel); toast(`Bawaan: ${p.name.split(" (")[0]}`); };
+  });
+};
+PANES.impor = async function (el) {
+  el.innerHTML = `<h3>Impor dari claude.ai</h3>
+    <p class="s">Bawa semua chat, Project (beserta berkas pengetahuannya), dan memori dari akun claude.ai Anda ke Studio:</p>
+    <ol style="margin:0 0 10px;padding-left:20px;font-size:14px;color:var(--dim)"><li>Buka <a href="https://claude.ai/settings/data-privacy-controls" target="_blank" rel="noopener">claude.ai → Settings → Privacy</a> → <b>Export data</b>.</li><li>Tunggu email dari Anthropic, unduh berkas <b>.zip</b>-nya.</li><li>Unggah ZIP itu di sini (boleh diulang kapan saja; tidak dobel).</li></ol>
+    <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn" id="impBtn">📥 Pilih ZIP ekspor claude.ai</button><span id="impMsg" class="msgx"></span></div>
+    <input type="file" id="impFile" accept=".zip,.json" hidden>
+    <p class="s" style="margin-top:8px">Sesi <b>Claude Code</b> di server ini sudah otomatis tampil di panel kiri (◆). Sesi claude.ai/code di cloud belum bisa diambil langsung — teruskan lewat ekspor data di atas.</p>
+    <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+    <h3>Proyek</h3><p class="s">Seperti Projects di claude.ai: instruksi + berkas pengetahuan yang otomatis dipakai di setiap chat proyek itu (pilih lewat ＋ di kotak ketik).</p>
+    <div id="projList"></div>
+    <details style="margin-top:8px"><summary class="btn2" style="display:inline-block">＋ Proyek baru</summary>
+      <label class="fld"><span>Nama</span><input id="pjN"></label><label class="fld"><span>Instruksi (opsional)</span><textarea id="pjI" rows="4" placeholder="Mis. Jawab sebagai staf PGA. Pakai format BA resmi."></textarea></label><button class="btn" id="pjSave">Buat proyek</button></details>
+    <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+    <h3>Memori</h3><p class="s">Hal tentang Anda yang selalu diingat AI di semua chat (diisi otomatis dari impor claude.ai, bisa diubah).</p>
+    <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="memUse"> Pakai memori di setiap chat</label>
+    <label class="fld"><textarea id="memText" rows="6" placeholder="Mis. Saya Rahula, PGA di PGD. Suka jawaban ringkas dengan poin."></textarea></label><button class="btn2" id="memSave">Simpan memori</button>`;
+  $("#impBtn", el).onclick = () => $("#impFile", el).click();
+  $("#impFile", el).onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    $("#impMsg", el).textContent = `Mengunggah & mengimpor ${f.name} (${kb(f.size)})…`; $("#impBtn", el).disabled = true;
+    try {
+      const r = (await api(`/api/import/claude-ai?name=${encodeURIComponent(f.name)}`, { method: "POST", body: f, headers: { "content-type": "application/octet-stream" } })).result;
+      $("#impMsg", el).innerHTML = `✅ ${r.chats} chat baru, ${r.updated} diperbarui (${r.messages} pesan) · ${r.projects} proyek (${r.projectFiles} berkas)${r.memory ? " · memori" : ""}`;
+      S.srcFilter = "claudeai"; LS.set("src", S.srcFilter);
+      await reloadProjects(); loadSessions(); drawProjects(); loadMem();
+    } catch (err) { $("#impMsg", el).innerHTML = `<span style="color:var(--bad)">❌ ${esc(err.message)}</span>`; }
+    $("#impBtn", el).disabled = false; e.target.value = "";
+  };
+  const drawProjects = () => {
+    $("#projList", el).innerHTML = S.projects.map((pj) => `<div class="pcard" data-id="${esc(pj.id)}"><div class="h">▤ ${esc(pj.name)}${pj.source === "claude.ai" ? ' <span class="badge g-langganan">claude.ai</span>' : ""}<span style="margin-left:auto"></span><button class="ib" data-chat title="Chat baru di proyek ini">💬</button><button class="ib" data-del title="Hapus proyek">🗑</button></div>
+      ${pj.instructions ? `<div class="n">${esc(pj.instructions.slice(0, 220))}${pj.instructions.length > 220 ? "…" : ""}</div>` : ""}
+      <div class="n">${pj.files.map((f) => `<span class="chipf" style="margin:2px">${esc(f.name)} <button class="ib" data-rmf="${esc(f.name)}" style="padding:0 2px">✕</button></span>`).join("") || "Belum ada berkas."}</div>
+      <div class="row"><button class="btn2" data-add>＋ Tambah berkas</button><input type="file" multiple hidden></div></div>`).join("") || `<p class="s">Belum ada proyek.</p>`;
+    $$("#projList .pcard", el).forEach((c) => {
+      const id = c.dataset.id, inp = $("input[type=file]", c);
+      $("[data-add]", c).onclick = () => inp.click();
+      inp.onchange = async () => { for (const f of inp.files) await api(`/api/projects/${id}/files?name=${encodeURIComponent(f.name)}`, { method: "POST", body: f, headers: { "content-type": "application/octet-stream" } }).catch((e) => toast(e.message)); await reloadProjects(); drawProjects(); };
+      $$("[data-rmf]", c).forEach((b) => (b.onclick = async () => { await api(`/api/projects/${id}/files?name=${encodeURIComponent(b.dataset.rmf)}`, { method: "DELETE" }); await reloadProjects(); drawProjects(); }));
+      $("[data-del]", c).onclick = async () => { if (!confirm("Hapus proyek ini beserta berkasnya? (Chat-nya tidak ikut terhapus.)")) return; await api(`/api/projects/${id}`, { method: "DELETE" }); await reloadProjects(); drawProjects(); };
+      $("[data-chat]", c).onclick = () => { $(".modal")?.remove(); newChat("chat"); S.project = id; S.projectTouched = true; renderPending(); };
+    });
+  };
+  $("#pjSave", el).onclick = async () => {
+    const name = $("#pjN", el).value.trim(); if (!name) return toast("Isi nama proyek.");
+    await api("/api/projects", { method: "POST", body: { name, instructions: $("#pjI", el).value } });
+    await reloadProjects(); drawProjects(); $("#pjN", el).value = ""; $("#pjI", el).value = "";
+  };
+  const loadMem = async () => { const r = await api("/api/settings/memory"); $("#memUse", el).checked = r.useMemory; $("#memText", el).value = r.text; };
+  $("#memUse", el).onchange = (e) => api("/api/settings/memory", { method: "POST", body: { use: e.target.checked } });
+  $("#memSave", el).onclick = async () => { await api("/api/settings/memory", { method: "POST", body: { text: $("#memText", el).value } }); toast("Memori tersimpan."); };
+  await reloadProjects(); drawProjects(); loadMem();
+};
+async function reloadProjects() { try { S.projects = (await api("/api/projects")).projects; } catch {} }
+
+/* ═════════════ wizard awal ═════════════ */
+function openWizard() {
+  $(".modal")?.remove();
+  const steps = [["akun", "Hubungkan Claude"], ["gratis", "AI gratis"], ["impor", "Impor dari claude.ai"], ["simpan", "Simpan chat"]];
+  let i = 0;
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="box" style="max-width:720px"><div class="mh"><h2>Selamat datang di Studio 👋</h2><button class="ib" data-skip>Lewati</button></div>
+    <div style="display:flex;gap:6px;padding:10px 16px 0;flex-wrap:wrap" id="wzSteps"></div><div class="pane" id="wzPane"></div>
+    <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line)"><button class="btn2" id="wzBack">← Kembali</button><span style="flex:1"></span><button class="btn2" id="wzLater">Nanti saja</button><button class="btn" id="wzNext">Lanjut →</button></div></div>`;
+  document.body.append(m);
+  const finish = async () => { m.remove(); await api("/api/settings/onboarded", { method: "POST" }).catch(() => {}); S.info.onboarded = true; renderComposerBar(); $("#prompt")?.focus(); };
+  const show = () => {
+    $("#wzSteps", m).innerHTML = steps.map(([, n], k) => `<span class="badge ${k === i ? "g-langganan" : ""}" style="padding:2px 10px">${k + 1}. ${n}</span>`).join("");
+    PANES[steps[i][0]]($("#wzPane", m), true);
+    $("#wzBack", m).style.visibility = i ? "" : "hidden";
+    $("#wzNext", m).textContent = i === steps.length - 1 ? "Selesai ✓" : "Lanjut →";
+    $("#wzLater", m).style.display = i === steps.length - 1 ? "none" : "";
+  };
+  $("#wzBack", m).onclick = () => { i = Math.max(0, i - 1); show(); };
+  $("#wzNext", m).onclick = () => (i === steps.length - 1 ? finish() : (i++, show()));
+  $("#wzLater", m).onclick = () => { i++; show(); };
+  $("[data-skip]", m).onclick = finish;
+  show();
+}
+
+function applyTheme() {
+  const th = LS.get("theme", "auto");
+  if (th === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = th;
+  document.documentElement.style.setProperty("--fs", LS.get("fs", 15) + "px");
+}
+function renderMe() {
+  const n = S.profile?.name || "Rahula";
+  $("#meName").textContent = n;
+  const a = S.account;
+  $("#meSub").innerHTML = !a ? "Pengaturan" : a.loggedIn ? `<span style="color:var(--ok)">●</span> ${esc(({ max: "Claude Max", pro: "Claude Pro", team: "Team", enterprise: "Enterprise" })[String(a.subscription).toLowerCase()] || "Claude terhubung")}` : `<span style="color:var(--warn)">●</span> Masuk ke Claude…`;
+  $("#av").textContent = n.trim()[0]?.toUpperCase() || "R";
+}
+$("#meBtn").onclick = () => openSettings(S.account && !S.account.loggedIn ? "akun" : "profil");
+$("#syncPill").onclick = () => openSettings("simpan");
+
+/* ═════════════ workspace (mode Code) ═════════════ */
+function openWs(on, quiet) {
+  $("#app").classList.toggle("wsopen", on);
+  if (!quiet) LS.set("wsOpen", on);
+  if (on) { drawTree(); drawEditor(); }
+}
+$("#wsBtn").onclick = () => openWs(!$("#app").classList.contains("wsopen"));
+$("#wsClose").onclick = () => openWs(false);
+$("#treeReload").onclick = () => { S.tree = {}; drawTree(); };
+$("#newFile").onclick = async () => {
+  const p = prompt("Jalur berkas baru (relatif ke workspace):", "catatan.md");
+  if (!p) return;
+  try { await api("/api/file", { method: "PUT", body: { path: p, content: "" } }); S.tree = {}; await drawTree(); openFile(p); } catch (e) { toast(e.message); }
+};
+async function loadDir(d) {
+  try { S.tree[d] = (await api(`/api/files?dir=${encodeURIComponent(d)}`)).entries; } catch (e) { S.tree[d] = []; }
+}
+async function drawTree() {
+  $("#wsName").textContent = S.info?.workspaceName || "";
+  for (const d of S.open) if (!S.tree[d]) await loadDir(d);
+  const rows = [];
+  const walk = (dir, depth) => {
+    for (const e of S.tree[dir] || []) {
+      const open = S.open.has(e.path);
+      rows.push(`<div class="tn ${S.active === e.path ? "on" : ""}" data-p="${esc(e.path)}" data-dir="${e.dir ? 1 : ""}" style="padding-left:${6 + depth * 12}px" title="${esc(e.path)}${e.dir ? "" : " — klik kanan untuk menyertakan ke pesan"}">${e.dir ? (open ? "▾ 📂" : "▸ 📁") : "　" + ficon(e.name)} ${esc(e.name)}</div>`);
+      if (e.dir && open) walk(e.path, depth + 1);
+    }
+  };
+  walk("", 0);
+  $("#tree").innerHTML = rows.join("");
+  $$("#tree .tn").forEach((n) => {
+    n.onclick = async () => {
+      const p = n.dataset.p;
+      if (n.dataset.dir) { S.open.has(p) ? S.open.delete(p) : S.open.add(p); LS.set("openDirs", [...S.open]); drawTree(); }
+      else openFile(p);
+    };
+    n.oncontextmenu = (e) => { if (!n.dataset.dir) { e.preventDefault(); addWsFile(n.dataset.p); toast(`${n.dataset.p} disertakan ke pesan berikutnya.`); } };
+  });
+}
+const ficon = (n) => ({ md: "📝", js: "🟨", mjs: "🟨", json: "🔧", html: "🌐", css: "🎨", sh: "⌨️", py: "🐍", csv: "📊", svg: "🖼️" })[n.split(".").pop().toLowerCase()] || "📄";
+async function openFile(p) {
+  let t = S.tabs.find((x) => x.path === p);
+  if (!t) {
+    try { const r = await api(`/api/file?path=${encodeURIComponent(p)}`); t = { path: r.path, content: r.content, saved: r.content, mtime: r.mtime }; S.tabs.push(t); }
+    catch (e) { return toast(e.message); }
+  }
+  S.active = t.path; drawEditor(); drawTree();
+}
+function drawEditor() {
+  const ed = $("#ed");
+  const t = S.tabs.find((x) => x.path === S.active);
+  if (!S.tabs.length) { ed.innerHTML = `<div class="edempty">Pilih berkas di kiri untuk dibuka.<br>Perubahan yang dibuat Claude muncul otomatis di sini.</div>`; return; }
+  ed.innerHTML = `<div class="etabs">${S.tabs.map((x) => `<div class="etab ${x.path === S.active ? "on" : ""}" data-p="${esc(x.path)}">${esc(x.path.split("/").pop())}${x.content !== x.saved ? '<span class="m"></span>' : ""}<button class="x" data-x>✕</button></div>`).join("")}</div>
+    <div class="ebar"><span>${esc(t.path)}</span><span class="sp"></span><button class="ib" id="eAsk" title="Tanyakan berkas ini ke AI">✨ Tanya</button><button class="ib" id="eRe" title="Muat ulang">↻</button><button class="btn2" id="eSave" ${t.content === t.saved ? "disabled" : ""}>Simpan</button></div>
+    <div class="code"><div class="gut" id="gut"></div><textarea id="codeTa" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea></div>`;
+  const ta = $("#codeTa", ed);
+  ta.value = t.content;
+  const gut = () => { const n = ta.value.split("\n").length; $("#gut", ed).textContent = Array.from({ length: n }, (_, i) => i + 1).join("\n"); $("#gut", ed).scrollTop = ta.scrollTop; };
+  gut();
+  ta.oninput = () => { const was = t.content === t.saved; t.content = ta.value; gut(); if (was !== (t.content === t.saved)) { $("#eSave", ed).disabled = t.content === t.saved; $$(".etab", ed).find((x) => x.dataset.p === t.path)?.insertAdjacentHTML("beforeend", ""); } };
+  ta.onscroll = () => ($("#gut", ed).scrollTop = ta.scrollTop);
+  ta.onkeydown = (e) => { if (e.key === "Tab") { e.preventDefault(); ta.setRangeText("  ", ta.selectionStart, ta.selectionEnd, "end"); ta.oninput(); } };
+  $$(".etab", ed).forEach((x) => (x.onclick = (e) => { if (e.target.closest("[data-x]")) return closeTab(x.dataset.p); S.active = x.dataset.p; drawEditor(); drawTree(); }));
+  $("#eSave", ed).onclick = () => saveFile();
+  $("#eRe", ed).onclick = () => reloadFile(t.path);
+  $("#eAsk", ed).onclick = () => { addWsFile(t.path); if (isMobile()) openWs(false); $("#prompt")?.focus(); };
+}
+async function saveFile(force = false) {
+  const t = S.tabs.find((x) => x.path === S.active);
+  if (!t) return;
+  try { const r = await api("/api/file", { method: "PUT", body: { path: t.path, content: t.content, mtime: t.mtime, force } }); t.saved = t.content; t.mtime = r.mtime; drawEditor(); toast(`Tersimpan: ${t.path}`); }
+  catch (e) { if (e.status === 409 && confirm(e.message + "\n\nOK = timpa dengan isi editor.")) return saveFile(true); toast(e.message); }
+}
+async function reloadFile(p, quiet) {
+  const t = S.tabs.find((x) => x.path === p);
+  if (!t) return;
+  if (!quiet && t.content !== t.saved && !confirm("Buang perubahan yang belum disimpan?")) return;
+  try {
+    const r = await api(`/api/file?path=${encodeURIComponent(p)}`);
+    if (quiet && (t.content !== t.saved || r.content === t.saved)) return;
+    Object.assign(t, { content: r.content, saved: r.content, mtime: r.mtime });
+    if ($("#app").classList.contains("wsopen")) drawEditor();
+  } catch {}
+}
+function closeTab(p) {
+  const t = S.tabs.find((x) => x.path === p);
+  if (t && t.content !== t.saved && !confirm(`${p} belum disimpan. Tutup?`)) return;
+  S.tabs = S.tabs.filter((x) => x.path !== p);
+  if (S.active === p) S.active = S.tabs.at(-1)?.path || null;
+  drawEditor(); drawTree();
+}
+
+/* ═════════════ tata letak & pintasan ═════════════ */
+function sideMobile(on) { $("#app").classList.toggle("mside", on); }
+$("#sideOpen").onclick = () => (isMobile() ? sideMobile(true) : ($("#app").classList.remove("noside"), LS.set("side", true)));
+$("#sideClose").onclick = () => (isMobile() ? sideMobile(false) : ($("#app").classList.add("noside"), LS.set("side", false)));
+$("#scrim").onclick = () => sideMobile(false);
+$("#newBtn").onclick = () => newChat();
+$$("#modeSeg button").forEach((b) => (b.onclick = () => { if (S.cur?.messages?.length && S.cur.mode !== b.dataset.mode && S.cur.source === "studio") { setMode(b.dataset.mode, true); newChat(); } else setMode(b.dataset.mode); }));
+function syncSideBtn() { $("#sideOpen").style.display = isMobile() || $("#app").classList.contains("noside") ? "" : "none"; }
+new MutationObserver(syncSideBtn).observe($("#app"), { attributes: true, attributeFilter: ["class"] });
+addEventListener("resize", syncSideBtn);
 addEventListener("keydown", (e) => {
-  const mod = e.ctrlKey || e.metaKey;
-  if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); saveFile(); }
-  if (mod && e.altKey && e.key.toLowerCase() === "n") { e.preventDefault(); newSession(); }
-  if (mod && e.key.toLowerCase() === "b") { e.preventDefault(); $("#app").classList.toggle("nosb"); }
-  if (e.key === "Escape" && S.streaming) stop();
+  const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  if (mod && k === "k") { e.preventDefault(); openSearch(); }
+  else if (mod && e.shiftKey && k === "o") { e.preventDefault(); newChat(); }
+  else if (mod && k === "b") { e.preventDefault(); $("#app").classList.toggle("noside"); }
+  else if (mod && k === "s") { e.preventDefault(); saveFile(); }
+  else if (e.key === "Escape") { if ($("#pop")) closePop(); else if ($(".modal")) $(".modal").remove(); else if (S.live) stop(); }
+  else if (e.key === "/" && !/input|textarea/i.test(document.activeElement?.tagName)) { e.preventDefault(); $("#prompt")?.focus(); }
 });
-addEventListener("beforeunload", (e) => { if (S.tabs.some((t) => t.content !== t.saved)) { e.preventDefault(); e.returnValue = ""; } });
+addEventListener("beforeunload", (e) => { if (S.tabs.some((t) => t.content !== t.saved) || S.live) { e.preventDefault(); e.returnValue = ""; } });
 
 (async function init() {
-  try {
-    S.info = await api("/api/info");
-  } catch (e) {
-    $("#msgs").innerHTML = `<div class="hello"><h1>Server Studio tidak terjangkau</h1>Jalankan <code>npm run studio</code> lalu muat ulang. (${esc(e.message)})</div>`;
-    return;
-  }
-  S.providers = S.info.providers; S.skills = S.info.skills;
-  $("#ws").textContent = `· ${S.info.workspaceName}`;
-  $("#ws").title = S.info.workspace;
-  if (S.info.auth) $("#logoutBtn").style.display = "";
-  fillProviders(); renderMode();
-  if (innerWidth <= 820) mobile("chat");
-  newSession();
-  renderSide();
+  applyTheme();
+  if (!LS.get("side", true) && !isMobile()) $("#app").classList.add("noside");
+  syncSideBtn();
+  try { S.info = await api("/api/info"); }
+  catch (e) { $("#convo").innerHTML = `<div class="hello"><h1>Server Studio tidak terjangkau</h1><p>Jalankan <code>npm run studio</code> lalu muat ulang. (${esc(e.message)})</p></div>`; return; }
+  S.providers = S.info.providers; S.skills = S.info.skills; S.sync = S.info.sync; S.profile = S.info.profile || { name: "Rahula" }; S.projects = S.info.projects || [];
+  if (!prov(S.provider) || !prov(S.provider).ready) { S.provider = "langganan"; S.model = ""; }
+  renderMe(); renderSync();
+  setMode(S.mode, true);
+  newChat();
   loadSessions();
-  setInterval(() => { if (!S.streaming && document.visibilityState === "visible") loadSessions(); }, 30000);
+  setInterval(() => { if (!S.live && document.visibilityState === "visible") loadSessions(); }, 30000);
+  if (!S.info.onboarded) openWizard();
+  refreshAccount();
 })();
 </script>
 </body>

@@ -23,6 +23,7 @@ export const CATALOG = [
   },
   {
     id: "freellmapi",
+    keyUrl: "https://github.com/tashfeenahmed/freellmapi",
     kind: "openai",
     group: "gratis",
     name: "FreeLLMAPI (gratis, banyak penyedia)",
@@ -35,6 +36,7 @@ export const CATALOG = [
   },
   {
     id: "ollama",
+    keyUrl: "https://ollama.com/download",
     kind: "openai",
     group: "gratis",
     name: "Ollama (lokal di rig/laptop)",
@@ -46,6 +48,7 @@ export const CATALOG = [
   },
   {
     id: "openrouter-free",
+    keyUrl: "https://openrouter.ai/settings/keys",
     kind: "openai",
     group: "gratis",
     name: "OpenRouter (model :free)",
@@ -58,6 +61,7 @@ export const CATALOG = [
   },
   {
     id: "gemini",
+    keyUrl: "https://aistudio.google.com/apikey",
     kind: "openai",
     group: "gratis",
     name: "Google Gemini (free tier)",
@@ -69,6 +73,7 @@ export const CATALOG = [
   },
   {
     id: "groq",
+    keyUrl: "https://console.groq.com/keys",
     kind: "openai",
     group: "gratis",
     name: "Groq (free tier, sangat cepat)",
@@ -80,6 +85,7 @@ export const CATALOG = [
   },
   {
     id: "anthropic",
+    keyUrl: "https://console.anthropic.com/settings/keys",
     kind: "anthropic",
     group: "api",
     name: "Anthropic API (berbayar)",
@@ -90,6 +96,7 @@ export const CATALOG = [
   },
   {
     id: "openai",
+    keyUrl: "https://platform.openai.com/api-keys",
     kind: "openai",
     group: "api",
     name: "OpenAI API (berbayar)",
@@ -100,6 +107,7 @@ export const CATALOG = [
   },
   {
     id: "openrouter",
+    keyUrl: "https://openrouter.ai/settings/keys",
     kind: "openai",
     group: "api",
     name: "OpenRouter (semua model, berbayar)",
@@ -110,6 +118,7 @@ export const CATALOG = [
   },
   {
     id: "deepseek",
+    keyUrl: "https://platform.deepseek.com/api_keys",
     kind: "openai",
     group: "api",
     name: "DeepSeek API (berbayar, murah)",
@@ -166,6 +175,7 @@ export function createProviders(dataDir) {
         hasKey: Boolean(r.apiKey),
         keyFromEnv: Boolean(!saved[c.id]?.apiKey && c.envKey && process.env[c.envKey]),
         envKey: c.envKey || null,
+        keyUrl: c.keyUrl || null,
         models: c.models,
         defaultModel: r.defaultModel,
         ready: c.kind === "claude-sdk" || ((!c.needsKey || r.apiKey) && (c.kind !== "openai" || Boolean(r.baseUrl))),
@@ -187,7 +197,7 @@ export function createProviders(dataDir) {
     if (p.apiKey) h.authorization = `Bearer ${p.apiKey}`;
     if (p.baseUrl.includes("openrouter.ai")) {
       h["http-referer"] = "http://localhost";
-      h["x-title"] = "Studio Kantor PGA";
+      h["x-title"] = "Studio";
     }
     return h;
   }
@@ -212,7 +222,7 @@ export function createProviders(dataDir) {
   }
 
   // Obrolan OpenAI-compatible dengan streaming. onDelta(text), onInfo({routedVia, usage}).
-  async function chatOpenAI(id, { model, messages, signal, onDelta, onInfo }) {
+  async function chatOpenAI(id, { model, messages, signal, onDelta, onInfo, onReasoning }) {
     const p = resolve(id);
     if (!p.baseUrl) throw new Error(`URL ${p.name} belum diisi (⚙️ Penyedia).`);
     if (p.needsKey && !p.apiKey) throw new Error(`Kunci ${p.name} belum diisi (⚙️ Penyedia${p.envKey ? ` atau env ${p.envKey}` : ""}).`);
@@ -248,6 +258,8 @@ export function createProviders(dataDir) {
         }
         if (j.error) throw new Error(j.error.message || JSON.stringify(j.error));
         const d = j.choices?.[0]?.delta;
+        const reasoning = d?.reasoning_content || d?.reasoning || "";
+        if (reasoning && onReasoning) onReasoning(reasoning);
         const piece = d?.content || "";
         if (piece) {
           full += piece;

@@ -1,0 +1,10 @@
+{
+  "name": "Studio",
+  "short_name": "Studio",
+  "description": "Semua chat AI Anda di satu tempat: Claude langganan, AI gratis, dan API.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#262624",
+  "theme_color": "#262624",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

@@ -124,30 +124,36 @@ Salin `.env.example` menjadi `.env` bila ingin mengubah bawaan:
 | `ENGINE` | `langganan` | Isi `api` untuk memakai `ANTHROPIC_API_KEY` berbayar (opsional) |
 | `PORT` / `HOST` | `3000` / `127.0.0.1` | Alamat server |
 
-## 🧭 Studio — semua sesi AI di satu tempat (ala VS Code / Codex)
+## 🧭 Studio — chat ala claude.ai + Claude Code, semua sesi di satu tempat
 
 ```bash
 npm run studio         # buka http://127.0.0.1:3002
 ```
 
-Studio adalah IDE web terpisah dari kantor Sims:
+Di rig/VPS sebagai layanan (Tailscale, port 8444): `curl -fsSL https://raw.githubusercontent.com/ColdHula/Claude-Agent/claude/happy-goldberg-vjemhr/deploy/pasang-studio.sh | sudo bash`
 
-- **💬 Semua sesi**: sesi Studio, **sesi Claude Code** di mesin ini (`~/.claude/projects`), tugas **Kantor PGA** (`hasil/`),
-  dan percakapan **HvM AI**, dengan pencarian dan filter per sumber. Sesi selain Studio dibuka hanya-baca; tombol
-  **Lanjutkan** menyalinnya ke Studio. Sesi Claude Code dilanjutkan langsung (resume), jadi juga muncul di `claude --resume`.
-- **Pilih penyedia per prompt** (bisa ganti di tengah sesi; riwayat ikut terbawa):
+Saat pertama dibuka, **panduan awal** menuntun 4 langkah. Semuanya dilakukan di aplikasi, tanpa terminal:
 
-  | Golongan | Penyedia | Catatan |
-  |---|---|---|
-  | Langganan | Claude Pro/Max lewat Agent SDK | Membaca workspace; **✏️ mode tulis** boleh mengubah file & menjalankan Bash seperti Claude Code. Rem `STUDIO_MAX_USD`. |
-  | Gratis | **FreeLLMAPI**, Ollama lokal, OpenRouter `:free`, Gemini, Groq | FreeLLMAPI: model `auto`/`auto:smart`/`auto:fast`; penyedia yang menjawab tampil sebagai "via …". |
-  | API | Anthropic, OpenAI, OpenRouter, DeepSeek, endpoint OpenAI-compatible lain | Ditagih per token oleh penyedianya. |
+1. **Masuk dengan Claude**: tombol login membuka halaman masuk claude.com. Setelah masuk, tempel kodenya di Studio.
+   Langganan Pro/Max langsung terpakai (token resmi `claude setup-token`, berlaku 1 tahun, disimpan di server).
+2. **Pilih AI gratis**: Gemini, Groq, OpenRouter `:free`, FreeLLMAPI, dan Ollama, masing-masing dengan tautan "dapatkan kunci gratis" dan tombol tes.
+3. **Impor dari claude.ai**: unggah ZIP *Settings → Privacy → Export data*. Semua chat, Project (instruksi dan berkas), serta memori masuk ke Studio dan bisa **dilanjutkan** dengan model apa pun. Impor bisa diulang tanpa dobel.
+4. **Simpan chat**: chat selalu disimpan di server (`STUDIO_DATA`, bawaan `studio/data/`). Opsional, salinannya disinkronkan otomatis ke
+   **repo GitHub privat** (repo publik ditolak; repo bisa dibuat otomatis) atau remote Git lain. Tiap chat juga disimpan sebagai `.md` yang enak dibaca di GitHub.
 
-  URL dan kunci diisi di **⚙️ Penyedia** (disimpan di `studio/data/providers.json`, tidak ikut Git, tidak dikirim ke browser) atau lewat `.env`.
-- **📁 Explorer + editor**: buka, ubah, simpan (Ctrl/⌘+S) berkas workspace (`STUDIO_WORKSPACE`). **✨ Tanya AI** / 📎 menyertakan berkas aktif ke prompt.
-  `.env` dan kunci Studio tidak bisa dibuka dari editor.
-- **🧰 Skill**: skill tim bisa dicentang. Claude langganan memuatnya sendiri; untuk penyedia lain isinya ditempel ke instruksi sistem.
-- Di HP: navigasi bawah (Sesi / Berkas / Editor / Chat / Atur). Kata sandi sama dengan `APP_PASSWORD` (atau `STUDIO_PASSWORD`).
+Fitur:
+
+| | |
+|---|---|
+| **Chat** (seperti claude.ai) | Web search, unggah/tempel/seret foto, PDF, CSV, dan kode. Mode 💡 *Berpikir* untuk soal sulit, Edit pesan, ↻ Ulangi, Salin, cari isi chat (Ctrl K), sematkan, unduh `.md`, notifikasi |
+| **Code** (seperti Claude Code) | Membaca dan mengubah workspace dengan izin 👁 *Baca saja* / 🛡 *Tanya dulu* (kartu Izinkan/Tolak beserta diff) / ⚡ *Otomatis*. Langkah alat ⏺ dan hasilnya tampil, plus explorer dan editor berkas |
+| **Model per pesan** | Langganan Claude (Sonnet/Opus/Haiku/Fable), gratis (FreeLLMAPI `auto`, Gemini, Groq, OpenRouter, Ollama), atau API (Anthropic, OpenAI, OpenRouter, DeepSeek, OpenAI-compatible). Bisa ganti di tengah chat; riwayat ikut |
+| **Proyek** | Instruksi dan berkas pengetahuan yang dipakai otomatis di chat proyek itu (impor dari claude.ai atau buat sendiri) |
+| **Memori** | Fakta tentang Anda yang selalu diingat di semua chat (dari impor claude.ai atau tulis sendiri) |
+| **Semua sesi** | Chat Studio, impor claude.ai ✳, sesi Claude Code di server ◆ (bisa dilanjutkan), tugas Kantor PGA 🏢, HvM AI 💬 |
+
+Kunci API, token Claude, dan token GitHub hanya disimpan di server (`STUDIO_DATA/settings.json` dan `providers.json`, izin 600).
+Kunci itu tidak dikirim ke browser dan tidak ikut sinkron. Variabel lain: lihat bagian Studio di `.env.example`.
 
 ### Skill `freellmapi`
 
