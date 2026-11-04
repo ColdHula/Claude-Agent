@@ -89,10 +89,10 @@ Di bawah kotak tugas ada pilihan **Model** (diingat browser):
 
 ### Skill dan penghematan token
 
-- **Claude Skills**: `skills/` berisi plugin lokal `kantor` dengan 11 skill:
+- **Claude Skills**: `skills/` berisi plugin lokal `kantor` dengan 12 skill:
   `hukum-pengadilan` (**Skill COURT**: PHI, mediasi Disnaker, somasi, gugatan, laporan polisi), `dokumen-resmi`,
   `periksa-dokumen`, `rekap-excel`, `baca-lampiran`, `sop-hiradc`, `riset-sumber`, `rencana-kerja`,
-  `memori-kantor`, `moneyprinterturbo` (video pendek otomatis: naskah, footage, TTS, subtitle), dan `pembuat-skill`. Agent hanya melihat daftar nama + deskripsinya; isi skill
+  `memori-kantor`, `moneyprinterturbo` (video pendek otomatis: naskah, footage, TTS, subtitle), `claude-mem` (memori antar sesi Claude Code), dan `pembuat-skill`. Agent hanya melihat daftar nama + deskripsinya; isi skill
   baru dimuat saat dipakai. Di kantor, Sim berjalan ke **Rak Skill** dan mengambil buku saat memakai skill.
   Skill pribadi: taruh di `pengetahuan/skills/<nama>/SKILL.md` (ikut paket ZIP, tidak ke GitHub).
 - **Memori kantor**: bila hasil akhir Bima berisi bagian "## Catatan untuk Diingat", poin-poinnya otomatis disimpan ke
