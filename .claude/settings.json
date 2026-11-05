@@ -5,7 +5,7 @@
     "ecc@ecc": false,
     "andrej-karpathy-skills@karpathy-skills": true,
     "document-skills@anthropic-agent-skills": true,
-    "ponytail@ponytail": true,
+    "ponytail@ponytail": false,
     "caveman@caveman": false,
     "taste-skill@taste-skill": true,
     "impeccable@impeccable": false,

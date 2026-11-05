@@ -99,7 +99,7 @@ Di bawah kotak tugas ada pilihan **Model** (diingat browser):
   (mis. `document-skills`, `human-resources`, `legal`, `humanizer`, `ppt-master`, `superpowers`, `ecc`, `caveman`).
   Repo yang tidak punya marketplace sendiri (unslop, archify, Deep-Research-skills, MinerU-Skill, pilihan
   awesome-claude-skills) didaftarkan lewat `plugins-eksternal/.claude-plugin/marketplace.json`. Aplikasi web tidak
-  terpengaruh (`settingSources: []`). Catatan: `ecc`, `caveman`, `rea`, dan `impeccable` terpasang tapi **dimatikan** (ecc ±48 rb token/sesi,
+  terpengaruh (`settingSources: []`). Catatan: `ecc`, `caveman`, `rea`, `impeccable`, dan `ponytail` terpasang tapi **dimatikan** (ecc ±48 rb token/sesi,
   caveman mengubah gaya jawaban), dan `mineru` mengunggah file ke mineru.net, jadi jangan dipakai untuk dokumen rahasia.
 - **Memori kantor**: bila hasil akhir Bima berisi bagian "## Catatan untuk Diingat", poin-poinnya otomatis disimpan ke
   `pengetahuan/umum/99-memori-kantor.md` dan dipakai di tugas berikutnya (nomor surat terakhir, keputusan, status kasus).
