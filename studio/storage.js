@@ -20,6 +20,16 @@ export function createStorage(DATA) {
   const ARSIP = path.join(DATA, "arsip");
   const CHATS = path.join(ARSIP, "chats");
   const LAMPIRAN = path.join(ARSIP, "lampiran");
+  // "Ruang bebas": tiap AI punya folder sendiri (ruang/<id>/) untuk chat dan lampiran, terpisah dari ruang Utama
+  // dan TIDAK ikut sinkron Git kecuali pengguna memintanya (settings.sync.includeSpaces).
+  const SPACES = path.join(ARSIP, "ruang");
+  const spaceOk = (sp) => /^[\w-]{1,40}$/.test(sp || "");
+  const dirOf = (sp) => {
+    if (!sp) return CHATS;
+    if (!spaceOk(sp)) throw Object.assign(new Error("Ruang tidak sah."), { status: 400 });
+    return path.join(SPACES, sp);
+  };
+  const where = new Map(); // id -> ruang ("" = Utama)
   const SETTINGS = path.join(DATA, "settings.json");
   let settings = {};
   const sync = { busy: false, timer: null, last: null, error: null, pending: false, lastPull: 0 };
@@ -27,6 +37,7 @@ export function createStorage(DATA) {
   async function init() {
     await fs.mkdir(CHATS, { recursive: true });
     await fs.mkdir(LAMPIRAN, { recursive: true });
+    await fs.mkdir(SPACES, { recursive: true });
     settings = JSON.parse(await fs.readFile(SETTINGS, "utf8").catch(() => "{}"));
     // Pindahkan sesi versi lama (studio/data/sessions) ke arsip/chats.
     const old = path.join(DATA, "sessions");
@@ -42,31 +53,52 @@ export function createStorage(DATA) {
   }
 
   // ───────── chat ─────────
-  const file = (id) => path.join(CHATS, `${id}.json`);
   const validId = (id) => /^[\w-]{1,80}$/.test(id);
-  async function read(id) {
+  const exists = (f) => fs.access(f).then(() => true, () => false);
+  async function spaces() {
+    return (await fs.readdir(SPACES, { withFileTypes: true }).catch(() => [])).filter((d) => d.isDirectory() && spaceOk(d.name)).map((d) => d.name);
+  }
+  async function locate(id) {
     if (!validId(id)) throw Object.assign(new Error("ID sesi tidak sah."), { status: 400 });
-    return JSON.parse(await fs.readFile(file(id), "utf8"));
+    if (where.has(id) && (await exists(path.join(dirOf(where.get(id)), `${id}.json`)))) return where.get(id);
+    for (const sp of ["", ...(await spaces())]) {
+      if (await exists(path.join(dirOf(sp), `${id}.json`))) { where.set(id, sp); return sp; }
+    }
+    return ""; // tidak ada → pembacaan berikutnya memberi ENOENT (404)
+  }
+  async function read(id) {
+    const sp = await locate(id);
+    return JSON.parse(await fs.readFile(path.join(dirOf(sp), `${id}.json`), "utf8"));
   }
   async function write(s, { keepTime = false } = {}) {
     if (!keepTime) s.updatedAt = Date.now();
-    await fs.writeFile(file(s.id), JSON.stringify(s, null, 1));
-    await fs.writeFile(path.join(CHATS, `${s.id}.md`), toMarkdown(s));
+    const dir = dirOf(s.space || "");
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, `${s.id}.json`), JSON.stringify(s, null, 1));
+    await fs.writeFile(path.join(dir, `${s.id}.md`), toMarkdown(s));
+    where.set(s.id, s.space || "");
     scheduleSync();
   }
   async function remove(id) {
     if (!validId(id)) return;
-    await fs.rm(file(id), { force: true });
-    await fs.rm(path.join(CHATS, `${id}.md`), { force: true });
+    const dir = dirOf(await locate(id));
+    await fs.rm(path.join(dir, `${id}.json`), { force: true });
+    await fs.rm(path.join(dir, `${id}.md`), { force: true });
+    where.delete(id);
     scheduleSync();
   }
   async function list() {
     const out = [];
-    for (const f of await fs.readdir(CHATS).catch(() => [])) {
-      if (!f.endsWith(".json")) continue;
-      try {
-        out.push(JSON.parse(await fs.readFile(path.join(CHATS, f), "utf8")));
-      } catch {}
+    for (const sp of ["", ...(await spaces())]) {
+      const dir = dirOf(sp);
+      for (const f of await fs.readdir(dir).catch(() => [])) {
+        if (!f.endsWith(".json")) continue;
+        try {
+          const c = JSON.parse(await fs.readFile(path.join(dir, f), "utf8"));
+          if (sp) c.space = sp;
+          out.push(c);
+        } catch {}
+      }
     }
     return out;
   }
@@ -81,7 +113,7 @@ export function createStorage(DATA) {
     for (const m of s.messages) {
       if (m.role === "user") {
         md += `## 🧑 Rahula · ${when(m.at)}\n\n${m.text}\n`;
-        if (m.attachments?.length) md += `\n${m.attachments.map((a) => `📎 [${a.name}](../${a.file})`).join("  \n")}\n`;
+        if (m.attachments?.length) md += `\n${m.attachments.map((a) => `📎 [${a.name}](${s.space ? "../../" : "../"}${a.file})`).join("  \n")}\n`;
       } else {
         md += `## ✨ ${m.provider || "AI"}${m.model ? ` · ${m.model}` : ""}\n\n`;
         if (m.steps?.length) md += m.steps.filter((x) => x.kind === "tool").map((x) => `- ⏺ \`${x.label}\``).join("\n") + "\n\n";
@@ -93,19 +125,21 @@ export function createStorage(DATA) {
   }
 
   // ───────── lampiran ─────────
-  async function saveUpload(name, buf) {
+  async function saveUpload(name, buf, space = "") {
     const safe = String(name || "berkas").replace(/[^\w.\- ()]+/g, "_").slice(-100) || "berkas";
     const month = new Date().toISOString().slice(0, 7);
-    const dir = path.join(LAMPIRAN, month);
+    const rel = space ? path.join("ruang", dirOf(space).split(path.sep).pop(), "lampiran", month) : path.join("lampiran", month);
+    const dir = path.join(ARSIP, rel);
     await fs.mkdir(dir, { recursive: true });
     const fname = `${crypto.randomBytes(4).toString("hex")}-${safe}`;
     await fs.writeFile(path.join(dir, fname), buf);
     scheduleSync();
-    return { name: safe, file: `lampiran/${month}/${fname}`, size: buf.length };
+    return { name: safe, file: path.join(rel, fname).split(path.sep).join("/"), size: buf.length };
   }
   function uploadPath(rel) {
     const abs = path.resolve(ARSIP, String(rel || ""));
-    if (!abs.startsWith(LAMPIRAN + path.sep)) throw Object.assign(new Error("Lampiran tidak sah."), { status: 400 });
+    const r = path.relative(ARSIP, abs).split(path.sep).join("/");
+    if (!(abs.startsWith(LAMPIRAN + path.sep) || /^ruang\/[\w-]{1,40}\/lampiran\/.+/.test(r))) throw Object.assign(new Error("Lampiran tidak sah."), { status: 400 });
     return abs;
   }
 
@@ -169,7 +203,7 @@ export function createStorage(DATA) {
     await fs.access(path.join(ARSIP, ".git")).catch(async () => {
       await git(["init", "-q", "-b", branch]);
     });
-    await fs.writeFile(path.join(ARSIP, ".gitignore"), "*.tmp\n.DS_Store\n");
+    await fs.writeFile(path.join(ARSIP, ".gitignore"), `*.tmp\n.DS_Store\n${cfg().includeSpaces ? "" : "ruang/\n"}`);
     await fs.writeFile(
       path.join(ARSIP, "README.md"),
       "# Arsip chat Studio\n\nDisinkronkan otomatis oleh Studio (Kantor PGA). `chats/*.md` = versi yang mudah dibaca, `chats/*.json` = data lengkap, `lampiran/` = berkas yang diunggah.\n\n**Repo ini harus privat.**\n",
@@ -209,6 +243,8 @@ export function createStorage(DATA) {
         }
       }
       await fs.writeFile(path.join(ARSIP, ".git", "info", "exclude"), big.join("\n") + "\n").catch(() => {});
+      // Ruang bebas tidak boleh ikut ke remote kecuali diminta: lepaskan dari indeks bila sebelumnya terlanjur terlacak.
+      if (!cfg().includeSpaces) await git(["rm", "-r", "--cached", "-q", "--ignore-unmatch", "ruang"]).catch(() => {});
       await git(["add", "-A"]);
       const st = (await git(["status", "--porcelain"])).stdout.trim();
       if (st) await git(["commit", "-q", "-m", `Studio: ${st.split("\n").length} berkas (${why}) ${new Date().toISOString()}`]);
@@ -243,6 +279,7 @@ export function createStorage(DATA) {
       branch: c.branch || "main",
       hasToken: Boolean(token()),
       tokenFromEnv: Boolean(!c.token && token()),
+      includeSpaces: Boolean(c.includeSpaces),
       busy: sync.busy,
       last: sync.last,
       error: sync.error,
@@ -250,9 +287,9 @@ export function createStorage(DATA) {
     };
   }
 
-  async function configureSync({ mode, repo, url, branch, token: tk, create }) {
+  async function configureSync({ mode, repo, url, branch, token: tk, create, includeSpaces }) {
     if (!["lokal", "github", "git"].includes(mode)) throw new Error("Mode penyimpanan tidak dikenal.");
-    const next = { ...cfg(), mode, repo: (repo || "").trim(), url: (url || "").trim(), branch: (branch || "main").trim() || "main" };
+    const next = { ...cfg(), mode, repo: (repo || "").trim(), url: (url || "").trim(), branch: (branch || "main").trim() || "main", includeSpaces: Boolean(includeSpaces) };
     if (typeof tk === "string" && tk && tk !== "••••") next.token = tk.trim();
     const prev = settings.sync;
     await saveSettings({ sync: next });

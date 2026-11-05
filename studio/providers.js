@@ -52,11 +52,11 @@ export const CATALOG = [
     kind: "openai",
     group: "gratis",
     name: "OpenRouter (model :free)",
-    note: "Akun OpenRouter gratis, hanya model berakhiran :free. Model pertama (Dolphin Mistral 24B, edisi Venice) dikenal lebih jarang menolak; filter model lain tergantung pembuatnya. Jatah gratis kecil dan daftar model gratis sering berubah.",
+    note: "Akun OpenRouter gratis, hanya model berakhiran :free.",
     baseUrl: "https://openrouter.ai/api/v1",
     envKey: "OPENROUTER_API_KEY",
     modelFilter: (id) => id.endsWith(":free"),
-    models: ["cognitivecomputations/dolphin-mistral-24b-venice-edition:free"],
+    models: [],
     needsKey: true,
   },
   {
@@ -81,18 +81,6 @@ export const CATALOG = [
     baseUrl: "https://api.groq.com/openai/v1",
     envKey: "GROQ_API_KEY",
     models: [],
-    needsKey: true,
-  },
-  {
-    id: "venice",
-    kind: "openai",
-    group: "api",
-    name: "Venice AI (jarang menolak, fokus privasi)",
-    note: "Akun gratis di web hanya ±10 prompt teks/hari; akses API memakai kredit/Pro. Model venice-uncensored lebih jarang menolak, tetapi bukan berarti bebas aturan hukum atau layanan. Jangan kirim data pribadi/PGD.",
-    baseUrl: "https://api.venice.ai/api/v1",
-    envKey: "VENICE_API_KEY",
-    keyUrl: "https://venice.ai/settings/api",
-    models: ["venice-uncensored"],
     needsKey: true,
   },
   {
@@ -151,7 +139,9 @@ export const CATALOG = [
   },
 ];
 
-export function createProviders(dataDir) {
+export function createProviders(dataDir, { extra = [] } = {}) {
+  // Penyedia tambahan (tab "ruang bebas") dimuat dari studio/bebas/*.js dan dipisahkan lewat group "bebas".
+  const catalog = [...CATALOG, ...extra.map((e) => ({ group: "bebas", models: [], ...e }))];
   const FILE = path.join(dataDir, "providers.json");
   let saved = {}; // id -> { baseUrl, apiKey, defaultModel }
 
@@ -163,7 +153,7 @@ export function createProviders(dataDir) {
   }
 
   function resolve(id) {
-    const c = CATALOG.find((p) => p.id === id);
+    const c = catalog.find((p) => p.id === id);
     if (!c) throw new Error(`Penyedia tidak dikenal: ${id}`);
     const s = saved[id] || {};
     const baseUrl = (s.baseUrl || (c.envUrl && process.env[c.envUrl]) || c.baseUrl || "").replace(/\/+$/, "");
@@ -173,7 +163,7 @@ export function createProviders(dataDir) {
 
   // Untuk browser: tanpa kunci, hanya penanda sudah/belum diisi.
   function publicList() {
-    return CATALOG.map((c) => {
+    return catalog.map((c) => {
       const r = resolve(c.id);
       return {
         id: c.id,
@@ -190,7 +180,7 @@ export function createProviders(dataDir) {
         keyUrl: c.keyUrl || null,
         models: c.models,
         defaultModel: r.defaultModel,
-        ready: c.kind === "claude-sdk" || ((!c.needsKey || r.apiKey) && (c.kind !== "openai" || Boolean(r.baseUrl))),
+        ready: Boolean(c.kind === "claude-sdk" || ((!c.needsKey || r.apiKey) && (c.kind !== "openai" || r.baseUrl))),
       };
     });
   }

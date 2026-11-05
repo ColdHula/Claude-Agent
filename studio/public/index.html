@@ -280,6 +280,16 @@ a{color:var(--blue)}
 .compactdiv .md{margin-top:8px;color:var(--dim);font-size:14px}
 .cnote{font-size:13px;color:var(--faint);margin:2px 0 8px}
 #ctxBtn svg{flex:none}
+.g-bebas{color:#c084fc;border-color:color-mix(in srgb,#c084fc 45%,transparent)}
+.spaces{display:flex;flex-wrap:wrap;gap:6px;padding:0 10px 8px}
+.spc{border:1px solid var(--line);background:none;border-radius:999px;padding:4px 12px;font-size:13px;color:var(--dim);white-space:nowrap;flex:none}
+.spc.on{background:var(--card2);color:var(--ink);border-color:var(--accent)}
+.spc .off{opacity:.55}
+#spCfg{display:none}
+.inspace #spCfg{display:inline-flex}
+.inspace #modeSeg,.inspace #wsBtn{display:none!important}
+.inspace .grp select{display:none}
+.spacenote{max-width:600px;text-align:center;color:var(--dim);font-size:13.5px;margin:-8px 0 16px;line-height:1.55}
 
 /* ponsel */
 @media (max-width:860px){
@@ -320,6 +330,7 @@ a{color:var(--blue)}
     </div>
     <button class="newchat" id="newBtn"><span class="plus">+</span>Chat baru</button>
     <button class="navb" id="searchBtn">🔍 Cari chat <span class="sp"></span><span class="kbd hide-m">Ctrl K</span></button>
+    <div class="spaces" id="spaces" style="margin-top:6px"></div>
     <div class="list" id="list"></div>
     <div class="foot">
       <button class="syncpill rig" id="rigPill" title="Status server — ketuk untuk mengelola"></button>
@@ -336,6 +347,7 @@ a{color:var(--blue)}
       <span class="sp"></span>
       <div class="seg" id="modeSeg"><button data-mode="chat">Chat</button><button data-mode="code">Code</button></div>
       <button class="ib" id="wsBtn" title="Berkas workspace" style="display:none">📁</button>
+      <button class="ib" id="spCfg" title="Pengaturan tab ini">⚙️</button>
       <button class="ib" id="menuBtn" title="Lainnya">⋯</button>
     </header>
     <div class="body">
@@ -376,7 +388,7 @@ function toast(t, ms = 3000) {
 const isMobile = () => innerWidth <= 860;
 const SPARK = `<svg class="spark" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" opacity=".7"/></svg>`;
 const SRC = { studio: { ic: "", name: "Studio" }, claude: { ic: "◆", name: "Claude Code" }, kantor: { ic: "🏢", name: "Kantor PGA" }, hvm: { ic: "💬", name: "HvM AI" } };
-const GROUP = { langganan: "Langganan Claude", gratis: "Gratis", api: "API berbayar" };
+const GROUP = { langganan: "Langganan Claude", gratis: "Gratis", api: "API berbayar", bebas: "Ruang bebas" };
 const MODEL_NAME = { "claude-sonnet-5-5": "Sonnet 5.5", "claude-opus-5-5": "Opus 5.5", "claude-haiku-5-5": "Haiku 5.5", "claude-fable-5-1": "Fable 5.1", auto: "Otomatis", "auto:smart": "Paling pintar", "auto:fast": "Paling cepat", "auto:reliable": "Paling andal", "auto:balanced": "Seimbang", fusion: "Fusion (gabungan)", "venice-uncensored": "Venice Uncensored", "cognitivecomputations/dolphin-mistral-24b-venice-edition:free": "Dolphin Mistral 24B (Venice)" };
 const MODEL_DESC = { "claude-sonnet-5-5": "Cerdas & efisien untuk sehari-hari", "claude-opus-5-5": "Paling mampu, untuk tugas sulit", "claude-haiku-5-5": "Tercepat & paling hemat", "claude-fable-5-1": "Model terbaru", auto: "FreeLLMAPI memilih penyedia", fusion: "Beberapa model digabung (lambat)", "venice-uncensored": "Jarang menolak · jangan kirim data pribadi", "cognitivecomputations/dolphin-mistral-24b-venice-edition:free": "Gratis di OpenRouter · jarang menolak" };
 const PERM = { baca: { ic: "👁", n: "Baca saja", d: "Hanya membaca berkas, tidak mengubah apa pun" }, tanya: { ic: "🛡", n: "Tanya dulu", d: "Minta izin sebelum mengubah berkas atau menjalankan perintah" }, otomatis: { ic: "⚡", n: "Otomatis", d: "Langsung mengubah berkas & menjalankan perintah" } };
@@ -388,7 +400,7 @@ const S = {
   mode: LS.get("mode", "chat"), perm: LS.get("perm", "tanya"), think: LS.get("think", false),
   skillsOn: new Set(LS.get("skills", [])), pending: [], wsFiles: [], srcFilter: LS.get("src", "all"),
   tabs: [], active: null, tree: {}, open: new Set(LS.get("openDirs", [""])), busyIds: new Set(),
-  project: null, projects: [], account: null,
+  project: null, projects: [], account: null, bebas: [], space: "",
 };
 
 /* ═════════════ markdown + sorot kode ═════════════ */
@@ -488,9 +500,11 @@ async function loadSessions() {
 }
 function renderList() {
   const srcOf = (s) => (s.origin === "claude.ai" ? "claudeai" : s.source);
-  const list = S.sessions.filter((s) => S.srcFilter === "all" || srcOf(s) === S.srcFilter || (S.srcFilter.startsWith("p:") && s.project === S.srcFilter.slice(2)));
+  const pool = S.sessions.filter((s) => (S.space ? s.space === S.space : !s.space)); // tiap ruang hanya melihat chatnya sendiri
+  const sf = S.space ? "all" : S.srcFilter;
+  const list = pool.filter((s) => sf === "all" || srcOf(s) === sf || (sf.startsWith("p:") && s.project === sf.slice(2)));
   const counts = {};
-  S.sessions.forEach((s) => (counts[srcOf(s)] = (counts[srcOf(s)] || 0) + 1));
+  pool.forEach((s) => (counts[srcOf(s)] = (counts[srcOf(s)] || 0) + 1));
   const pinned = list.filter((s) => s.pinned);
   let html = `<div class="grp">${pinned.length ? "Disematkan" : "Chat"}<select id="srcSel" title="Sumber">${[["all", "Semua sumber"], ["studio", "Studio"], ["claudeai", "claude.ai (impor)"], ["claude", "Claude Code"], ["kantor", "Kantor PGA"], ["hvm", "HvM AI"], ...S.projects.map((p) => ["p:" + p.id, "▤ " + p.name])].filter(([k]) => k === "all" || k.startsWith("p:") || counts[k] || k === S.srcFilter).map(([k, n]) => `<option value="${esc(k)}" ${S.srcFilter === k ? "selected" : ""}>${esc(n)}${k !== "all" && counts[k] ? ` (${counts[k]})` : ""}</option>`).join("")}</select></div>`;
   const item = (s) => {
@@ -568,6 +582,7 @@ function outside(e) { const p = $("#pop"); if (p && !p.contains(e.target)) close
 function closePop() { $("#pop")?.remove(); $("#popScrim")?.remove(); document.removeEventListener("pointerdown", outside, true); }
 
 async function openModelPicker(anchor) {
+  if (S.space) return openSpaceModels(anchor);
   const groups = ["langganan", "gratis", "api"];
   const ready = S.providers.filter((p) => p.ready);
   await Promise.all(ready.filter((p) => p.kind === "openai").map((p) => modelsOf(p.id)));
@@ -601,6 +616,11 @@ async function openModelPicker(anchor) {
 }
 
 function openPlusMenu(anchor) {
+  if (S.space) {
+    const p0 = popover(anchor, `<button class="opt" data-a="up">📎 <span><div>Unggah berkas atau foto</div><div class="d">Disimpan di folder ruang ini</div></span></button><button class="opt" data-a="cam">📷 <span><div>Ambil foto</div></span></button>`);
+    $$(".opt", p0).forEach((b) => (b.onclick = () => { closePop(); $(b.dataset.a === "up" ? "#fileIn" : "#camIn").click(); }));
+    return;
+  }
   const h = `<button class="opt" data-a="up">📎 <span><div>Unggah berkas atau foto</div><div class="d">Gambar, PDF, teks, CSV, kode… (maks 60 MB)</div></span></button>
     <button class="opt" data-a="cam">📷 <span><div>Ambil foto</div><div class="d">Langsung dari kamera HP</div></span></button>
     ${S.mode === "code" && S.active ? `<button class="opt" data-a="cur">📄 <span><div>Sertakan berkas yang dibuka</div><div class="d">${esc(S.active)}</div></span></button>` : ""}
@@ -634,7 +654,7 @@ async function uploadFiles(files) {
     const item = { name: f.name, size: f.size, type: f.type, uploading: true, preview: f.type.startsWith("image/") ? URL.createObjectURL(f) : null };
     S.pending.push(item); renderPending();
     try {
-      const r = await api(`/api/upload?name=${encodeURIComponent(f.name)}`, { method: "POST", body: f, headers: { "content-type": f.type || "application/octet-stream" } });
+      const r = await api(`/api/upload?name=${encodeURIComponent(f.name)}${S.space ? "&space=" + encodeURIComponent(S.space) : ""}`, { method: "POST", body: f, headers: { "content-type": f.type || "application/octet-stream" } });
       Object.assign(item, r.attachment, { uploading: false });
     } catch (e) { S.pending = S.pending.filter((x) => x !== item); toast(`Gagal mengunggah ${f.name}: ${e.message}`); }
     renderPending();
@@ -648,8 +668,8 @@ function renderPending() {
   box.innerHTML =
     S.pending.map((a, i) => `<div class="pf ${a.uploading ? "up" : ""}">${a.preview ? `<img src="${a.preview}" alt="">` : `<span style="font-size:22px">${fileIc(a.name)}</span>`}<div style="min-width:0"><div class="nm">${esc(a.name)}</div><div class="sz">${a.uploading ? "mengunggah…" : kb(a.size)}</div></div><button class="x" data-rp="${i}">✕</button></div>`).join("") +
     S.wsFiles.map((f, i) => `<div class="pf"><span style="font-size:18px">📄</span><div style="min-width:0"><div class="nm">${esc(f.split("/").pop())}</div><div class="sz">workspace</div></div><button class="x" data-rw="${i}">✕</button></div>`).join("") +
-    (S.project ? `<div class="pf"><span style="font-size:18px">▤</span><div style="min-width:0"><div class="nm">${esc(S.projects.find((x) => x.id === S.project)?.name || S.project)}</div><div class="sz">proyek</div></div><button class="x" data-rj>✕</button></div>` : "") +
-    [...S.skillsOn].map((s) => `<div class="pf"><span style="font-size:18px">🧰</span><div style="min-width:0"><div class="nm">${esc(s.split(":")[1])}</div><div class="sz">skill</div></div><button class="x" data-rs="${esc(s)}">✕</button></div>`).join("");
+    (!S.space && S.project ? `<div class="pf"><span style="font-size:18px">▤</span><div style="min-width:0"><div class="nm">${esc(S.projects.find((x) => x.id === S.project)?.name || S.project)}</div><div class="sz">proyek</div></div><button class="x" data-rj>✕</button></div>` : "") +
+    (S.space ? [] : [...S.skillsOn]).map((s) => `<div class="pf"><span style="font-size:18px">🧰</span><div style="min-width:0"><div class="nm">${esc(s.split(":")[1])}</div><div class="sz">skill</div></div><button class="x" data-rs="${esc(s)}">✕</button></div>`).join("");
   box.style.display = box.innerHTML ? "" : "none";
   $$("[data-rp]", box).forEach((b) => (b.onclick = () => { S.pending.splice(+b.dataset.rp, 1); renderPending(); }));
   $$("[data-rw]", box).forEach((b) => (b.onclick = () => { S.wsFiles.splice(+b.dataset.rw, 1); renderPending(); }));
@@ -757,6 +777,13 @@ function render() {
   $("#menuBtn").style.visibility = c?.id ? "" : "hidden";
   const convo = $("#convo");
   const empty = !c || (!c.messages.length && !(S.live && S.live.sid === (c.id || null)));
+  if (empty && S.space && bebasOf(S.space)) {
+    convo.innerHTML = spaceHello();
+    bindSpaceHello(convo);
+    bindComposer();
+    if (!isMobile()) $("#prompt").focus();
+    return;
+  }
   if (empty) {
     const name = esc(S.profile?.name || "Rahula");
     const q = S.mode === "code"
@@ -895,15 +922,17 @@ function renderLive() {
 /* ═════════════ alur sesi ═════════════ */
 function newChat(mode) {
   if (mode) setMode(mode, true);
-  S.cur = { source: "studio", id: null, title: "", messages: [], mode: S.mode };
+  S.cur = { source: "studio", id: null, title: "", messages: [], mode: S.mode, space: S.space || undefined };
   S.editAt = undefined; S.draft = ""; S.projectTouched = false;
-  S.project = S.srcFilter.startsWith("p:") ? S.srcFilter.slice(2) : null;
+  S.project = !S.space && S.srcFilter.startsWith("p:") ? S.srcFilter.slice(2) : null;
   render(); renderList();
   if (isMobile()) sideMobile(false);
 }
 async function openSession(source, id) {
   try {
     const { session, running } = await api(`/api/sessions/${source}/${encodeURIComponent(id)}`);
+    const wantSpace = source === "studio" ? session.space || "" : "";
+    if (wantSpace !== S.space) setSpace(wantSpace, true);
     S.cur = session; S.editAt = undefined; S.draft = ""; S.project = session.project || null; S.projectTouched = false;
     if (source === "studio") {
       if (session.mode) setMode(session.mode, true);
@@ -924,7 +953,8 @@ async function continueSession() {
   } catch (e) { toast(e.message); }
 }
 function setMode(m, quiet) {
-  S.mode = m; LS.set("mode", m);
+  if (S.space) m = "chat"; // ruang bebas hanya mode Chat
+  S.mode = m; if (!S.space) LS.set("mode", m);
   if (S.cur && !S.cur.id) S.cur.mode = m;
   if (m === "code" && !isMobile() && LS.get("wsOpen", true)) openWs(true, true);
   if (!quiet) render();
@@ -955,7 +985,7 @@ async function send(override) {
     if ((c.summarizedUpTo || 0) > truncateAt) { delete c.summary; c.summarizedUpTo = 0; } // ringkasan memuat pesan yang dibuang
   }
   c.messages.push({ role: "user", text, attachments, files });
-  const body = { sessionId: c.id, provider: S.provider, model: currentModel(), text, attachments, files, skills: [...S.skillsOn], mode: S.mode, perm: S.perm, think: S.think, truncateAt, ...(S.projectTouched || !c.id ? { project: S.project } : {}) };
+  const body = { sessionId: c.id, provider: S.provider, model: currentModel(), text, attachments, files, skills: [...S.skillsOn], mode: S.mode, perm: S.perm, think: S.think, truncateAt, space: S.space || undefined, ...(S.projectTouched || !c.id ? { project: S.project } : {}) };
   S.projectTouched = false;
   S.live = { sid: c.id, msg: freshMsg({ provider: S.provider, model: body.model }), ac: new AbortController(), streamAc: null, last: Date.now() };
   S.pending = []; S.wsFiles = []; S.draft = ""; S.editAt = undefined;
@@ -1128,7 +1158,7 @@ function openSearch() {
     const v = q.value.trim().toLowerCase();
     let found = [];
     if (v.length >= 2) {
-      const r = await api(`/api/search?q=${encodeURIComponent(v)}`).catch(() => ({ results: [] }));
+      const r = await api(`/api/search?q=${encodeURIComponent(v)}&space=${encodeURIComponent(S.space)}`).catch(() => ({ results: [] }));
       found = r.results;
       const ids = new Set(found.map((x) => x.id));
       found.push(...S.sessions.filter((s) => s.source !== "studio" && !ids.has(s.id) && String(s.title).toLowerCase().includes(v)).slice(0, 30));
@@ -1213,7 +1243,8 @@ const PANES = {
         <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="sc" checked> Buat repo privat bila belum ada</label>
       </div>
       <div id="gt" style="display:${s.mode === "git" ? "" : "none"}"><label class="fld"><span>URL remote</span><input id="su" value="${esc(s.url || "")}" placeholder="ssh://git@rig/arsip.git atau /mnt/backup/arsip.git"></label></div>
-      <div id="gb" style="display:${s.mode === "lokal" ? "none" : ""}"><label class="fld"><span>Branch</span><input id="sb" value="${esc(s.branch || "main")}"></label></div>
+      <div id="gb" style="display:${s.mode === "lokal" ? "none" : ""}"><label class="fld"><span>Branch</span><input id="sb" value="${esc(s.branch || "main")}"></label>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin-top:6px"><input type="checkbox" id="sIncl" ${s.includeSpaces ? "checked" : ""} style="margin-top:4px"><span>Sertakan chat <b>ruang bebas</b> (🐬 🏛️ 🧩) ke salinan Git. <b>Tidak disarankan.</b> Bila sudah pernah dinyalakan, riwayat Git lama tetap menyimpannya.</span></label></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px"><button class="btn" id="ss">Simpan</button>${s.mode !== "lokal" ? `<button class="btn2" id="sn">🔄 Sinkron sekarang</button>` : ""}<span id="sm" style="font-size:13px;color:var(--dim)"></span></div>
       ${s.mode !== "lokal" ? `<p class="s" style="margin-top:14px">Status: ${s.error ? `<span style="color:var(--bad)">⚠️ ${esc(s.error)}</span>` : s.last ? `✅ tersinkron ${ago(s.last)}` : "belum pernah"} · disinkronkan ±15 detik setelah setiap pesan dan tiap 5 menit.</p>` : ""}`;
     $$("input[name=sm]", el).forEach((r) => (r.onchange = () => {
@@ -1226,7 +1257,7 @@ const PANES = {
       const mode = $("input[name=sm]:checked", el).value;
       $("#sm", el).textContent = "menyimpan & menyinkronkan…";
       try {
-        const r = await api("/api/settings/sync", { method: "POST", body: { mode, repo: $("#sr", el).value, token: $("#st", el).value, url: $("#su", el).value, branch: $("#sb", el).value, create: $("#sc", el).checked } });
+        const r = await api("/api/settings/sync", { method: "POST", body: { mode, repo: $("#sr", el).value, token: $("#st", el).value, url: $("#su", el).value, branch: $("#sb", el).value, create: $("#sc", el).checked, includeSpaces: Boolean($("#sIncl", el)?.checked) } });
         S.sync = r.sync; renderSync(); PANES.simpan(el); toast(mode === "lokal" ? "Chat disimpan lokal saja." : "Tersambung & tersinkron ✓");
       } catch (e) { $("#sm", el).innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`; }
     };
@@ -1265,6 +1296,7 @@ const PANES = {
 - **Akun Claude**: tab *Akun Claude* → **Masuk dengan Claude** (sekali, berlaku 1 tahun) agar langganan Pro/Max dipakai.
 - **Dari claude.ai**: tab *Impor & proyek* → unggah ZIP *Export data* claude.ai; semua chat, Project, dan memori pindah ke sini.
 - **Proyek**: instruksi + berkas pengetahuan yang dipakai otomatis di chat proyek itu (pilih lewat ＋).
+- **Ruang bebas**: baris tab di panel kiri (Utama · 🐬 Dolphin · 🏛️ Venice · 🧩 Kustom). Tiap tab = satu AI yang jarang menolak, dengan kunci, instruksi, dan arsip chat sendiri, terpisah total dari ruang Utama (tanpa memori/proyek/skill; tidak ikut sinkron GitHub).
 - **Konteks**: lingkaran kecil di kotak ketik menunjukkan seberapa penuh jendela model yang dipilih. Mendekati batas, bagian lama diringkas **otomatis** (riwayat di layar tetap utuh). Ketik \`/compact\` atau ketuk lingkarannya untuk memadatkan manual.
 - **Panduan awal**: tombol di bawah membuka lagi langkah-langkah awal.
 
@@ -1483,6 +1515,107 @@ PANES.konteks = async function (el) {
     } catch (e) { $("#kcMsg", el).textContent = e.message; }
   };
 };
+
+/* ═════════════ ruang bebas: satu tab per AI, terpisah dari yang lain ═════════════ */
+const bebasOf = (id) => S.bebas.find((b) => b.id === id);
+function renderSpaces() {
+  const box = $("#spaces");
+  if (!box) return;
+  box.style.display = S.bebas.length ? "" : "none";
+  box.innerHTML = `<button class="spc ${S.space ? "" : "on"}" data-sp="">Utama</button>` + S.bebas.map((b) => `<button class="spc ${S.space === b.id ? "on" : ""}" data-sp="${esc(b.id)}" title="${esc(b.name)}">${esc(b.icon)} ${esc(b.tab)}${b.provider.ready ? "" : ' <span class="off">○</span>'}</button>`).join("");
+  $$(".spc", box).forEach((x) => (x.onclick = () => { if (x.dataset.sp !== S.space) setSpace(x.dataset.sp); if (isMobile()) sideMobile(false); }));
+  $("#app").classList.toggle("inspace", Boolean(S.space));
+}
+function setSpace(id, quiet) {
+  if (id && !bebasOf(id)) id = "";
+  S.space = id; LS.set("space", id);
+  if (id) { const b = bebasOf(id); S.provider = b.provider.id; S.model = b.model; S.mode = "chat"; }
+  else { const pv = LS.get("provider", "langganan"); S.provider = prov(pv) ? pv : "langganan"; S.model = LS.get("model", ""); S.mode = LS.get("mode", "chat"); }
+  S.project = null; S.projectTouched = false;
+  renderSpaces();
+  setMode(S.mode, true);
+  if (!quiet) newChat();
+}
+async function openSpaceModels(anchor) {
+  const b = bebasOf(S.space);
+  if (!b) return;
+  let ms = [...new Set([b.model, ...b.models])].filter(Boolean);
+  const draw = () => `<div class="ttl">${esc(b.name)}</div>` + (ms.map((m) => `<button class="opt" data-m="${esc(m)}"><span><div>${esc(modelLabel(m))}</div><div class="d">${esc(m)}</div></span>${S.model === m ? '<span class="ck">✓</span>' : ""}</button>`).join("") || `<div class="ttl">Belum ada model — isi di pengaturan tab</div>`) + `<hr><button class="opt" data-a="cfg">⚙️ Pengaturan tab ini</button>`;
+  const p = popover(anchor, draw(), { align: "right" });
+  const bind = (root) => {
+    $$(".opt[data-m]", root).forEach((o) => (o.onclick = () => {
+      S.model = o.dataset.m; renderComposerBar(); closePop();
+      api(`/api/bebas/${b.id}`, { method: "POST", body: { model: S.model } }).then((r) => (S.bebas = r.bebas)).catch(() => {});
+    }));
+    $(".opt[data-a=cfg]", root).onclick = () => { closePop(); openSpaceSettings(b.id); };
+  };
+  bind(p);
+  if (b.provider.ready) {
+    const r = await api(`/api/providers/${b.provider.id}/models`).catch(() => null);
+    if (r?.models?.length && $("#pop")) { ms = [...new Set([...ms, ...r.models])]; $("#pop").innerHTML = draw(); bind($("#pop")); }
+  }
+}
+function spaceHello() {
+  const b = bebasOf(S.space), pv = b.provider;
+  return `<div class="hello"><h1><span style="font-size:30px;line-height:1">${esc(b.icon)}</span>${esc(b.name)}</h1>
+    <div class="spacenote">${esc(b.desc)}<br><b>Ruang terpisah:</b> tidak memakai memori, proyek, skill, atau berkas Anda. Chat disimpan di folder sendiri dan tidak ikut sinkron GitHub (kecuali Anda memintanya). Pesan dikirim ke <b>${esc(b.host)}</b>, jadi jangan kirim data pribadi atau PGD.</div>
+    ${pv.ready ? "" : spaceSetupCard(b)}
+    ${composerHtml(true)}
+    <div class="quick"><button data-sp="cfg">⚙️ Pengaturan tab ini</button></div></div>`;
+}
+function spaceSetupCard(b) {
+  const pv = b.provider;
+  return `<div class="pcard" id="spSetup" style="max-width:600px;width:100%;margin:0 0 14px;text-align:left"><div class="h">Hubungkan ${esc(b.tab)}${pv.keyUrl ? `<a href="${esc(pv.keyUrl)}" target="_blank" rel="noopener" style="margin-left:auto;font-size:13px;font-weight:400">dapatkan kunci ↗</a>` : ""}</div>
+    ${!pv.baseUrl ? `<label class="fld"><span>URL dasar (…/v1)</span><input data-k="baseUrl" placeholder="https://…/v1"></label>` : ""}
+    <label class="fld"><span>Kunci API${pv.envKey ? ` <small style="color:var(--faint)">atau env ${esc(pv.envKey)}</small>` : ""}</span><input data-k="apiKey" type="password" autocomplete="off" placeholder="${pv.hasKey ? "•••• tersimpan" : "tempel kunci"}"></label>
+    ${!b.model ? `<label class="fld"><span>Nama model</span><input data-k="model" placeholder="nama model di layanan itu"></label>` : ""}
+    <div class="row"><button class="btn" data-spsave>Simpan & tes</button><span class="msgx"></span></div></div>`;
+}
+function bindSpaceHello(root) {
+  $("[data-sp=cfg]", root)?.addEventListener("click", () => openSpaceSettings(S.space));
+  $("[data-spsave]", root)?.addEventListener("click", () => saveSpace(S.space, $("#spSetup", root), $("#spSetup .msgx", root)));
+}
+async function saveSpace(id, box, msg) {
+  const body = Object.fromEntries($$("[data-k]", box).filter((i) => i.dataset.k !== "apiKey" || i.value).map((i) => [i.dataset.k, i.value]));
+  msg.textContent = "menyimpan…";
+  try {
+    S.bebas = (await api(`/api/bebas/${id}`, { method: "POST", body })).bebas;
+    S.providers = (await api("/api/providers")).providers;
+    const b = bebasOf(id);
+    const t = await api(`/api/providers/${b.provider.id}/models`).catch((e) => ({ error: e.message, models: [] }));
+    renderSpaces();
+    if (S.space === id) S.model = b.model;
+    if (b.provider.ready) {
+      msg.innerHTML = t.error ? `<span style="color:var(--warn)">Tersimpan, tetapi tes gagal: ${esc(t.error)}</span>` : `✅ ${esc(b.tab)} terhubung · ${t.models.length} model`;
+      if (S.space === id && !S.cur?.messages?.length && !$(".modal")) render();
+    } else msg.innerHTML = `<span style="color:var(--bad)">${esc(t.error || "Belum lengkap: isi kunci/URL/model.")}</span>`;
+  } catch (e) { msg.textContent = e.message; }
+}
+async function openSpaceSettings(id) {
+  const b = bebasOf(id);
+  if (!b) return;
+  $(".modal")?.remove();
+  const pv = b.provider, m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="box" style="max-width:640px"><div class="mh"><h2>${esc(b.icon)} ${esc(b.tab)} — pengaturan</h2><button class="ib" data-x>✕</button></div><div class="pane" id="spPane">
+    <p class="s">${esc(b.desc)}</p>
+    <div class="pcard"><div class="h"><span class="dot ${pv.ready ? "ok" : ""}"></span>Koneksi<span style="margin-left:auto;font-size:12px;font-weight:400;color:var(--faint)">${esc(b.host)}</span></div>
+      <label class="fld"><span>URL dasar (…/v1)</span><input data-k="baseUrl" value="${esc(pv.baseUrl)}"></label>
+      <label class="fld"><span>Kunci API${pv.envKey ? ` <small style="color:var(--faint)">atau env ${esc(pv.envKey)}</small>` : ""}</span><input data-k="apiKey" type="password" autocomplete="off" placeholder="${pv.hasKey ? (pv.keyFromEnv ? "dari env ✓" : "•••• tersimpan") : "tempel kunci"}"></label>
+      <label class="fld"><span>Model</span><input data-k="model" list="spModels" value="${esc(b.model)}"><datalist id="spModels">${b.models.map((x) => `<option value="${esc(x)}">`).join("")}</datalist></label>
+      <div class="row"><button class="btn2" data-test>Tes koneksi & daftar model</button>${pv.keyUrl ? `<a href="${esc(pv.keyUrl)}" target="_blank" rel="noopener">dapatkan kunci ↗</a>` : ""}<span class="msgx" id="spMsg"></span></div></div>
+    <label class="fld"><span>Instruksi sistem tab ini (opsional)</span><textarea data-k="system" rows="5" placeholder="Kosong = instruksi netral bawaan: asisten yang jujur dan langsung.">${esc(b.system)}</textarea></label>
+    <p class="s">Yang dikirim ke model hanya: instruksi di atas + chat di tab ini. Tidak ada memori, proyek, skill, berkas workspace, atau chat tab lain. Judul chat diambil dari kalimat pertama (tidak lewat AI lain), dan ringkasan konteks memakai AI yang sama. Arsip: <code>arsip/ruang/${esc(b.id)}/</code>, tidak ikut sinkron Git kecuali Anda menyalakannya di Pengaturan → Penyimpanan chat.</p>
+    <button class="btn" data-save>Simpan</button></div></div>`;
+  document.body.append(m);
+  m.onclick = (e) => { if (e.target === m || e.target.closest("[data-x]")) m.remove(); };
+  const pane = $("#spPane", m);
+  $("[data-save]", pane).onclick = async () => { await saveSpace(id, pane, $("#spMsg", pane)); toast("Tersimpan."); };
+  $("[data-test]", pane).onclick = async () => {
+    await saveSpace(id, pane, $("#spMsg", pane));
+  };
+}
+$("#spCfg").onclick = () => openSpaceSettings(S.space);
 PANES.gratis = function (el) {
   const free = S.providers.filter((p) => p.group === "gratis");
   el.innerHTML = `<h3>Pilih AI gratis</h3><p class="s">Isi satu atau beberapa. Semuanya muncul di tombol model saat mengetik, dan bisa dipakai bergantian dengan Claude. Paling mudah: <b>Gemini</b> atau <b>Groq</b> (cukup kunci gratis). <b>FreeLLMAPI</b> menggabungkan banyak penyedia sekaligus.</p>` +
@@ -1733,7 +1866,11 @@ addEventListener("beforeunload", (e) => { if (S.tabs.some((t) => t.content !== t
   try { S.info = await api("/api/info"); }
   catch (e) { $("#convo").innerHTML = `<div class="hello"><h1>Server Studio tidak terjangkau</h1><p>Jalankan <code>npm run studio</code> lalu muat ulang. (${esc(e.message)})</p></div>`; return; }
   S.providers = S.info.providers; S.skills = S.info.skills; S.sync = S.info.sync; S.profile = S.info.profile || { name: "Rahula" }; S.projects = S.info.projects || [];
+  S.bebas = S.info.bebas || [];
+  S.space = S.bebas.some((b) => b.id === LS.get("space", "")) ? LS.get("space", "") : "";
   if (!prov(S.provider) || !prov(S.provider).ready) { S.provider = "langganan"; S.model = ""; }
+  if (S.space) { const bz = bebasOf(S.space); S.provider = bz.provider.id; S.model = bz.model; S.mode = "chat"; }
+  renderSpaces();
   renderMe(); renderSync();
   setMode(S.mode, true);
   newChat();

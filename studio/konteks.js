@@ -50,7 +50,7 @@ Tulis ringkasan dalam bahasa yang sama dengan percakapan, padat dan faktual, den
 Pertahankan kode, perintah, dan nama berkas PERSIS. Jangan menambah hal baru, jangan menjawab pertanyaan di percakapan.
 Keluarkan hanya ringkasannya.`;
 
-export function createContext({ store, providers, account, cleanEnv, getSdk, chatHome }) {
+export function createContext({ store, providers, account, cleanEnv, getSdk, chatHome, extraWindows = {} }) {
   const cfg = () => ({ ...DEFAULT_CFG, ...(store.settings().compact || {}) });
   async function setCfg(patch) {
     const c = { ...cfg() };
@@ -76,7 +76,7 @@ export function createContext({ store, providers, account, cleanEnv, getSdk, cha
     if (["openrouter", "custom", "freellmapi"].includes(provider) && model && !/^(auto|fusion)/.test(model)) {
       for (const [re, w] of BY_MODEL) if (re.test(model)) return w;
     }
-    return DEFAULT_WINDOWS[provider] || 8_192;
+    return DEFAULT_WINDOWS[provider] || extraWindows[provider] || 8_192;
   }
   const maxChars = (provider, model) => Math.floor(windowFor(provider, model) * CHARS_PER_TOKEN * 0.8);
 
@@ -120,9 +120,10 @@ export function createContext({ store, providers, account, cleanEnv, getSdk, cha
   }
 
   // ───────── memanggil model untuk meringkas ─────────
-  function pickSummarizer(provider, model) {
+  function pickSummarizer(provider, model, sameProvider = false) {
     const c = cfg();
-    if (c.summaryProvider && c.summaryProvider !== "auto") {
+    // Ruang bebas: isi chat TIDAK BOLEH dikirim ke penyedia lain, jadi penyusun ringkasan selalu penyedia yang sama.
+    if (!sameProvider && c.summaryProvider && c.summaryProvider !== "auto") {
       const p = providers.resolve(c.summaryProvider);
       return { id: p.id, kind: p.kind, model: c.summaryModel || p.defaultModel };
     }
@@ -169,12 +170,12 @@ export function createContext({ store, providers, account, cleanEnv, getSdk, cha
   }
 
   // Meringkas pesan [from, upto) ke dalam ringkasan bergulir. Dipotong per bagian agar muat di jendela model.
-  async function compact(session, { provider, model, keep, force = false, signal, onProgress } = {}) {
+  async function compact(session, { provider, model, keep, force = false, signal, onProgress, sameProvider = false } = {}) {
     const c = cfg();
     const cut = cutIndex(session, keep ?? c.keep);
     if (!cut) return { compacted: false, reason: "Belum ada bagian lama yang perlu dipadatkan." };
     const win = windowFor(provider, model);
-    const sm = pickSummarizer(provider, model);
+    const sm = pickSummarizer(provider, model, sameProvider);
     const smWin = sm.kind === "claude-sdk" ? 200_000 : windowFor(sm.id, sm.model);
     const targetTok = Math.max(400, Math.min(2200, Math.floor(smWin * 0.1)));
     const budgetChars = Math.floor(smWin * CHARS_PER_TOKEN * 0.5);

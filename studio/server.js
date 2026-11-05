@@ -22,6 +22,7 @@ import { createClaudeAccount } from "./akun-claude.js";
 import { createKnowledge } from "./pengetahuan.js";
 import { createRig } from "./rig.js";
 import { createContext, summaryBlock } from "./konteks.js";
+import { loadBebas } from "./bebas/index.js";
 
 const execFileP = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -51,7 +52,10 @@ if (PASSWORD && PASSWORD.length < 12) {
 const guard = makeAuth(PASSWORD, { name: "Studio", tagline: "Semua chat AI Anda di satu tempat.", iconHref: "/icon.svg", themeColor: "#1f1e1d", dark: true, accent: "#d97757" });
 
 await fs.mkdir(CHAT_HOME, { recursive: true });
-const providers = createProviders(DATA);
+// Ruang bebas: tiap AI yang jarang menolak = satu berkas di studio/bebas/ = satu tab terpisah.
+const bebas = await loadBebas();
+const bebasById = new Map(bebas.map((b) => [b.id, b]));
+const providers = createProviders(DATA, { extra: bebas.map((b) => b.provider) });
 await providers.load();
 const store = createStorage(DATA);
 await store.init();
@@ -72,7 +76,7 @@ function cleanEnv() {
 const account = createClaudeAccount({ store, cleanEnv, getSdk });
 const knowledge = createKnowledge(store);
 const rig = createRig({ appRoot: APP_ROOT, dataDir: DATA });
-const ctxm = createContext({ store, providers, account, cleanEnv, getSdk, chatHome: CHAT_HOME }); // pemadatan konteks
+const ctxm = createContext({ store, providers, account, cleanEnv, getSdk, chatHome: CHAT_HOME, extraWindows: Object.fromEntries(bebas.map((b) => [b.provider.id, b.window])) }); // pemadatan konteks
 const compactFailed = new Map(); // sessionId -> waktu gagal terakhir (jangan coba terus-menerus)
 
 // ───────────────────────── utilitas HTTP ─────────────────────────
@@ -496,12 +500,31 @@ function jobEmit(job, e) {
   for (const r of job.listeners) if (!r.writableEnded) r.write(line);
 }
 
+function bebasView() {
+  const all = providers.publicList();
+  const cfg = store.settings().bebas || {};
+  return bebas.map((b) => ({ id: b.id, tab: b.tab, icon: b.icon, name: b.name, desc: b.desc, host: b.host, model: cfg[b.id]?.model || b.model, defaultModel: b.model, models: b.models, window: b.window, system: cfg[b.id]?.system || "", provider: all.find((x) => x.id === b.provider.id) }));
+}
+const SPACE_SYSTEM = "Kamu asisten AI. Jawab dalam bahasa yang dipakai pengguna, jujur dan langsung ke inti. Pakai Markdown bila membantu; kode dalam blok kode bertanda bahasa.";
+const spaceSystem = (space) => (store.settings().bebas?.[space]?.system || "").trim() || SPACE_SYSTEM;
+
 async function handleChat(req, res) {
   const body = await readBody(req, 2 * 1024 * 1024);
-  const { sessionId, provider = "langganan", model, text = "", skills = [], files = [], attachments = [], mode = "chat", perm = "tanya", think = false, truncateAt, project } = body;
+  let { sessionId, provider = "langganan", model, text = "", skills = [], files = [], attachments = [], mode = "chat", perm = "tanya", think = false, truncateAt, project } = body;
+  const bodySpace = body.space && bebasById.has(String(body.space)) ? String(body.space) : "";
   if (!text.trim() && !attachments.length) return json(res, 400, { error: "Pesan kosong." });
-  let session = sessionId ? await store.read(sessionId) : store.create({ title: text.trim().split("\n")[0].slice(0, 70) || attachments[0]?.name || "Chat baru", mode });
+  let session = sessionId ? await store.read(sessionId) : store.create({ title: text.trim().split("\n")[0].slice(0, 70) || attachments[0]?.name || "Chat baru", mode, ...(bodySpace ? { space: bodySpace } : {}) });
   if (running.has(session.id)) return json(res, 409, { error: "Chat ini masih memproses pesan sebelumnya." });
+
+  // Ruang bebas: dikunci ke AI-nya sendiri; tanpa memori, proyek, skill, atau berkas workspace dari ruang Utama.
+  const space = session.space || "";
+  if (space) {
+    const bz = bebasById.get(space);
+    if (!bz) return json(res, 400, { error: "Ruang ini tidak dikenal (berkas AI-nya sudah dihapus)." });
+    provider = bz.provider.id;
+    model = model || store.settings().bebas?.[space]?.model || bz.model;
+    mode = "chat"; skills = []; files = []; project = undefined; perm = "baca"; think = false;
+  }
 
   // Edit / ulangi: buang pesan mulai indeks ini. Sesi Claude tidak bisa dipotong → mulai ulang dengan ringkasan.
   if (Number.isInteger(truncateAt) && truncateAt >= 0 && truncateAt < session.messages.length) {
@@ -540,8 +563,8 @@ async function handleChat(req, res) {
   await store.write(session);
   // Konteks tambahan: memori pengguna + pengetahuan proyek.
   const settingsNow = store.settings();
-  const mem = settingsNow.useMemory === false ? "" : await knowledge.memory();
-  const proj = await knowledge.context(session.project);
+  const mem = space || settingsNow.useMemory === false ? "" : await knowledge.memory();
+  const proj = space ? { text: "", dir: null } : await knowledge.context(session.project);
   const extraBase = (mem ? `\n\n<memori_pengguna>\n${mem.slice(0, 8000)}\n</memori_pengguna>` : "") + proj.text;
   let extra = extraBase;
 
@@ -587,7 +610,7 @@ async function handleChat(req, res) {
       const recentlyFailed = compactFailed.has(session.id) && Date.now() - compactFailed.get(session.id) < 300_000;
       if (!recentlyFailed && ctxm.needsCompact(session, provider, chosenModel, { extraTokens, resumingClaude })) {
         emit({ type: "compact", phase: "start" });
-        const r = await ctxm.compact(session, { provider, model: chosenModel, signal: ac.signal, onProgress: (x) => emit({ type: "compact", ...x }) });
+        const r = await ctxm.compact(session, { provider, model: chosenModel, signal: ac.signal, sameProvider: Boolean(space), onProgress: (x) => emit({ type: "compact", ...x }) });
         if (r.compacted) {
           if (p.kind === "claude-sdk") { session.claudeSessionId = null; session.claudeSynced = 0; }
           await store.write(session);
@@ -608,7 +631,7 @@ async function handleChat(req, res) {
     if (p.kind === "claude-sdk") {
       result = await runClaudeSdk(session, { model: chosenModel, prompt: sent, images: att.images, mode, perm, think, skills, attachPaths: att.paths, signal: ac.signal, emit, profile, extra, extraDirs: proj.dir ? [proj.dir] : [] });
     } else {
-      const system = systemText(mode, profile, extra + (skillBlock ? `\n\nSkill yang harus diikuti untuk tugas ini:${skillBlock}` : ""));
+      const system = space ? spaceSystem(space) + extra : systemText(mode, profile, extra + (skillBlock ? `\n\nSkill yang harus diikuti untuk tugas ini:${skillBlock}` : ""));
       if (p.kind === "anthropic") result = await runAnthropicApi(p, session, { model: chosenModel, system, images: att.images, think, signal: ac.signal, emit, maxChars: histMax });
       else {
         const info = {};
@@ -646,7 +669,7 @@ async function handleChat(req, res) {
     session.messages.push(msg);
     await store.write(session);
     emit({ type: "done", message: msg, title: session.title });
-    if (firstTurn) autoTitle(session).catch(() => {});
+    if (firstTurn && !space) autoTitle(session).catch(() => {}); // judul otomatis akan mengirim isi chat ke penyedia lain → tidak untuk ruang bebas
   } catch (e) {
     const aborted = ac.signal.aborted;
     const msg = { role: "assistant", text: aborted ? `${textLive}${textLive ? "\n\n" : ""}_(dihentikan)_` : `⚠️ ${friendly(e)}`, thinking: thinkingLive || undefined, at: Date.now(), provider, model: chosenModel, error: !aborted, stopped: aborted || undefined, steps: steps.length ? steps : undefined };
@@ -675,10 +698,11 @@ function friendly(e) {
 }
 
 // ───────────────────────── pencarian ─────────────────────────
-async function search(q) {
+async function search(q, space = "") {
   const needle = q.toLowerCase();
   const out = [];
   for (const s of await store.list()) {
+    if ((s.space || "") !== space) continue; // ruang bebas tidak muncul di pencarian ruang Utama, dan sebaliknya
     let hit = s.title.toLowerCase().includes(needle) ? s.title : "";
     if (!hit)
       for (const m of s.messages) {
@@ -706,7 +730,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         workspace: WORKSPACE, workspaceName: path.basename(WORKSPACE), providers: providers.publicList(), skills: sk.details,
         maxUsd: MAX_USD, auth: Boolean(guard), sync: store.syncStatus(), profile: store.settings().profile || { name: "Rahula" },
-        onboarded: Boolean(store.settings().onboarded), useMemory: store.settings().useMemory !== false, projects: await knowledge.list(), claudeStudioLogin: account.hasStudioToken(),
+        onboarded: Boolean(store.settings().onboarded), bebas: bebasView(), useMemory: store.settings().useMemory !== false, projects: await knowledge.list(), claudeStudioLogin: account.hasStudioToken(),
       });
     }
 
@@ -743,6 +767,21 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/api/settings/memory") return json(res, 200, { useMemory: store.settings().useMemory !== false, text: await knowledge.memory() });
 
+    // Ruang bebas (satu tab per AI)
+    if (p === "/api/bebas" && req.method === "GET") return json(res, 200, { bebas: bebasView() });
+    if ((m = p.match(/^\/api\/bebas\/([\w-]+)$/)) && req.method === "POST") {
+      const bz = bebasById.get(m[1]);
+      if (!bz) return json(res, 404, { error: "Tab tidak dikenal." });
+      const b = await readBody(req);
+      const cur = store.settings().bebas || {};
+      const next = { ...(cur[bz.id] || {}) };
+      if (typeof b.model === "string") next.model = b.model.trim().slice(0, 200);
+      if (typeof b.system === "string") next.system = b.system.slice(0, 8000);
+      await store.saveSettings({ bebas: { ...cur, [bz.id]: next } });
+      if (b.baseUrl !== undefined || b.apiKey !== undefined || b.model !== undefined) await providers.update(bz.provider.id, { baseUrl: b.baseUrl, apiKey: b.apiKey, defaultModel: next.model });
+      return json(res, 200, { bebas: bebasView() });
+    }
+
     // Server / rig (dikelola dari HP)
     if (p === "/api/server/status") return json(res, 200, await rig.status({ light: url.searchParams.has("ringan") }));
     if (p === "/api/server/check" && req.method === "POST") return json(res, 200, await rig.check());
@@ -773,9 +812,9 @@ const server = http.createServer(async (req, res) => {
       running.set(m[1], ac);
       try {
         const session = await store.read(m[1]);
-        const prov = providers.resolve(String(b.provider || session.provider || "langganan"));
+        const prov = providers.resolve(session.space ? bebasById.get(session.space)?.provider.id || "" : String(b.provider || session.provider || "langganan"));
         const model = b.model || session.model || prov.defaultModel;
-        const r = await ctxm.compact(session, { provider: prov.id, model, keep: Number(b.keep) || undefined, signal: ac.signal });
+        const r = await ctxm.compact(session, { provider: prov.id, model, keep: Number(b.keep) || undefined, signal: ac.signal, sameProvider: Boolean(session.space) });
         if (r.compacted) {
           session.claudeSessionId = null; // sesi Claude lama tidak ikut; mulai baru dengan ringkasan
           session.claudeSynced = 0;
@@ -850,7 +889,7 @@ const server = http.createServer(async (req, res) => {
 
     // Sesi
     if (p === "/api/sessions" && req.method === "GET") {
-      const studio = (await store.list()).map((s) => ({ source: "studio", id: s.id, title: s.title, updatedAt: s.updatedAt, provider: s.provider, model: s.model, mode: s.mode || "chat", pinned: Boolean(s.pinned), claudeSessionId: s.claudeSessionId || null, origin: s.origin?.source || null, project: s.project || null, busy: running.has(s.id) }));
+      const studio = (await store.list()).map((s) => ({ source: "studio", id: s.id, title: s.title, updatedAt: s.updatedAt, provider: s.provider, model: s.model, mode: s.mode || "chat", pinned: Boolean(s.pinned), claudeSessionId: s.claudeSessionId || null, origin: s.origin?.source || null, project: s.project || null, space: s.space || null, busy: running.has(s.id) }));
       const [claude, kantor, hvm] = await Promise.all([listClaude(), listKantor(), listHvm()]);
       const linked = new Set(studio.map((s) => s.claudeSessionId).filter(Boolean));
       const all = [...studio, ...claude.filter((c) => !linked.has(c.id)), ...kantor, ...hvm].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -858,7 +897,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/api/search") {
       const q = (url.searchParams.get("q") || "").trim();
-      return json(res, 200, { results: q.length >= 2 ? await search(q) : [] });
+      return json(res, 200, { results: q.length >= 2 ? await search(q, bebasById.has(url.searchParams.get("space")) ? url.searchParams.get("space") : "") : [] });
     }
     if ((m = p.match(/^\/api\/sessions\/studio\/([\w-]+)\/export\.md$/))) {
       const s = await store.read(m[1]);
@@ -926,7 +965,7 @@ const server = http.createServer(async (req, res) => {
       const name = decodeURIComponent(url.searchParams.get("name") || "berkas");
       const buf = await readRaw(req, MAX_UPLOAD);
       if (!buf.length) return json(res, 400, { error: "Berkas kosong." });
-      return json(res, 200, { attachment: { ...(await store.saveUpload(name, buf)), type: req.headers["content-type"] || "" } });
+      return json(res, 200, { attachment: { ...(await store.saveUpload(name, buf, bebasById.has(url.searchParams.get("space")) ? url.searchParams.get("space") : "")), type: req.headers["content-type"] || "" } });
     }
     if (p === "/api/lampiran") {
       const abs = store.uploadPath(url.searchParams.get("file"));
