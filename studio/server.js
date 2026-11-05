@@ -787,6 +787,58 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { bebas: bebasView() });
     }
 
+    // Panduan setup: fakta status untuk daftar langkah + tes nyata per penyedia
+    if (p === "/api/setup" && req.method === "GET") {
+      const [acct, rigS, journalOk] = await Promise.all([
+        account.status().catch(() => ({ loggedIn: false })),
+        rig.status().catch(() => null),
+        rig.logs("studio", 10).then(() => true, () => false),
+      ]);
+      return json(res, 200, {
+        claude: { loggedIn: Boolean(acct.loggedIn), subscription: acct.subscription || "", method: acct.method || "", error: acct.error || "" },
+        providers: providers.publicList(),
+        bebas: bebasView(),
+        sync: store.syncStatus(),
+        rig: rigS ? { systemd: rigS.systemd, sudoOk: rigS.sudoOk, services: rigS.services, git: rigS.git } : null,
+        journalOk,
+        onboarded: Boolean(store.settings().onboarded),
+      });
+    }
+    if (p === "/api/setup/tes" && req.method === "POST") {
+      const b = await readBody(req);
+      let pr;
+      try {
+        pr = providers.resolve(String(b.provider || ""));
+      } catch (e) {
+        return json(res, 400, { ok: false, detail: e.message });
+      }
+      const t0 = Date.now();
+      try {
+        if (pr.kind === "claude-sdk") {
+          const st = await account.status({ fresh: true });
+          return json(res, 200, { ok: Boolean(st.loggedIn), detail: st.loggedIn ? `Terhubung${st.subscription ? ` · ${st.subscription}` : ""}` : "Belum terhubung ke langganan Claude. Buka Akun Claude.", ms: Date.now() - t0 });
+        }
+        let model = String(b.model || "") || bebasById.get(String(pr.id).replace(/^bebas-/, ""))?.model || pr.defaultModel;
+        let list = null;
+        try { list = await providers.listModels(pr.id); } catch {}
+        if (!model && list?.length) model = list[0]; // penyedia tanpa model bawaan (mis. Groq): pakai model pertama dari daftarnya
+        if (!model) return json(res, 200, { ok: false, detail: "Model belum diisi dan daftar model tidak bisa diambil (isi di pengaturan tab/penyedia).", ms: Date.now() - t0 });
+        const models = list ? list.length : null;
+        let reply = "";
+        if (pr.kind === "anthropic") {
+          if (!pr.apiKey) throw new Error("ANTHROPIC_API_KEY belum diisi");
+          const { default: Anthropic } = await import("@anthropic-ai/sdk");
+          const r = await new Anthropic({ apiKey: pr.apiKey }).messages.create({ model, max_tokens: 16, messages: [{ role: "user", content: "Balas dengan satu kata saja: ok" }] });
+          reply = r.content.filter((x) => x.type === "text").map((x) => x.text).join("");
+        } else {
+          await providers.chatOpenAI(pr.id, { model, messages: [{ role: "user", content: "Balas dengan satu kata saja: ok" }], signal: AbortSignal.timeout(45_000), onDelta: (t) => (reply += t) });
+        }
+        return json(res, 200, { ok: true, models, model, reply: reply.replace(/<think>[\s\S]*?<\/think>/g, "").trim().slice(0, 60), ms: Date.now() - t0 });
+      } catch (e) {
+        return json(res, 200, { ok: false, detail: friendly(e, pr.kind, pr.name).slice(0, 400), ms: Date.now() - t0 });
+      }
+    }
+
     // Server / rig (dikelola dari HP)
     if (p === "/api/server/status") return json(res, 200, await rig.status({ light: url.searchParams.has("ringan") }));
     if (p === "/api/server/check" && req.method === "POST") return json(res, 200, await rig.check());
