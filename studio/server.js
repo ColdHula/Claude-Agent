@@ -836,6 +836,13 @@ const server = http.createServer(async (req, res) => {
       const r = await account.submitCode((await readBody(req)).code);
       return json(res, 200, r.state === "done" ? { ...r, status: await account.status({ fresh: true }) } : r);
     }
+    if (p === "/api/claude/token" && req.method === "POST") {
+      try {
+        return json(res, 200, { status: await account.setToken((await readBody(req)).token) });
+      } catch (e) {
+        return json(res, e.status || 500, { error: e.message });
+      }
+    }
     if (p === "/api/claude/logout" && req.method === "POST") {
       await account.logout();
       return json(res, 200, { ok: true });

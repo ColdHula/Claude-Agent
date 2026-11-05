@@ -1319,6 +1319,10 @@ PANES.akun = async function (el, inWizard) {
       <div class="n">${a?.loggedIn ? (a.method === "studio" ? "Masuk lewat Studio (token 1 tahun, tersimpan di server)." : "Memakai login Claude Code di server ini.") : "Klik tombol di bawah. Halaman masuk claude.com terbuka; setelah masuk, salin kode yang tampil lalu tempel di sini."}</div>
       <div class="row" id="lgRow">${a?.loggedIn ? `<button class="btn2" id="lgAgain">Ganti akun</button>${a.method === "studio" ? `<button class="btn2" id="lgOut">Keluar</button>` : ""}<button class="btn2" id="lgCheck">Periksa ulang</button>` : `<button class="btn" id="lgStart">🔑 Masuk dengan Claude</button><button class="btn2" id="lgCheck">Periksa ulang</button>`}</div>
       <div id="lgFlow"></div>
+      <details style="margin-top:12px"><summary style="cursor:pointer;color:var(--dim);font-size:13.5px">Cara lain: tempel token langsung</summary>
+        <div class="n" style="margin-top:6px">Buat token di laptop dengan <code>npx @anthropic-ai/claude-code setup-token</code>, lalu salin yang diawali <code>sk-ant-oat01-</code> dan tempel di sini.</div>
+        <div class="row"><input id="tkIn" type="password" autocomplete="off" placeholder="sk-ant-oat01-…" style="flex:1;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:13px var(--mono)"><button class="btn" id="tkSend">Simpan</button></div><div id="tkMsg" class="msgx" style="margin-top:6px"></div>
+      </details>
     </div>
     <p class="s">Tips: jangan aktifkan "usage credits" berbayar di akun Claude agar tidak ada tagihan tambahan; bila kredit bulanan habis, pakai model <b>gratis</b> sambil menunggu.</p>`;
   const flow = $("#lgFlow", el);
@@ -1340,6 +1344,13 @@ PANES.akun = async function (el, inWizard) {
     };
     $("#lgSend", el).onclick = submit;
     $("#lgCode", el).onkeydown = (e) => e.key === "Enter" && submit();
+  };
+  $("#tkSend", el).onclick = async () => {
+    const t = $("#tkIn", el).value.trim();
+    if (!t) return;
+    $("#tkMsg", el).textContent = "memeriksa token…"; $("#tkSend", el).disabled = true;
+    try { const r = await api("/api/claude/token", { method: "POST", body: { token: t } }); S.account = r.status; renderMe(); toast("Akun Claude terhubung ✓"); PANES.akun(el, inWizard); }
+    catch (e) { $("#tkMsg", el).innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`; $("#tkSend", el).disabled = false; }
   };
   $("#lgStart", el) && ($("#lgStart", el).onclick = start);
   $("#lgAgain", el) && ($("#lgAgain", el).onclick = start);

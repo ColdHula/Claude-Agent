@@ -11,6 +11,8 @@ import path from "node:path";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
+const WAIT_MS = Number(process.env.STUDIO_LOGIN_WAIT_MS || 90_000); // tunggu hasil setelah kode ditempel
+const TOKEN_RE = /sk-ant-oat\d*-[A-Za-z0-9_-]{20,}/;
 const strip = (s) => s.replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, " ").replace(/\x1b\[[0-9;?]*[ -\/]*[@-~]/g, "").replace(/\x1b[()][A-Z0-9]/g, "");
 
 function claudeBin() {
@@ -59,6 +61,17 @@ export function createClaudeAccount({ store, cleanEnv, getSdk }) {
     return info;
   }
 
+  // Keluaran terakhir proses login untuk diagnosis (token dan tautan panjang disamarkan).
+  function tailOf(j) {
+    const t = strip(j.out || "")
+      .replace(/sk-ant-[A-Za-z0-9_-]{6,}/g, "sk-ant-***")
+      .split(j.sentCode || "\u0000").join("[kode]")
+      .replace(/https?:\/\/\S{60,}/g, "[tautan]")
+      .replace(/[\x00-\x08\x0b-\x1f]/g, "")
+      .split("\n").map((l) => l.trim()).filter(Boolean).slice(-6).join(" ⏎ ");
+    return (t || "(kosong)").slice(-500);
+  }
+
   function startLogin() {
     if (job?.proc && job.state !== "done" && job.state !== "error") job.proc.kill("SIGKILL");
     const bin = claudeBin();
@@ -76,7 +89,7 @@ export function createClaudeAccount({ store, cleanEnv, getSdk }) {
           j.state = "waiting_code";
         }
       }
-      const t = strip(j.out).match(/sk-ant-oat01-[A-Za-z0-9_-]{20,}/);
+      const t = strip(j.out).match(TOKEN_RE);
       if (t && !j.token) {
         j.token = t[0];
         j.state = "done";
@@ -95,7 +108,7 @@ export function createClaudeAccount({ store, cleanEnv, getSdk }) {
     proc.stderr.on("data", onData);
     proc.on("error", (e) => Object.assign(j, { state: "error", error: e.code === "ENOENT" ? "Perintah `script` tidak ada (sudo apt install bsdutils) atau binary Claude tidak ditemukan." : e.message }));
     proc.on("exit", () => {
-      if (j.state !== "done") Object.assign(j, { state: "error", error: j.error || j.lastErr || "Proses login berhenti sebelum selesai. Coba lagi." });
+      if (j.state !== "done") Object.assign(j, { state: "error", error: j.error || j.lastErr || `Proses login berhenti sebelum selesai. Keluaran terakhir: ${tailOf(j)}` });
     });
     setTimeout(() => {
       if (j.state === "waiting_code" || j.state === "checking" || j.state === "starting") {
@@ -115,18 +128,19 @@ export function createClaudeAccount({ store, cleanEnv, getSdk }) {
 
   function submitCode(code) {
     if (!job || job.state !== "waiting_code") throw new Error("Tidak ada proses login yang menunggu kode. Klik Masuk lagi.");
-    const c = String(code || "").trim();
+    const c = String(code || "").replace(/\s+/g, ""); // salinan dari HP sering menyelipkan spasi/baris baru
     if (!c || c.length > 2000) throw new Error("Kode kosong.");
     job.state = "checking";
+    job.sentCode = c;
     job.proc.stdin.write(c + "\r");
     const j = job;
     return new Promise((resolve) => {
       const t0 = Date.now();
       const tick = () => {
         if (j.state === "done" || j.state === "error") return resolve(view());
-        if (Date.now() - t0 > 60_000) {
+        if (Date.now() - t0 > WAIT_MS) {
           j.proc.kill("SIGKILL");
-          Object.assign(j, { state: "error", error: j.lastErr || "Kode tidak diterima (salah atau kedaluwarsa). Klik Masuk lagi." });
+          Object.assign(j, { state: "error", error: j.lastErr || `Tidak ada jawaban dalam ${Math.round(WAIT_MS / 1000)} detik setelah kode dikirim (kode salah/kedaluwarsa, atau rig tidak bisa menjangkau claude.com). Keluaran terakhir proses login: ${tailOf(j)}` });
           return resolve(view());
         }
         setTimeout(tick, 300);
@@ -140,6 +154,21 @@ export function createClaudeAccount({ store, cleanEnv, getSdk }) {
     return { state: job.state, url: job.url, error: job.error };
   }
 
+  // Jalur cadangan: token dari `claude setup-token` yang dibuat di perangkat lain.
+  async function setToken(t) {
+    const tok = String(t || "").replace(/\s+/g, "");
+    if (!/^sk-ant-oat\d*-[A-Za-z0-9_-]{20,}$/.test(tok)) throw Object.assign(new Error("Format token tidak dikenali. Token diawali sk-ant-oat01-…"), { status: 400 });
+    await store.saveSettings({ claudeToken: tok, claudeTokenAt: Date.now() });
+    cache = null;
+    const st = await status({ fresh: true });
+    if (!st.loggedIn) {
+      await store.saveSettings({ claudeToken: "", claudeTokenAt: 0 });
+      cache = null;
+      throw Object.assign(new Error("Token tidak diterima Claude (tidak terhubung ke langganan). Buat token baru lalu coba lagi."), { status: 400 });
+    }
+    return st;
+  }
+
   async function logout() {
     job?.proc?.kill("SIGKILL");
     job = null;
@@ -147,5 +176,5 @@ export function createClaudeAccount({ store, cleanEnv, getSdk }) {
     await store.saveSettings({ claudeToken: "", claudeTokenAt: 0 });
   }
 
-  return { status, startLogin, submitCode, view, logout, sdkEnv, hasStudioToken: () => Boolean(savedToken()) };
+  return { status, startLogin, submitCode, view, logout, setToken, sdkEnv, hasStudioToken: () => Boolean(savedToken()) };
 }
