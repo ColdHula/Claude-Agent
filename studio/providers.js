@@ -52,11 +52,11 @@ export const CATALOG = [
     kind: "openai",
     group: "gratis",
     name: "OpenRouter (model :free)",
-    note: "Akun OpenRouter gratis, hanya model berakhiran :free.",
+    note: "Akun OpenRouter gratis, hanya model berakhiran :free. Model pertama (Dolphin Mistral 24B, edisi Venice) dikenal lebih jarang menolak; filter model lain tergantung pembuatnya. Jatah gratis kecil dan daftar model gratis sering berubah.",
     baseUrl: "https://openrouter.ai/api/v1",
     envKey: "OPENROUTER_API_KEY",
     modelFilter: (id) => id.endsWith(":free"),
-    models: [],
+    models: ["cognitivecomputations/dolphin-mistral-24b-venice-edition:free"],
     needsKey: true,
   },
   {
@@ -81,6 +81,18 @@ export const CATALOG = [
     baseUrl: "https://api.groq.com/openai/v1",
     envKey: "GROQ_API_KEY",
     models: [],
+    needsKey: true,
+  },
+  {
+    id: "venice",
+    kind: "openai",
+    group: "api",
+    name: "Venice AI (jarang menolak, fokus privasi)",
+    note: "Akun gratis di web hanya ±10 prompt teks/hari; akses API memakai kredit/Pro. Model venice-uncensored lebih jarang menolak, tetapi bukan berarti bebas aturan hukum atau layanan. Jangan kirim data pribadi/PGD.",
+    baseUrl: "https://api.venice.ai/api/v1",
+    envKey: "VENICE_API_KEY",
+    keyUrl: "https://venice.ai/settings/api",
+    models: ["venice-uncensored"],
     needsKey: true,
   },
   {
@@ -211,7 +223,7 @@ export function createProviders(dataDir) {
       const r = await fetch(`${p.baseUrl}/models${qs}`, { headers: headers(p), signal: AbortSignal.timeout(8000) });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
-      let ids = (j.data || j.models || []).map((m) => m.id || m.name).filter(Boolean);
+      let ids = (j.data || j.models || []).filter((m) => !m.type || m.type === "text").map((m) => m.id || m.name).filter(Boolean);
       if (p.modelFilter) ids = ids.filter(p.modelFilter);
       ids.sort();
       return [...new Set([...p.models, ...ids])];

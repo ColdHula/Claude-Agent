@@ -20,6 +20,7 @@ export const DEFAULT_WINDOWS = {
   groq: 32_000,
   "openrouter-free": 32_000,
   openrouter: 64_000,
+  venice: 32_000,
   freellmapi: 32_000, // "auto" bisa jatuh ke model kecil → ambil yang konservatif
   ollama: 8_192,
   custom: 8_192,
