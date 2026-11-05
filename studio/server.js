@@ -672,7 +672,7 @@ async function handleChat(req, res) {
     if (firstTurn && !space) autoTitle(session).catch(() => {}); // judul otomatis akan mengirim isi chat ke penyedia lain → tidak untuk ruang bebas
   } catch (e) {
     const aborted = ac.signal.aborted;
-    const msg = { role: "assistant", text: aborted ? `${textLive}${textLive ? "\n\n" : ""}_(dihentikan)_` : `⚠️ ${friendly(e)}`, thinking: thinkingLive || undefined, at: Date.now(), provider, model: chosenModel, error: !aborted, stopped: aborted || undefined, steps: steps.length ? steps : undefined };
+    const msg = { role: "assistant", text: aborted ? `${textLive}${textLive ? "\n\n" : ""}_(dihentikan)_` : `⚠️ ${friendly(e, p.kind, p.name)}`, thinking: thinkingLive || undefined, at: Date.now(), provider, model: chosenModel, error: !aborted, stopped: aborted || undefined, steps: steps.length ? steps : undefined };
     session.messages.push(msg);
     await store.write(session).catch(() => {});
     emit({ type: "error", error: msg.text, message: msg });
@@ -687,12 +687,17 @@ async function handleChat(req, res) {
   }
 }
 
-function friendly(e) {
+function friendly(e, kind = "", name = "") {
   const m = String(e?.message || e);
-  if (/credit|billing|usage limit/i.test(m)) return `Kredit habis atau belum diklaim untuk penyedia ini. ${m}`;
-  if (/auth|login|oauth|401|403|invalid api key|not logged/i.test(m)) return "Belum masuk ke akun Claude. Buka Pengaturan → Akun Claude → **Masuk dengan Claude**, lalu coba lagi.";
-  if (/ECONNREFUSED|fetch failed/i.test(m)) return `Tidak bisa menghubungi server penyedia (${m}). Untuk FreeLLMAPI/Ollama pastikan servernya menyala dan URL di Pengaturan benar.`;
-  if (/429|rate.?limit/i.test(m)) return `Kuota/batas laju penyedia tercapai. Coba model lain (mis. FreeLLMAPI "auto"). ${m.slice(0, 200)}`;
+  const claude = kind === "claude-sdk";
+  const who = name || "Penyedia";
+  // Pesan soal login/kredit Claude hanya untuk penyedia Claude; penyedia lain memakai pesan sendiri (kunci API, saldo).
+  if (claude && /credit|billing|usage limit/i.test(m)) return `Kredit Agent SDK bulan ini habis atau belum diklaim. ${m}`;
+  if (claude && /auth|login|oauth|401|403|invalid api key|not logged/i.test(m)) return "Belum masuk ke akun Claude. Buka Pengaturan → Akun Claude → **Masuk dengan Claude**, lalu coba lagi.";
+  if (/ECONNREFUSED|ENOTFOUND|fetch failed/i.test(m)) return `Tidak bisa menghubungi ${who} (${m}). Periksa URL di pengaturan penyedia/tab ini, dan untuk FreeLLMAPI/Ollama pastikan servernya menyala.`;
+  if (/\b429\b|rate.?limit/i.test(m)) return `Kuota/batas laju ${who} tercapai. Tunggu sebentar atau coba model lain. ${m.slice(0, 200)}`;
+  if (!claude && /\b(401|403)\b|unauthori[sz]ed|forbidden|incorrect api key|invalid.{0,20}key/i.test(m)) return `${who} menolak kunci API (${m.slice(0, 220)}). Periksa kunci dan URL di pengaturan penyedia/tab ini. Sebagian layanan (mis. Venice) butuh kredit atau paket berbayar untuk akses API.`;
+  if (!claude && /\b402\b|insufficient|credit|billing|balance|quota/i.test(m)) return `Saldo/kredit di ${who} tidak cukup atau sudah habis (${m.slice(0, 220)}).`;
   if (/image|vision|multimodal/i.test(m)) return `Model ini tidak bisa membaca gambar. Pilih model yang mendukung gambar (Claude, Gemini, GPT-4o). ${m.slice(0, 200)}`;
   return m;
 }
