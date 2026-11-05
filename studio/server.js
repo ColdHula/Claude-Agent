@@ -21,6 +21,7 @@ import { createStorage } from "./storage.js";
 import { createClaudeAccount } from "./akun-claude.js";
 import { createKnowledge } from "./pengetahuan.js";
 import { createRig } from "./rig.js";
+import { createContext, summaryBlock } from "./konteks.js";
 
 const execFileP = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -71,6 +72,8 @@ function cleanEnv() {
 const account = createClaudeAccount({ store, cleanEnv, getSdk });
 const knowledge = createKnowledge(store);
 const rig = createRig({ appRoot: APP_ROOT, dataDir: DATA });
+const ctxm = createContext({ store, providers, account, cleanEnv, getSdk, chatHome: CHAT_HOME }); // pemadatan konteks
+const compactFailed = new Map(); // sessionId -> waktu gagal terakhir (jangan coba terus-menerus)
 
 // ───────────────────────── utilitas HTTP ─────────────────────────
 function json(res, status, body) {
@@ -291,7 +294,10 @@ async function runClaudeSdk(session, { model, prompt, images, mode, perm, think,
   const allowed = code && perm === "otomatis" ? tools : code ? [...READ, ...skillTool, "TodoWrite"] : tools;
   const chosen = skills?.length ? found.names.filter((n) => skills.includes(n)) : found.names;
 
-  const unsynced = session.messages.slice(session.claudeSynced || 0, -1);
+  // Sesi Claude baru (ganti penyedia/mode, pemadatan manual): kirim hanya pesan SESUDAH bagian yang sudah diringkas.
+  const fresh = !session.claudeSessionId;
+  const from = fresh ? (session.summary ? session.summarizedUpTo || 0 : 0) : session.claudeSynced || 0;
+  const unsynced = session.messages.slice(from, -1);
   const preface = unsynced.length ? `Konteks percakapan sebelumnya:\n${transcript(unsynced, 50_000)}\n\n---\n\n` : "";
   const notes = attachPaths.length ? `\n\n(Lampiran tersimpan di: ${attachPaths.map((p) => `${p.abs}`).join(", ")} — buka dengan Read bila perlu.)` : "";
   const fullText = preface + prompt + notes;
@@ -299,6 +305,8 @@ async function runClaudeSdk(session, { model, prompt, images, mode, perm, think,
   const ac = new AbortController();
   signal.addEventListener("abort", () => ac.abort(), { once: true });
   const env = account.sdkEnv(cleanEnv());
+  // Claude Code memadatkan sesinya sendiri; atur batasnya mengikuti pengaturan konteks Studio (min. 100 rb).
+  if (ctxm.cfg().auto) env.CLAUDE_CODE_AUTO_COMPACT_WINDOW = String(Math.max(100_000, Math.floor(ctxm.windowFor("langganan") * ctxm.cfg().threshold)));
 
   const always = new Set();
   const canUseTool = async (name, input, { signal: sig }) => {
@@ -391,15 +399,16 @@ async function runClaudeSdk(session, { model, prompt, images, mode, perm, think,
 }
 
 // Riwayat untuk penyedia tanpa memori sesi, dipotong dari belakang agar muat.
-function historyMessages(session, { images = [], openai = false } = {}) {
+function historyMessages(session, { images = [], openai = false, maxChars = HISTORY_CHARS } = {}) {
   const out = [];
   let used = 0;
   const last = session.messages.length - 1;
-  for (let i = last; i >= 0; i--) {
+  const first = session.summary ? Math.min(session.summarizedUpTo || 0, last) : 0; // bagian yang sudah diringkas tidak ikut
+  for (let i = last; i >= first; i--) {
     const m = session.messages[i];
     let content = m.sent || m.text;
     if (i !== last && m.attachments?.length) content += `\n[Lampiran: ${m.attachments.map((a) => a.name).join(", ")}]`;
-    if (used + content.length > HISTORY_CHARS && out.length) break;
+    if (used + content.length > maxChars && out.length) break;
     if (i === last && images.length) {
       content = openai
         ? [{ type: "text", text: content }, ...images.map((im) => ({ type: "image_url", image_url: { url: `data:${im.mime};base64,${im.b64}` } }))]
@@ -412,7 +421,7 @@ function historyMessages(session, { images = [], openai = false } = {}) {
   return out;
 }
 
-async function runAnthropicApi(p, session, { model, system, images, think, signal, emit }) {
+async function runAnthropicApi(p, session, { model, system, images, think, signal, emit, maxChars }) {
   if (!p.apiKey) throw new Error("ANTHROPIC_API_KEY belum diisi (Pengaturan → Model & penyedia, atau .env).");
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
   const client = new Anthropic({ apiKey: p.apiKey });
@@ -421,7 +430,7 @@ async function runAnthropicApi(p, session, { model, system, images, think, signa
       model,
       max_tokens: 32000,
       system,
-      messages: historyMessages(session, { images }),
+      messages: historyMessages(session, { images, maxChars }),
       thinking: { type: "adaptive", display: "summarized" },
       ...(think ? { output_config: { effort: "high" } } : {}),
       tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
@@ -499,6 +508,7 @@ async function handleChat(req, res) {
     session.messages = session.messages.slice(0, truncateAt);
     session.claudeSessionId = null;
     session.claudeSynced = 0;
+    if ((session.summarizedUpTo || 0) > truncateAt) { delete session.summary; session.summarizedUpTo = 0; } // ringkasan memuat pesan yang dibuang
   }
 
   const p = providers.resolve(provider);
@@ -532,7 +542,8 @@ async function handleChat(req, res) {
   const settingsNow = store.settings();
   const mem = settingsNow.useMemory === false ? "" : await knowledge.memory();
   const proj = await knowledge.context(session.project);
-  const extra = (mem ? `\n\n<memori_pengguna>\n${mem.slice(0, 8000)}\n</memori_pengguna>` : "") + proj.text;
+  const extraBase = (mem ? `\n\n<memori_pengguna>\n${mem.slice(0, 8000)}\n</memori_pengguna>` : "") + proj.text;
+  let extra = extraBase;
 
   res.writeHead(200, SSE_HEAD);
   const ac = new AbortController();
@@ -545,6 +556,8 @@ async function handleChat(req, res) {
   const stepById = new Map();
   let thinkingLive = "";
   let textLive = "";
+  let compactNote;
+  const notesLive = [];
   const emit = (e) => {
     if (e.type === "tool") {
       const s = { kind: "tool", id: e.id, name: e.name, label: e.label, input: e.input, sub: e.sub };
@@ -557,6 +570,7 @@ async function handleChat(req, res) {
       if (s) s.allow = e.allow;
     } else if (e.type === "thinking") thinkingLive += e.text;
     else if (e.type === "delta") textLive += e.text;
+    else if (e.type === "note") notesLive.push(e.text);
     jobEmit(job, e);
   };
   emit({ type: "session", id: session.id, title: session.title });
@@ -565,19 +579,44 @@ async function handleChat(req, res) {
   const t0 = Date.now();
   const firstTurn = session.messages.length === 1;
   try {
+    // Pemadatan konteks otomatis: ringkas bagian lama bila percakapan mendekati jendela model ini.
+    const cwdNow = mode === "code" ? WORKSPACE : CHAT_HOME;
+    const resumingClaude = p.kind === "claude-sdk" && Boolean(session.claudeSessionId) && (!session.claudeCwd || session.claudeCwd === cwdNow);
+    try {
+      const extraTokens = Math.ceil((extraBase.length + 1200) / 3.3);
+      const recentlyFailed = compactFailed.has(session.id) && Date.now() - compactFailed.get(session.id) < 300_000;
+      if (!recentlyFailed && ctxm.needsCompact(session, provider, chosenModel, { extraTokens, resumingClaude })) {
+        emit({ type: "compact", phase: "start" });
+        const r = await ctxm.compact(session, { provider, model: chosenModel, signal: ac.signal, onProgress: (x) => emit({ type: "compact", ...x }) });
+        if (r.compacted) {
+          if (p.kind === "claude-sdk") { session.claudeSessionId = null; session.claudeSynced = 0; }
+          await store.write(session);
+          compactNote = { phase: "done", before: r.before, after: r.after, upto: r.upto, summary: r.summary, by: r.by };
+          emit({ type: "compact", ...compactNote });
+        }
+      }
+    } catch (e) {
+      if (!ac.signal.aborted) {
+        compactFailed.set(session.id, Date.now());
+        emit({ type: "note", text: `⚠️ Pemadatan konteks gagal (${String(e.message || e).slice(0, 140)}). Riwayat lama dipotong seperlunya.` });
+      }
+    }
+    extra = extraBase + (session.summary && !resumingClaude ? summaryBlock(session) : "");
+    const histMax = ctxm.maxChars(provider, chosenModel);
+
     let result;
     if (p.kind === "claude-sdk") {
       result = await runClaudeSdk(session, { model: chosenModel, prompt: sent, images: att.images, mode, perm, think, skills, attachPaths: att.paths, signal: ac.signal, emit, profile, extra, extraDirs: proj.dir ? [proj.dir] : [] });
     } else {
       const system = systemText(mode, profile, extra + (skillBlock ? `\n\nSkill yang harus diikuti untuk tugas ini:${skillBlock}` : ""));
-      if (p.kind === "anthropic") result = await runAnthropicApi(p, session, { model: chosenModel, system, images: att.images, think, signal: ac.signal, emit });
+      if (p.kind === "anthropic") result = await runAnthropicApi(p, session, { model: chosenModel, system, images: att.images, think, signal: ac.signal, emit, maxChars: histMax });
       else {
         const info = {};
         let thinking = "";
         let inThink = false;
         const textOut = await providers.chatOpenAI(provider, {
           model: chosenModel,
-          messages: [{ role: "system", content: system }, ...historyMessages(session, { images: att.images, openai: true })],
+          messages: [{ role: "system", content: system }, ...historyMessages(session, { images: att.images, openai: true, maxChars: histMax })],
           signal: ac.signal,
           onDelta: (t) => {
             // Model penalar (DeepSeek-R1, Qwen3) menulis <think>…</think> di teks → pisahkan ke panel berpikir.
@@ -603,7 +642,7 @@ async function handleChat(req, res) {
         result = { text: textOut.replace(/<think>[\s\S]*?<\/think>\s*/g, ""), thinking, meta: info };
       }
     }
-    const msg = { role: "assistant", text: result.text, thinking: result.thinking || undefined, at: Date.now(), provider, model: chosenModel, ms: Date.now() - t0, meta: result.meta, steps: steps.length ? steps : undefined };
+    const msg = { role: "assistant", text: result.text, thinking: result.thinking || undefined, at: Date.now(), provider, model: chosenModel, ms: Date.now() - t0, meta: result.meta, steps: steps.length ? steps : undefined, compact: compactNote ? { ...compactNote, summary: undefined } : undefined, notes: notesLive.length ? notesLive : undefined };
     session.messages.push(msg);
     await store.write(session);
     emit({ type: "done", message: msg, title: session.title });
@@ -711,6 +750,44 @@ const server = http.createServer(async (req, res) => {
     if (p === "/api/server/logs") return json(res, 200, { text: await rig.logs(url.searchParams.get("service") || "", Number(url.searchParams.get("n")) || 120) });
     if (p === "/api/server/update" && req.method === "POST") return json(res, 200, await rig.update());
     if (p === "/api/server/reboot" && req.method === "POST") return json(res, 200, await rig.reboot((await readBody(req)).confirm));
+
+    // Konteks & pemadatan
+    if (p === "/api/konteks/config" && req.method === "GET") {
+      return json(res, 200, { cfg: ctxm.cfg(), defaults: ctxm.defaults(), providers: providers.publicList().map((x) => ({ id: x.id, name: x.name, group: x.group, ready: x.ready, defaultModel: x.defaultModel })) });
+    }
+    if (p === "/api/konteks/config" && req.method === "POST") {
+      await ctxm.setCfg(await readBody(req));
+      return json(res, 200, { cfg: ctxm.cfg() });
+    }
+    if (p === "/api/konteks" && req.method === "POST") {
+      const b = await readBody(req);
+      const prov = providers.resolve(String(b.provider || "langganan"));
+      const model = b.model || prov.defaultModel;
+      const session = b.sessionId && store.validId(String(b.sessionId)) ? await store.read(String(b.sessionId)).catch(() => null) : null;
+      return json(res, 200, ctxm.info(session || { messages: [] }, prov.id, model));
+    }
+    if ((m = p.match(/^\/api\/sessions\/studio\/([\w-]+)\/padatkan$/)) && req.method === "POST") {
+      if (running.has(m[1])) return json(res, 409, { error: "Chat ini sedang memproses pesan. Tunggu selesai." });
+      const b = await readBody(req);
+      const ac = new AbortController();
+      running.set(m[1], ac);
+      try {
+        const session = await store.read(m[1]);
+        const prov = providers.resolve(String(b.provider || session.provider || "langganan"));
+        const model = b.model || session.model || prov.defaultModel;
+        const r = await ctxm.compact(session, { provider: prov.id, model, keep: Number(b.keep) || undefined, signal: ac.signal });
+        if (r.compacted) {
+          session.claudeSessionId = null; // sesi Claude lama tidak ikut; mulai baru dengan ringkasan
+          session.claudeSynced = 0;
+          await store.write(session, { keepTime: true });
+        }
+        return json(res, 200, { compacted: r.compacted, reason: r.reason, before: r.before, after: r.after, by: r.by, session: { summary: session.summary, summarizedUpTo: session.summarizedUpTo, claudeSessionId: session.claudeSessionId || null }, info: ctxm.info(session, prov.id, model) });
+      } catch (e) {
+        return json(res, e.status || 502, { error: `Pemadatan gagal: ${e.message}` });
+      } finally {
+        running.delete(m[1]);
+      }
+    }
 
     // Akun Claude (langganan)
     if (p === "/api/claude/status") return json(res, 200, { ...(await account.status({ fresh: url.searchParams.has("fresh") })), studioLogin: account.hasStudioToken() });

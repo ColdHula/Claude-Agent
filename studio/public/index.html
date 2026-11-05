@@ -275,6 +275,11 @@ a{color:var(--blue)}
 .logbox{font:11.5px/1.5 var(--mono);white-space:pre-wrap;word-break:break-all;max-height:50vh;overflow:auto;background:var(--side);border-radius:8px;padding:8px 10px;margin:6px 0 0}
 .tn .inc{margin-left:auto;padding:0 8px;opacity:.55}
 .syncpill.rig{font-variant-numeric:tabular-nums}
+.compactdiv{margin:18px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);padding:7px 0;color:var(--faint);font-size:13px}
+.compactdiv summary{cursor:pointer}
+.compactdiv .md{margin-top:8px;color:var(--dim);font-size:14px}
+.cnote{font-size:13px;color:var(--faint);margin:2px 0 8px}
+#ctxBtn svg{flex:none}
 
 /* ponsel */
 @media (max-width:860px){
@@ -674,6 +679,7 @@ function composerHtml(big) {
         <button class="cb" id="permBtn" title="Izin mode Code"></button>
         <button class="cb" id="micBtn" title="Ketik dengan suara" style="display:none">🎤</button>
         <span class="sp"></span>
+        <button class="cb plain" id="ctxBtn" style="display:none"></button>
         <button class="cb plain" id="modelBtn" title="Pilih model"></button>
         <button class="send" id="sendBtn" title="Kirim (Enter)" disabled>↑</button>
       </div>
@@ -695,6 +701,7 @@ function bindComposer() {
   $("#sendBtn").onclick = () => (S.live && S.live.sid === (S.cur?.id || null) ? stop() : send());
   $("#plusBtn").onclick = (e) => openPlusMenu(e.currentTarget);
   $("#modelBtn").onclick = (e) => openModelPicker(e.currentTarget);
+  $("#ctxBtn").onclick = (e) => openCtxMenu(e.currentTarget);
   $("#permBtn").onclick = (e) => openPermMenu(e.currentTarget);
   const mic = $("#micBtn");
   if (SpeechRec) { mic.style.display = ""; mic.classList.toggle("on", Boolean(S.rec)); mic.onclick = toggleMic; }
@@ -725,6 +732,7 @@ function renderComposerBar() {
   pb.style.display = S.mode === "code" && p?.kind === "claude-sdk" ? "" : "none";
   pb.innerHTML = `${PERM[S.perm].ic}<span class="hide-m">${PERM[S.perm].n}</span>`;
   pb.classList.toggle("on", S.perm === "otomatis");
+  scheduleCtx();
   updateSend();
 }
 function updateSend() {
@@ -767,7 +775,7 @@ function render() {
     : "";
   const keepScroll = $("#msgs") && S.renderedId === (c.source + c.id);
   const prevTop = $("#msgs")?.scrollTop;
-  convo.innerHTML = `<div class="msgs" id="msgs"><div class="col">${ro}<div id="mlist">${c.messages.map((m, i) => msgHtml(m, i)).join("")}${S.live && S.live.sid === c.id ? msgHtml(S.live.msg, -1, true) : ""}</div></div></div>${c.readonly ? "" : composerHtml(false)}`;
+  convo.innerHTML = `<div class="msgs" id="msgs"><div class="col">${ro}<div id="mlist">${c.messages.map((m, i) => (c.summary && c.summarizedUpTo === i ? dividerHtml(c) : "") + msgHtml(m, i)).join("")}${S.live && S.live.sid === c.id ? msgHtml(S.live.msg, -1, true) : ""}</div></div></div>${c.readonly ? "" : composerHtml(false)}`;
   if (!c.readonly) bindComposer();
   $("#contBtn") && ($("#contBtn").onclick = continueSession);
   bindMsgActions();
@@ -815,9 +823,10 @@ function msgHtml(m, i, live) {
     m.meta?.usd ? `≈$${m.meta.usd.toFixed(3)}` : "",
   ].filter(Boolean).join(" · ");
   const isLast = i === S.cur?.messages.length - 1;
+  const cmpl = compactHtml(m.compact);
   const acts = live ? "" : `<div class="acts"><button data-act="copy">Salin</button>${!S.cur?.readonly && isLast ? `<button data-act="retry">↻ Ulangi</button>` : ""}<span class="meta">${meta}</span></div>`;
   const content = m.text ? `<div class="md ${live ? "caret" : ""}">${md(m.text)}</div>` : live && !m.thinking && !steps.length ? `<div class="md caret" style="color:var(--faint)">${m.waitText || ""}</div>` : "";
-  return `<div class="msg ai ${m.error ? "err" : ""}" data-i="${i}">${thinking}${stepsHtml}${perms}${notes}${content}${acts}</div>`;
+  return `<div class="msg ai ${m.error ? "err" : ""}" data-i="${i}">${cmpl}${thinking}${stepsHtml}${perms}${notes}${content}${acts}</div>`;
 }
 function permHtml(pm) {
   if (pm.answered !== undefined) return `<div class="perm done">${pm.answered ? "✅ Diizinkan" : "⛔ Ditolak"}: <code>${esc(pm.label)}</code></div>`;
@@ -934,13 +943,17 @@ async function send(override) {
   const attachments = override ? override.attachments : S.pending.filter((a) => !a.uploading).map(({ name, file, size, type }) => ({ name, file, size, type }));
   const files = override ? override.files : [...S.wsFiles];
   if (!text && !attachments.length) return;
+  if (!override && /^\/(compact|padatkan)\s*$/i.test(text)) { $("#prompt").value = ""; S.draft = ""; autoGrow(); updateSend(); return doCompact(); }
   if (!S.cur) newChat();
   const c = S.cur;
   if (c.readonly) return;
   const p = prov(S.provider);
   if (!p?.ready) { toast(`${p?.name || S.provider} belum siap — atur dulu di Pengaturan.`); return openSettings("model"); }
   const truncateAt = override ? override.truncateAt : S.editAt;
-  if (Number.isInteger(truncateAt)) c.messages = c.messages.slice(0, truncateAt);
+  if (Number.isInteger(truncateAt)) {
+    c.messages = c.messages.slice(0, truncateAt);
+    if ((c.summarizedUpTo || 0) > truncateAt) { delete c.summary; c.summarizedUpTo = 0; } // ringkasan memuat pesan yang dibuang
+  }
   c.messages.push({ role: "user", text, attachments, files });
   const body = { sessionId: c.id, provider: S.provider, model: currentModel(), text, attachments, files, skills: [...S.skillsOn], mode: S.mode, perm: S.perm, think: S.think, truncateAt, ...(S.projectTouched || !c.id ? { project: S.project } : {}) };
   S.projectTouched = false;
@@ -1050,6 +1063,10 @@ function handleEvent(c, live, e) {
     case "permission_done": { const pm = m.perms.find((x) => x.id === e.id); if (pm) pm.answered = e.allow; break; }
     case "info": Object.assign(m.meta, e); break;
     case "note": m.notes.push(e.text); break;
+    case "compact":
+      m.compact = e;
+      if (e.phase === "done") { c.summary = e.summary; c.summarizedUpTo = e.upto; }
+      break;
     case "done": case "error":
       c.messages.push(e.message); if (e.title) c.title = e.title;
       if (S.live === live) S.live = null;
@@ -1136,7 +1153,7 @@ function openSettings(tab = "profil") {
   $(".modal")?.remove();
   const m = document.createElement("div");
   m.className = "modal";
-  const tabs = [["profil", "👤 Profil"], ["akun", "🔑 Akun Claude"], ["model", "🤖 Model & penyedia"], ["impor", "📥 Impor & proyek"], ["server", "🖥 Server"], ["simpan", "☁️ Penyimpanan chat"], ["skill", "🧰 Skill"], ["tampilan", "🎨 Tampilan"], ["bantuan", "❔ Bantuan"]];
+  const tabs = [["profil", "👤 Profil"], ["akun", "🔑 Akun Claude"], ["model", "🤖 Model & penyedia"], ["impor", "📥 Impor & proyek"], ["server", "🖥 Server"], ["konteks", "🗜️ Konteks"], ["simpan", "☁️ Penyimpanan chat"], ["skill", "🧰 Skill"], ["tampilan", "🎨 Tampilan"], ["bantuan", "❔ Bantuan"]];
   m.innerHTML = `<div class="box"><div class="mh"><h2>Pengaturan</h2><button class="ib" data-x>✕</button></div><div class="mb"><nav class="tabsv">${tabs.map(([k, n]) => `<button data-t="${k}">${n}</button>`).join("")}</nav><div class="pane" id="pane"></div></div></div>`;
   document.body.append(m);
   m.onclick = (e) => { if (e.target === m || e.target.closest("[data-x]")) m.remove(); };
@@ -1248,6 +1265,7 @@ const PANES = {
 - **Akun Claude**: tab *Akun Claude* → **Masuk dengan Claude** (sekali, berlaku 1 tahun) agar langganan Pro/Max dipakai.
 - **Dari claude.ai**: tab *Impor & proyek* → unggah ZIP *Export data* claude.ai; semua chat, Project, dan memori pindah ke sini.
 - **Proyek**: instruksi + berkas pengetahuan yang dipakai otomatis di chat proyek itu (pilih lewat ＋).
+- **Konteks**: lingkaran kecil di kotak ketik menunjukkan seberapa penuh jendela model yang dipilih. Mendekati batas, bagian lama diringkas **otomatis** (riwayat di layar tetap utuh). Ketik \`/compact\` atau ketuk lingkarannya untuk memadatkan manual.
 - **Panduan awal**: tombol di bawah membuka lagi langkah-langkah awal.
 
 **Pintasan:** \`Ctrl K\` cari · \`Ctrl Shift O\` chat baru · \`Ctrl B\` panel · \`Esc\` hentikan · \`Ctrl S\` simpan berkas · \`Enter\` kirim, \`Shift Enter\` baris baru.`)}</div><p><button class="btn" id="wzAgain">🧭 Buka panduan awal</button></p>`;
@@ -1382,6 +1400,88 @@ PANES.server = async function (el) {
   };
   await draw();
   const timer = setInterval(() => (el.isConnected ? draw() : clearInterval(timer)), 10000);
+};
+
+/* ═════════════ konteks & pemadatan (autocompact) ═════════════ */
+const fmtK = (n) => (n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+let ctxTimer = 0;
+function scheduleCtx() { clearTimeout(ctxTimer); ctxTimer = setTimeout(refreshCtx, 250); }
+async function refreshCtx() {
+  const btn = $("#ctxBtn");
+  if (!btn) return;
+  const c = S.cur;
+  if (!c?.id || c.readonly || c.source !== "studio") { btn.style.display = "none"; S.ctx = null; return; }
+  try { S.ctx = await api("/api/konteks", { method: "POST", body: { sessionId: c.id, provider: S.provider, model: currentModel() } }); } catch { return; }
+  drawCtx();
+}
+function drawCtx() {
+  const btn = $("#ctxBtn"), x = S.ctx;
+  if (!btn || !x) return;
+  const pct = x.pct, hot = pct >= x.threshold, warm = pct >= x.threshold - 15, C = 2 * Math.PI * 8;
+  btn.style.display = "";
+  btn.style.color = hot ? "var(--accent)" : warm ? "var(--warn)" : "";
+  btn.title = `Konteks ≈${fmtK(x.tokens)} dari ${fmtK(x.window)} token (${pct}%)${x.hasSummary ? " · sebagian sudah diringkas" : ""}`;
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--line)" stroke-width="3"/><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(C * pct) / 100} ${C}" transform="rotate(-90 10 10)"/></svg><span class="hide-m">${pct}%</span>`;
+}
+function openCtxMenu(anchor) {
+  const x = S.ctx;
+  if (!x) return;
+  const col = x.pct >= x.threshold ? "var(--accent)" : x.pct >= x.threshold - 15 ? "var(--warn)" : "var(--ok)";
+  const p = popover(anchor, `<div class="ttl">Konteks percakapan</div>
+    <div style="padding:2px 12px;font-size:14px">≈${fmtK(x.tokens)} dari ${fmtK(x.window)} token (${x.pct}%)</div>
+    <div class="meter" style="margin:6px 12px"><i style="width:${Math.max(2, x.pct)}%;background:${col}"></i></div>
+    <div style="padding:2px 12px 8px;font-size:12.5px;color:var(--faint)">${x.auto ? `Dipadatkan otomatis di ${x.threshold}%.` : "Pemadatan otomatis mati."} Riwayat di layar tetap utuh; hanya yang dikirim ke model yang diringkas.${x.hasSummary ? `<br>${x.summarizedUpTo} pesan awal sudah diringkas.` : ""}</div>
+    <hr><button class="opt" data-a="now">🗜️ <span><div>Padatkan sekarang</div><div class="d">Ringkas bagian lama (atau ketik /compact)</div></span></button>
+    <button class="opt" data-a="set">⚙️ <span>Pengaturan konteks</span></button>`);
+  $$(".opt", p).forEach((b) => (b.onclick = () => { closePop(); b.dataset.a === "now" ? doCompact() : openSettings("konteks"); }));
+}
+async function doCompact() {
+  const c = S.cur;
+  if (!c?.id || c.source !== "studio") return toast("Kirim pesan dulu sebelum memadatkan.");
+  if (S.live) return toast("Tunggu jawaban selesai dulu.");
+  status("🗜️ Memadatkan percakapan lama…");
+  try {
+    const r = await api(`/api/sessions/studio/${c.id}/padatkan`, { method: "POST", body: { provider: S.provider, model: currentModel() } });
+    if (r.session) Object.assign(c, { summary: r.session.summary, summarizedUpTo: r.session.summarizedUpTo, claudeSessionId: r.session.claudeSessionId });
+    if (r.info) S.ctx = r.info;
+    toast(r.compacted ? `Dipadatkan: ≈${fmtK(r.before)} → ≈${fmtK(r.after)} token` : r.reason || "Tidak ada yang perlu dipadatkan.", 4500);
+    render();
+  } catch (e) { toast(e.message, 6000); }
+  status("");
+}
+function dividerHtml(c) {
+  return `<details class="compactdiv"><summary>🗜️ ${c.summarizedUpTo} pesan di atas diringkas untuk model — ketuk untuk melihat ringkasannya</summary><div class="md">${md(c.summary)}</div></details>`;
+}
+function compactHtml(x) {
+  if (!x) return "";
+  if (x.phase === "done") return `<div class="cnote">🗜️ Percakapan lama dipadatkan: ≈${fmtK(x.before)} → ≈${fmtK(x.after)} token</div>`;
+  return `<div class="cnote">🗜️ Memadatkan percakapan lama…${x.total > 1 ? ` (${(x.done || 0) + 1}/${x.total})` : ""}</div>`;
+}
+PANES.konteks = async function (el) {
+  el.innerHTML = `<h3>Konteks & pemadatan</h3><p class="s">Tiap model punya batas konteks. Saat percakapan mendekati batas model yang dipilih, bagian lama diringkas otomatis dan hanya pesan terbaru yang dikirim apa adanya. Riwayat di layar tetap utuh. Claude langganan memadatkan sesinya sendiri; pengaturan ini ikut mengatur batasnya.</p><div id="kcBox"><p class="s">Memuat…</p></div>`;
+  let r;
+  try { r = await api("/api/konteks/config"); } catch (e) { $("#kcBox", el).innerHTML = `<p style="color:var(--bad)">❌ ${esc(e.message)}</p>`; return; }
+  const c = r.cfg, ready = r.providers.filter((p) => p.ready);
+  $("#kcBox", el).innerHTML = `
+    <label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="kcAuto" ${c.auto ? "checked" : ""}> Padatkan otomatis</label>
+    <label class="fld"><span>Mulai memadatkan di <b id="kcTv">${Math.round(c.threshold * 100)}%</b> dari jendela model</span><input type="range" id="kcTh" min="50" max="90" step="5" value="${Math.round(c.threshold * 100)}"></label>
+    <label class="fld"><span>Pesan terbaru yang dipertahankan utuh: <b id="kcKv">${c.keep}</b></span><input type="range" id="kcKeep" min="2" max="20" value="${c.keep}"></label>
+    <label class="fld"><span>Penyusun ringkasan</span><select id="kcSum"><option value="auto">Otomatis (model chat yang sama; Claude memakai Haiku)</option>${ready.map((p) => `<option value="${esc(p.id)}" ${c.summaryProvider === p.id ? "selected" : ""}>${esc(p.name.split(" (")[0])}</option>`).join("")}</select></label>
+    <label class="fld"><span>Nama model penyusun (opsional)</span><input id="kcSumM" value="${esc(c.summaryModel || "")}" placeholder="kosong = model bawaan penyedia"></label>
+    <h3 style="margin-top:18px">Jendela konteks per penyedia</h3>
+    <p class="s">Dalam token. Kosongkan untuk memakai bawaan. Naikkan bila model Anda sebenarnya mendukung lebih besar (mis. Ollama dengan num_ctx lebih besar); turunkan bila sering terpotong.</p>
+    ${r.providers.map((p) => `<label class="fld"><span>${esc(p.name.split(" (")[0])}</span><input type="number" min="2048" step="1024" data-w="${esc(p.id)}" placeholder="${r.defaults.windows[p.id] || 8192}" value="${c.windows?.[p.id] || ""}"></label>`).join("")}
+    <button class="btn" id="kcSave">Simpan</button> <span id="kcMsg" class="msgx"></span>`;
+  $("#kcTh", el).oninput = (e) => ($("#kcTv", el).textContent = e.target.value + "%");
+  $("#kcKeep", el).oninput = (e) => ($("#kcKv", el).textContent = e.target.value);
+  $("#kcSave", el).onclick = async () => {
+    const windows = {};
+    $$("[data-w]", el).forEach((i) => { if (i.value) windows[i.dataset.w] = Number(i.value); });
+    try {
+      await api("/api/konteks/config", { method: "POST", body: { auto: $("#kcAuto", el).checked, threshold: Number($("#kcTh", el).value) / 100, keep: Number($("#kcKeep", el).value), summaryProvider: $("#kcSum", el).value, summaryModel: $("#kcSumM", el).value, windows } });
+      toast("Pengaturan konteks tersimpan."); scheduleCtx();
+    } catch (e) { $("#kcMsg", el).textContent = e.message; }
+  };
 };
 PANES.gratis = function (el) {
   const free = S.providers.filter((p) => p.group === "gratis");

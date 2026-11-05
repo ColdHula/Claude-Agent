@@ -151,6 +151,7 @@ Fitur:
 | **Proyek** | Instruksi dan berkas pengetahuan yang dipakai otomatis di chat proyek itu (impor dari claude.ai atau buat sendiri) |
 | **Memori** | Fakta tentang Anda yang selalu diingat di semua chat (dari impor claude.ai atau tulis sendiri) |
 | **Semua sesi** | Chat Studio, impor claude.ai ✳, sesi Claude Code di server ◆ (bisa dilanjutkan), tugas Kantor PGA 🏢, HvM AI 💬 |
+| **Konteks otomatis** | Tiap model punya jendela konteks sendiri (Ollama 8 rb token, model gratis ±32 rb, Claude 200 rb). Lingkaran di kotak ketik menunjukkan seberapa penuh. Mendekati 75% (bisa diatur), bagian **lama diringkas otomatis** oleh model dan hanya pesan terbaru yang dikirim apa adanya; ringkasan bersifat bergulir dan dipotong per tahap bila percakapan sangat panjang (mis. hasil impor claude.ai). Riwayat di layar tetap utuh, ringkasannya bisa dibuka. Ketik `/compact` untuk memadatkan manual. Bila ringkasan gagal, riwayat dipotong seperlunya seperti biasa |
 | **Dari HP** | Pasang ke layar utama (PWA). Jawaban tetap dikerjakan server walau HP terkunci atau sinyal putus, lalu **tersambung lagi otomatis** (juga bila halaman dimuat ulang). Menu tampil sebagai lembar dari bawah, ada ketik dengan suara 🎤 dan 📷 foto langsung dari kamera |
 | **Server** (⚙️ → 🖥) | Pantau CPU, RAM, disk, suhu, dan GPU rig; restart layanan (`studio`, `kantor-pga`, `ngobrol`, `ollama`, `tailscaled`, `freellmapi`); baca log; cek dan pasang pembaruan Git; reboot rig (harus mengetik `REBOOT`). Perintah lain: mode Code + izin *Tanya dulu* |
 
