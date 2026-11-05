@@ -48,11 +48,12 @@ export const CATALOG = [
   },
   {
     id: "openrouter-free",
+    keyGroup: "openrouter",
     keyUrl: "https://openrouter.ai/settings/keys",
     kind: "openai",
     group: "gratis",
     name: "OpenRouter (model :free)",
-    note: "Akun OpenRouter gratis, hanya model berakhiran :free.",
+    note: "Akun OpenRouter gratis, hanya model berakhiran :free. Satu kunci OpenRouter juga dipakai penyedia OpenRouter lain dan tab Dolphin/OpenRouter di Ruang bebas.",
     baseUrl: "https://openrouter.ai/api/v1",
     envKey: "OPENROUTER_API_KEY",
     modelFilter: (id) => id.endsWith(":free"),
@@ -112,6 +113,7 @@ export const CATALOG = [
     group: "api",
     name: "OpenRouter (semua model, berbayar)",
     baseUrl: "https://openrouter.ai/api/v1",
+    keyGroup: "openrouter",
     envKey: "OPENROUTER_API_KEY",
     models: [],
     needsKey: true,
@@ -157,8 +159,17 @@ export function createProviders(dataDir, { extra = [] } = {}) {
     if (!c) throw new Error(`Penyedia tidak dikenal: ${id}`);
     const s = saved[id] || {};
     const baseUrl = (s.baseUrl || (c.envUrl && process.env[c.envUrl]) || c.baseUrl || "").replace(/\/+$/, "");
-    const apiKey = s.apiKey || (c.envKey && process.env[c.envKey]) || "";
-    return { ...c, baseUrl, apiKey, defaultModel: s.defaultModel || c.models[0] || "" };
+    let apiKey = s.apiKey || (c.envKey && process.env[c.envKey]) || "";
+    // Penyedia satu layanan (keyGroup) memakai satu kunci: cukup ditempel di salah satunya.
+    let keyShared = false;
+    if (!apiKey && c.keyGroup) {
+      for (const peer of catalog) {
+        if (peer.id === id || peer.keyGroup !== c.keyGroup) continue;
+        const k = saved[peer.id]?.apiKey || (peer.envKey && process.env[peer.envKey]) || "";
+        if (k) { apiKey = k; keyShared = true; break; }
+      }
+    }
+    return { ...c, baseUrl, apiKey, keyShared, defaultModel: s.defaultModel || c.models[0] || "" };
   }
 
   // Untuk browser: tanpa kunci, hanya penanda sudah/belum diisi.
@@ -176,6 +187,7 @@ export function createProviders(dataDir, { extra = [] } = {}) {
         needsKey: c.needsKey,
         hasKey: Boolean(r.apiKey),
         keyFromEnv: Boolean(!saved[c.id]?.apiKey && c.envKey && process.env[c.envKey]),
+        keyShared: Boolean(r.keyShared),
         envKey: c.envKey || null,
         keyUrl: c.keyUrl || null,
         models: c.models,

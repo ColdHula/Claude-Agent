@@ -73,7 +73,7 @@ export function createContext({ store, providers, account, cleanEnv, getSdk, cha
   function windowFor(provider, model) {
     const c = cfg();
     if (c.windows?.[provider]) return c.windows[provider];
-    if (["openrouter", "custom", "freellmapi"].includes(provider) && model && !/^(auto|fusion)/.test(model)) {
+    if (["openrouter", "custom", "freellmapi", "bebas-openrouter"].includes(provider) && model && !/^(auto|fusion)/.test(model)) {
       for (const [re, w] of BY_MODEL) if (re.test(model)) return w;
     }
     return DEFAULT_WINDOWS[provider] || extraWindows[provider] || 8_192;

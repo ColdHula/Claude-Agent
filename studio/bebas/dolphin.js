@@ -16,6 +16,7 @@ export default {
     name: "Dolphin (OpenRouter)",
     baseUrl: "https://openrouter.ai/api/v1",
     envKey: "BEBAS_DOLPHIN_KEY",
+    keyGroup: "openrouter", // kunci OpenRouter dipakai bersama (cukup ditempel sekali)
     keyUrl: "https://openrouter.ai/settings/keys",
     needsKey: true,
     models: ["cognitivecomputations/dolphin-mistral-24b-venice-edition:free"],

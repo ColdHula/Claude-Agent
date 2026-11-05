@@ -1211,7 +1211,7 @@ const PANES = {
         ${p.note ? `<div class="n">${esc(p.note)}</div>` : ""}
         ${p.kind === "claude-sdk" ? `<div class="n">Login sekali di server: <code>npm run login</code> → ketik <code>/login</code>. Rem pengaman $${S.info?.maxUsd ?? 3} per pesan.</div>` : `<div class="grid">
           ${p.editableUrl ? `<label class="fld"><span>URL (…/v1)</span><input data-k="baseUrl" value="${esc(p.baseUrl)}" placeholder="https://…/v1"></label>` : ""}
-          ${p.needsKey || p.id === "custom" ? `<label class="fld"><span>Kunci API${p.envKey ? ` <small style="color:var(--faint)">atau env ${p.envKey}</small>` : ""}</span><input data-k="apiKey" type="password" autocomplete="off" placeholder="${p.hasKey ? (p.keyFromEnv ? "dari env ✓" : "•••• tersimpan") : "tempel kunci di sini"}"></label>` : ""}
+          ${p.needsKey || p.id === "custom" ? `<label class="fld"><span>Kunci API${p.envKey ? ` <small style="color:var(--faint)">atau env ${p.envKey}</small>` : ""}</span><input data-k="apiKey" type="password" autocomplete="off" placeholder="${p.hasKey ? (p.keyFromEnv ? "dari env ✓" : p.keyShared ? "memakai kunci OpenRouter yang sama ✓" : "•••• tersimpan") : "tempel kunci di sini"}"></label>` : ""}
         </div>`}
         <div class="row"><label class="fld" style="flex:1;margin:0"><span>Model bawaan</span><input data-k="defaultModel" value="${esc(p.defaultModel)}"></label></div>
         <div class="row">${p.kind !== "claude-sdk" ? `<button class="btn2" data-save>Simpan</button>` : `<button class="btn2" data-save>Simpan model</button>`}<button class="btn2" data-test>Tes koneksi</button><span class="msgx"></span></div>
@@ -1612,7 +1612,7 @@ async function openSpaceSettings(id) {
     <p class="s">${esc(b.desc)}</p>
     <div class="pcard"><div class="h"><span class="dot ${pv.ready ? "ok" : ""}"></span>Koneksi<span style="margin-left:auto;font-size:12px;font-weight:400;color:var(--faint)">${esc(b.host)}</span></div>
       <label class="fld"><span>URL dasar (…/v1)</span><input data-k="baseUrl" value="${esc(pv.baseUrl)}"></label>
-      <label class="fld"><span>Kunci API${pv.envKey ? ` <small style="color:var(--faint)">atau env ${esc(pv.envKey)}</small>` : ""}</span><input data-k="apiKey" type="password" autocomplete="off" placeholder="${pv.hasKey ? (pv.keyFromEnv ? "dari env ✓" : "•••• tersimpan") : "tempel kunci"}"></label>
+      <label class="fld"><span>Kunci API${pv.envKey ? ` <small style="color:var(--faint)">atau env ${esc(pv.envKey)}</small>` : ""}</span><input data-k="apiKey" type="password" autocomplete="off" placeholder="${pv.hasKey ? (pv.keyFromEnv ? "dari env ✓" : pv.keyShared ? "memakai kunci OpenRouter yang sama ✓" : "•••• tersimpan") : "tempel kunci"}"></label>
       <label class="fld"><span>Model</span><input data-k="model" list="spModels" value="${esc(b.model)}"><datalist id="spModels">${b.models.map((x) => `<option value="${esc(x)}">`).join("")}</datalist></label>
       <div class="row"><button class="btn2" data-test>Tes koneksi & daftar model</button>${pv.keyUrl ? `<a href="${esc(pv.keyUrl)}" target="_blank" rel="noopener">dapatkan kunci ↗</a>` : ""}<span class="msgx" id="spMsg"></span></div></div>
     <label class="fld"><span>Instruksi sistem tab ini (opsional)</span><textarea data-k="system" rows="5" placeholder="Kosong = instruksi netral bawaan: asisten yang jujur dan langsung.">${esc(b.system)}</textarea></label>
@@ -1629,10 +1629,10 @@ async function openSpaceSettings(id) {
 $("#spCfg").onclick = () => openSpaceSettings(S.space);
 PANES.gratis = function (el) {
   const free = S.providers.filter((p) => p.group === "gratis");
-  el.innerHTML = `<h3>Pilih AI gratis</h3><p class="s">Isi satu atau beberapa. Semuanya muncul di tombol model saat mengetik, dan bisa dipakai bergantian dengan Claude. Paling mudah: <b>Gemini</b> atau <b>Groq</b> (cukup kunci gratis). <b>FreeLLMAPI</b> menggabungkan banyak penyedia sekaligus.</p>` +
+  el.innerHTML = `<h3>Pilih AI gratis</h3><p class="s">Isi satu atau beberapa. Semuanya muncul di tombol model saat mengetik, dan bisa dipakai bergantian dengan Claude. Paling mudah: <b>Gemini</b> atau <b>Groq</b> (cukup kunci gratis). <b>FreeLLMAPI</b> menggabungkan banyak penyedia sekaligus. <b>OpenRouter</b> juga: satu kunci untuk banyak model, dan ikut dipakai tab Dolphin dan OpenRouter di Ruang bebas.</p>` +
     free.map((p) => `<div class="pcard" data-id="${p.id}"><div class="h"><span class="dot ${p.ready ? "ok" : ""}"></span>${esc(p.name)}${p.keyUrl ? `<a href="${esc(p.keyUrl)}" target="_blank" rel="noopener" style="margin-left:auto;font-size:13px;font-weight:400">${p.id === "freellmapi" ? "cara pasang ↗" : p.id === "ollama" ? "unduh ↗" : "dapatkan kunci gratis ↗"}</a>` : ""}</div>
       ${p.note ? `<div class="n">${esc(p.note)}</div>` : ""}
-      <div class="grid">${p.editableUrl && (p.id === "freellmapi" || p.id === "ollama") ? `<label class="fld"><span>URL</span><input data-k="baseUrl" value="${esc(p.baseUrl)}"></label>` : ""}${p.needsKey ? `<label class="fld"><span>Kunci API</span><input data-k="apiKey" type="password" autocomplete="off" placeholder="${p.hasKey ? (p.keyFromEnv ? "dari env ✓" : "•••• tersimpan") : "tempel kunci"}"></label>` : ""}</div>
+      <div class="grid">${p.editableUrl && (p.id === "freellmapi" || p.id === "ollama") ? `<label class="fld"><span>URL</span><input data-k="baseUrl" value="${esc(p.baseUrl)}"></label>` : ""}${p.needsKey ? `<label class="fld"><span>Kunci API</span><input data-k="apiKey" type="password" autocomplete="off" placeholder="${p.hasKey ? (p.keyFromEnv ? "dari env ✓" : p.keyShared ? "memakai kunci OpenRouter yang sama ✓" : "•••• tersimpan") : "tempel kunci"}"></label>` : ""}</div>
       <div class="row"><button class="btn2" data-save>Simpan & tes</button><button class="btn2" data-use ${p.ready ? "" : "disabled"}>Jadikan bawaan</button><span class="msgx"></span></div></div>`).join("");
   $$(".pcard", el).forEach((c) => {
     const id = c.dataset.id, msg = $(".msgx", c);
